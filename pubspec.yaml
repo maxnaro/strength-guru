@@ -1,0 +1,43 @@
+name: strength_guru
+description: StrengthGuru — workout logger with previous-session placeholder feature.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # State
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # DB
+  drift: ^2.22.0
+  drift_flutter: ^0.2.0
+  sqlite3_flutter_libs: ^0.5.22
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Utils
+  collection: ^1.18.0
+  intl: ^0.19.0
+  uuid: ^4.4.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  drift_dev: ^2.22.0
+  riverpod_generator: ^2.4.0
+  custom_lint: 0.7.6
+  riverpod_lint: ^2.3.10
+
+flutter:
+  uses-material-design: true
