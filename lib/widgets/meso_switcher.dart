@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../db/database.dart';
 import '../db/queries.dart';
 import '../providers.dart';
+import '../screens/meso_import_screen.dart';
 import '../theme/tokens.dart';
 import '../theme/sg_atoms.dart';
 
@@ -89,6 +94,26 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
             ),
           ),
         ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _handleImportCsv,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: p.chipBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.border, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.upload_file_outlined, size: 18, color: p.textDim),
+                const SizedBox(width: 8),
+                Text('Import from CSV',
+                    style: SGText.body(14, color: p.textDim)),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           'Starts as a 5-week template. Edit any cell after.',
@@ -138,6 +163,32 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
     ref.invalidate(activeMesoProvider);
     ref.invalidate(allMesosProvider);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _handleImportCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+      withData: true,
+    );
+    if (result == null || !mounted) return;
+
+    final file = result.files.single;
+    String csvContent;
+    if (file.bytes != null) {
+      csvContent = utf8.decode(file.bytes!);
+    } else if (file.path != null) {
+      csvContent = await File(file.path!).readAsString();
+    } else {
+      return;
+    }
+
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    nav.pop(); // close switcher sheet
+    nav.push(MaterialPageRoute(
+      builder: (_) => MesoImportScreen(csvContent: csvContent),
+    ));
   }
 }
 
