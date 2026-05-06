@@ -19,7 +19,7 @@ class Mesocycles extends Table {
 
 class Exercises extends Table {
   TextColumn get id => text()();
-  TextColumn get name => text().unique()();
+  TextColumn get name => text()();
   TextColumn get group => text()();
 
   @override
@@ -106,7 +106,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -169,6 +169,12 @@ class AppDatabase extends _$AppDatabase {
                   .write(MesocyclesCompanion(
                       deloadWeeks: Value((row.numWeeks - 1).toString())));
             }
+          }
+
+          if (from < 5) {
+            // v4 -> v5: Remove unique constraint from Exercises.name.
+            // ignore: experimental_member_use
+            await m.alterTable(TableMigration(exercises));
           }
         },
       );

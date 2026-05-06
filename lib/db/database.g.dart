@@ -366,9 +366,7 @@ class $ExercisesTable extends Exercises
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _groupMeta = const VerificationMeta('group');
   @override
   late final GeneratedColumn<String> group = GeneratedColumn<String>(
