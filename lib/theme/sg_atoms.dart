@@ -414,7 +414,7 @@ class SGStat extends StatelessWidget {
 
 // ── SGStepper ─────────────────────────────────────────────────────────────────
 
-class SGStepper extends StatelessWidget {
+class SGStepper extends StatefulWidget {
   final num value;
   final num min;
   final num max;
@@ -435,6 +435,66 @@ class SGStepper extends StatelessWidget {
   });
 
   @override
+  State<SGStepper> createState() => _SGStepperState();
+}
+
+class _SGStepperState extends State<SGStepper> {
+  String _format(num v) {
+    if (v is double && v == v.truncateToDouble()) {
+      return v.toInt().toString();
+    }
+    return v.toString();
+  }
+
+  Future<void> _showDirectInput(BuildContext context) async {
+    final p = pal(context);
+    final ctrl = TextEditingController(text: _format(widget.value));
+    ctrl.selection =
+        TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
+
+    final result = await showDialog<num>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.surface,
+        title: widget.label != null
+            ? Text(widget.label!, style: SGText.mono(11, color: p.textDim))
+            : null,
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(
+              decimal: true, signed: false),
+          style: SGText.display(22, color: p.text),
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            enabledBorder:
+                OutlineInputBorder(borderSide: BorderSide(color: p.border)),
+            focusedBorder:
+                OutlineInputBorder(borderSide: BorderSide(color: p.accent)),
+          ),
+          onSubmitted: (s) => Navigator.pop(ctx, num.tryParse(s)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: SGText.body(14, color: p.textDim)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, num.tryParse(ctrl.text)),
+            child: Text('OK',
+                style: SGText.body(14,
+                    color: p.accent, weight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      widget.onChanged(result.clamp(widget.min, widget.max));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final p = pal(context);
     return Container(
@@ -447,8 +507,8 @@ class SGStepper extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (label != null) ...[
-            Text(label!, style: SGText.mono(9, color: p.textFaint)),
+          if (widget.label != null) ...[
+            Text(widget.label!, style: SGText.mono(9, color: p.textFaint)),
             const SizedBox(height: 4),
           ],
           Row(
@@ -456,30 +516,35 @@ class SGStepper extends StatelessWidget {
             children: [
               _StepBtn(
                 icon: Icons.remove,
-                onTap: value > min
-                    ? () => onChanged(
-                          (value - step).clamp(min, max),
+                onTap: widget.value > widget.min
+                    ? () => widget.onChanged(
+                          (widget.value - widget.step)
+                              .clamp(widget.min, widget.max),
                         )
                     : null,
                 palette: p,
               ),
               Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: Text(
-                    _format(value),
-                    style: SGText.display(22,
-                        color: accentColor ?? p.text, ls: -0.2),
-                    maxLines: 1,
+                child: GestureDetector(
+                  onTap: () => _showDirectInput(context),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: Text(
+                      _format(widget.value),
+                      style: SGText.display(22,
+                          color: widget.accentColor ?? p.text, ls: -0.2),
+                      maxLines: 1,
+                    ),
                   ),
                 ),
               ),
               _StepBtn(
                 icon: Icons.add,
-                onTap: value < max
-                    ? () => onChanged(
-                          (value + step).clamp(min, max),
+                onTap: widget.value < widget.max
+                    ? () => widget.onChanged(
+                          (widget.value + widget.step)
+                              .clamp(widget.min, widget.max),
                         )
                     : null,
                 palette: p,
@@ -489,13 +554,6 @@ class SGStepper extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _format(num v) {
-    if (v is double && v == v.truncateToDouble()) {
-      return v.toInt().toString();
-    }
-    return v.toString();
   }
 }
 
