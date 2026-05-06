@@ -72,6 +72,21 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     }
   }
 
+  void _navigateDay(Mesocycle meso, DayKey current, int delta) {
+    int newDay = current.dayIdx + delta;
+    int newWeek = current.weekIdx;
+    if (newDay < 0) {
+      newWeek--;
+      newDay = 6;
+    } else if (newDay > 6) {
+      newWeek++;
+      newDay = 0;
+    }
+    if (newWeek < 0 || newWeek >= meso.numWeeks) return;
+    ref.read(selectedLogDayProvider.notifier).state =
+        DayKey(meso.id, newWeek, newDay);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
@@ -144,35 +159,52 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     final effectiveActiveSet = _userActiveSet ?? implicitActive;
 
     // Header height: base content + top safe area
-    const kHeaderContent = 64.0;
+    const kHeaderContent = 68.0;
     final headerH = kHeaderContent + topPad;
 
     return Scaffold(
       backgroundColor: p.bg,
-      body: CustomScrollView(
-        slivers: [
-          // Sticky session header
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _FixedHeaderDelegate(
-              height: headerH,
-              child: _SessionHeader(
-                group: group,
-                title: splitName,
-                plateLabel: (daySettingsAsync.valueOrNull?.label ?? group.label).toUpperCase(),
-                meso: meso,
-                effective: effective,
-                topPad: topPad,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragEnd: (details) {
+          const threshold = 250.0;
+          final v = details.primaryVelocity;
+          if (v == null) return;
+          if (v > threshold) {
+            _navigateDay(meso, effective, -1); // swipe right = prev day
+          } else if (v < -threshold) {
+            _navigateDay(meso, effective, 1); // swipe left = next day
+          }
+        },
+        child: CustomScrollView(
+          slivers: [
+            // Sticky session header
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _FixedHeaderDelegate(
+                height: headerH,
+                child: _SessionHeader(
+                  group: group,
+                  title: splitName,
+                  plateLabel: (daySettingsAsync.valueOrNull?.label ?? group.label)
+                      .toUpperCase(),
+                  meso: meso,
+                  effective: effective,
+                  topPad: topPad,
+                  isToday: today != null &&
+                      effective.weekIdx == today.weekIdx &&
+                      effective.dayIdx == today.dayIdx,
+                  onTapToday: () =>
+                      ref.read(selectedLogDayProvider.notifier).state = null,
+                ),
               ),
             ),
-          ),
 
           // Day picker strip
           SliverToBoxAdapter(
             child: _DayPickerStrip(
               meso: meso,
               effective: effective,
-              today: today,
             ),
           ),
 
@@ -252,6 +284,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
           SliverToBoxAdapter(child: SizedBox(height: bottomPad)),
         ],
       ),
+    ),
     );
   }
 
@@ -278,12 +311,10 @@ class _LogScreenState extends ConsumerState<LogScreen> {
 class _DayPickerStrip extends ConsumerWidget {
   final Mesocycle meso;
   final DayKey effective;
-  final DayKey? today;
 
   const _DayPickerStrip({
     required this.meso,
     required this.effective,
-    required this.today,
   });
 
   @override
@@ -293,70 +324,96 @@ class _DayPickerStrip extends ConsumerWidget {
     return Column(
       children: [
         // Weeks
-        SizedBox(
-          height: 48,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: meso.numWeeks,
-            itemBuilder: (ctx, i) {
-              final active = effective.weekIdx == i;
-              return GestureDetector(
-                onTap: () {
-                  ref.read(selectedLogDayProvider.notifier).state =
-                      DayKey(meso.id, i, effective.dayIdx);
+        Stack(
+          children: [
+            SizedBox(
+              height: 52,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                itemCount: meso.numWeeks,
+                itemBuilder: (ctx, i) {
+                  final active = effective.weekIdx == i;
+                  return GestureDetector(
+                    onTap: () {
+                      ref.read(selectedLogDayProvider.notifier).state =
+                          DayKey(meso.id, i, effective.dayIdx);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: active ? p.text : p.chipBg,
+                        borderRadius: BorderRadius.circular(SGRadius.chip),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'WEEK ${i + 1}',
+                          style: SGText.mono(11,
+                              color: active ? p.bg : p.textDim,
+                              weight: active ? FontWeight.bold : FontWeight.normal),
+                        ),
+                      ),
+                    ),
+                  );
                 },
+              ),
+            ),
+            Positioned(
+              right: -1,
+              top: 0,
+              bottom: 0,
+              width: 40,
+              child: IgnorePointer(
                 child: Container(
-                  margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: active ? p.text : p.chipBg,
-                    borderRadius: BorderRadius.circular(SGRadius.chip),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'WEEK ${i + 1}',
-                      style: SGText.mono(10,
-                          color: active ? p.bg : p.textDim,
-                          weight: active ? FontWeight.bold : FontWeight.normal),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerRight,
+                      end: Alignment.centerLeft,
+                      colors: [p.bg, p.bg.withValues(alpha: 0)],
                     ),
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
         // Days
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (int i = 0; i < 7; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: _dayChip(context, ref, i),
-                  ),
-                if (today != null &&
-                    (effective.weekIdx != today!.weekIdx ||
-                        effective.dayIdx != today!.dayIdx))
-                  GestureDetector(
-                    onTap: () =>
-                        ref.read(selectedLogDayProvider.notifier).state = null,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: p.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(SGRadius.chip),
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    for (int i = 0; i < 7; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: _dayChip(context, ref, i),
                       ),
-                      child:
-                          Text('Today', style: SGText.mono(10, color: p.accent)),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: -1,
+                top: 0,
+                bottom: 0,
+                width: 40,
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerRight,
+                        end: Alignment.centerLeft,
+                        colors: [p.bg, p.bg.withValues(alpha: 0)],
+                      ),
                     ),
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -366,7 +423,8 @@ class _DayPickerStrip extends ConsumerWidget {
   Widget _dayChip(BuildContext context, WidgetRef ref, int dayIdx) {
     final p = pal(context);
     final active = effective.dayIdx == dayIdx;
-    final groupAsync = ref.watch(dayGroupProvider(DayKey(meso.id, effective.weekIdx, dayIdx)));
+    final groupAsync = ref
+        .watch(dayGroupProvider(DayKey(meso.id, effective.weekIdx, dayIdx)));
     final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -376,8 +434,8 @@ class _DayPickerStrip extends ConsumerWidget {
             DayKey(meso.id, effective.weekIdx, dayIdx);
       },
       child: Container(
-        width: 24,
-        height: 24,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: active ? group.color : group.tint(Theme.of(context).brightness),
           shape: BoxShape.circle,
@@ -389,7 +447,7 @@ class _DayPickerStrip extends ConsumerWidget {
         child: Center(
           child: Text(
             days[dayIdx],
-            style: SGText.mono(11,
+            style: SGText.mono(13,
                 color: active ? Colors.black : p.textDim,
                 weight: active ? FontWeight.bold : FontWeight.normal),
           ),
@@ -431,6 +489,8 @@ class _SessionHeader extends StatelessWidget {
   final Mesocycle meso;
   final DayKey effective;
   final double topPad;
+  final bool isToday;
+  final VoidCallback? onTapToday;
 
   const _SessionHeader({
     required this.group,
@@ -439,6 +499,8 @@ class _SessionHeader extends StatelessWidget {
     required this.meso,
     required this.effective,
     required this.topPad,
+    required this.isToday,
+    this.onTapToday,
   });
 
   @override
@@ -459,7 +521,7 @@ class _SessionHeader extends StatelessWidget {
       color: p.bg,
       padding: EdgeInsets.only(top: topPad),
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: group.tint(brightness),
@@ -489,6 +551,21 @@ class _SessionHeader extends StatelessWidget {
                 ],
               ),
             ),
+            if (!isToday && onTapToday != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: onTapToday,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: p.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text('Today', style: SGText.mono(10, color: p.accent)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
