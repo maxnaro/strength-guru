@@ -1,13 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:background_downloader/background_downloader.dart';
 
 class ModelService {
   static const _modelUrl =
       'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
   static const _filename = 'gemma-4-E2B-it-Q4_K_M.gguf';
+  static const _subdir = 'sg_models';
+  static const _taskId = 'sg-model-download';
   // Sanity floor: real file is ~3.11 GB
   static const _minBytes = 2800000000;
   // Fallback if Q4_K_M triggers JetSam kill on 6 GB iOS devices:
@@ -15,11 +16,19 @@ class ModelService {
   // _filename = 'gemma-4-E2B-it-Q3_K_M.gguf'
   // _minBytes = 2200000000
 
+  static DownloadTask _buildTask() => DownloadTask(
+        taskId: _taskId,
+        url: _modelUrl,
+        filename: _filename,
+        baseDirectory: BaseDirectory.applicationDocuments,
+        directory: _subdir,
+        updates: Updates.statusAndProgress,
+        retries: 5,
+        allowPause: true,
+      );
+
   static Future<String> modelPath() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final modelsDir = Directory(p.join(dir.path, 'sg_models'));
-    await modelsDir.create(recursive: true);
-    return p.join(modelsDir.path, _filename);
+    return _buildTask().filePath();
   }
 
   static Future<bool> isDownloaded() async {
@@ -29,42 +38,63 @@ class ModelService {
     return (await file.length()) >= _minBytes;
   }
 
-  /// Yields progress 0.0–1.0. Writes to a .tmp file then renames atomically.
-  /// Caller is responsible for cancellation (just stop listening).
-  static Stream<double> download() async* {
-    final path = await modelPath();
-    final tmpPath = '$path.tmp';
+  /// Persistent download via OS-managed foreground service (Android) or
+  /// background URLSession (iOS). Survives screen-off and app suspension.
+  /// Yields progress 0.0–1.0. Caller should call [cancel] to abort —
+  /// just unsubscribing keeps the OS task running.
+  static Stream<double> download() {
+    final controller = StreamController<double>();
 
-    final client = http.Client();
-    try {
-      final request = http.Request('GET', Uri.parse(_modelUrl));
-      final response = await client.send(request);
-
-      if (response.statusCode != 200) {
-        throw ModelDownloadException(
-            'HTTP ${response.statusCode}');
-      }
-
-      final total = response.contentLength ?? 0;
-      var received = 0;
-
-      final sink = File(tmpPath).openWrite();
+    Future<void> run() async {
       try {
-        await for (final chunk in response.stream) {
-          sink.add(chunk);
-          received += chunk.length;
-          if (total > 0) yield received / total;
-        }
-        await sink.flush();
-      } finally {
-        await sink.close();
-      }
+        await FileDownloader()
+            .permissions
+            .request(PermissionType.notifications);
 
-      await File(tmpPath).rename(path);
-      yield 1.0;
-    } finally {
-      client.close();
+        FileDownloader().configureNotification(
+          running: const TaskNotification(
+              'Downloading model', '{filename} · {progress}'),
+          complete: const TaskNotification('Model ready', ''),
+          error: const TaskNotification('Download failed', ''),
+          progressBar: true,
+        );
+
+        final result = await FileDownloader().download(
+          _buildTask(),
+          onProgress: (progress) {
+            if (!controller.isClosed && progress >= 0 && progress <= 1) {
+              controller.add(progress);
+            }
+          },
+        );
+
+        if (controller.isClosed) return;
+
+        switch (result.status) {
+          case TaskStatus.complete:
+            controller.add(1.0);
+            await controller.close();
+          case TaskStatus.canceled:
+            await controller.close();
+          default:
+            controller.addError(ModelDownloadException(
+                result.exception?.description ?? result.status.name));
+            await controller.close();
+        }
+      } catch (e) {
+        if (!controller.isClosed) {
+          controller.addError(e);
+          await controller.close();
+        }
+      }
     }
+
+    run();
+    return controller.stream;
+  }
+
+  static Future<void> cancel() async {
+    await FileDownloader().cancelTaskWithId(_taskId);
   }
 }
 

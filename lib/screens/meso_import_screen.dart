@@ -96,6 +96,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
   }
 
   void _cancelDownload() {
+    ModelService.cancel();
     _downloadSub?.cancel();
     _downloadSub = null;
     if (mounted) Navigator.of(context).pop();
