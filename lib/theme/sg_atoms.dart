@@ -595,56 +595,148 @@ Future<T?> showSGSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled || maxHeightFraction != null,
     useSafeArea: true,
+    backgroundColor: Colors.transparent,
     builder: (ctx) {
-      Widget content = Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          0,
-          20,
-          MediaQuery.of(ctx).viewInsets.bottom + 38,
+      final p = pal(ctx);
+      const shape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(SGRadius.sheet),
         ),
-        child: child,
       );
 
       if (maxHeightFraction != null) {
-        content = DraggableScrollableSheet(
-          initialChildSize: maxHeightFraction,
-          minChildSize: 0.3,
-          maxChildSize: maxHeightFraction,
-          expand: false,
-          builder: (_, ctrl) => SingleChildScrollView(
-            controller: ctrl,
-            padding: EdgeInsets.fromLTRB(
-              20,
-              0,
-              20,
-              MediaQuery.of(ctx).viewInsets.bottom + 38,
-            ),
-            child: child,
-          ),
+        return _SGDraggableSheet(
+          fraction: maxHeightFraction,
+          palette: p,
+          shape: shape,
+          modalCtx: ctx,
+          child: child,
         );
       }
 
-      final p = pal(ctx);
-      return Column(
-        mainAxisSize:
-            maxHeightFraction != null ? MainAxisSize.max : MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: p.textFaint.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2),
+      return Material(
+        color: p.surface,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: p.textFaint.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Flexible(child: content),
-        ],
+            const SizedBox(height: 16),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                MediaQuery.of(ctx).viewInsets.bottom + 38,
+              ),
+              child: child,
+            ),
+          ],
+        ),
       );
     },
   );
+}
+
+class _SGDraggableSheet extends StatefulWidget {
+  final double fraction;
+  final SGPalette palette;
+  final RoundedRectangleBorder shape;
+  final BuildContext modalCtx;
+  final Widget child;
+
+  const _SGDraggableSheet({
+    required this.fraction,
+    required this.palette,
+    required this.shape,
+    required this.modalCtx,
+    required this.child,
+  });
+
+  @override
+  State<_SGDraggableSheet> createState() => _SGDraggableSheetState();
+}
+
+class _SGDraggableSheetState extends State<_SGDraggableSheet> {
+  late final DraggableScrollableController _ctrl;
+  bool _popped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = DraggableScrollableController();
+    final dismissAt = widget.fraction * 0.75;
+    _ctrl.addListener(() {
+      if (!_popped && _ctrl.isAttached && _ctrl.size < dismissAt) {
+        _popped = true;
+        Navigator.of(widget.modalCtx).maybePop();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.fraction;
+    final p = widget.palette;
+    return DraggableScrollableSheet(
+      controller: _ctrl,
+      expand: false,
+      initialChildSize: f,
+      maxChildSize: f,
+      minChildSize: (f * 0.5).clamp(0.25, f),
+      snap: true,
+      snapSizes: [f],
+      builder: (_, scrollCtrl) => Material(
+        color: p.surface,
+        shape: widget.shape,
+        clipBehavior: Clip.antiAlias,
+        child: CustomScrollView(
+          controller: scrollCtrl,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 16),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: p.textFaint.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 38,
+              ),
+              sliver: SliverToBoxAdapter(child: widget.child),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── SGProgressRail ────────────────────────────────────────────────────────────

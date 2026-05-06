@@ -69,42 +69,37 @@ class _MesoEditSheetState extends ConsumerState<MesoEditSheet> {
             style: SGText.display(20, color: p.text)),
         const SizedBox(height: 20),
         // Steppers
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: SGStepper(
-                value: _sets,
-                min: 1,
-                max: 10,
-                step: 1,
-                label: 'SETS',
-                accentColor: groupColor,
-                onChanged: (v) => setState(() => _sets = v.toInt()),
-              ),
+            SGStepper(
+              value: _sets,
+              min: 1,
+              max: 10,
+              step: 1,
+              label: 'SETS',
+              accentColor: groupColor,
+              onChanged: (v) => setState(() => _sets = v.toInt()),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SGStepper(
-                value: _reps,
-                min: 1,
-                max: 30,
-                step: 1,
-                label: 'REPS',
-                accentColor: groupColor,
-                onChanged: (v) => setState(() => _reps = v.toInt()),
-              ),
+            const SizedBox(height: 10),
+            SGStepper(
+              value: _reps,
+              min: 1,
+              max: 30,
+              step: 1,
+              label: 'REPS',
+              accentColor: groupColor,
+              onChanged: (v) => setState(() => _reps = v.toInt()),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SGStepper(
-                value: _rir,
-                min: 0,
-                max: 5,
-                step: 1,
-                label: 'RIR',
-                accentColor: groupColor,
-                onChanged: (v) => setState(() => _rir = v.toInt()),
-              ),
+            const SizedBox(height: 10),
+            SGStepper(
+              value: _rir,
+              min: 0,
+              max: 5,
+              step: 1,
+              label: 'RIR',
+              accentColor: groupColor,
+              onChanged: (v) => setState(() => _rir = v.toInt()),
             ),
           ],
         ),
