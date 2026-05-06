@@ -343,8 +343,15 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                 margin: const EdgeInsets.only(bottom: 4),
                 child: const Icon(Icons.delete_outline, color: Colors.white),
               ),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                decoration: isCurrentWeek
+                    ? BoxDecoration(
+                        color: p.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      )
+                    : null,
                 child: Row(
                   children: [
                     ..._dayIndices.map((dayIdx) {
@@ -385,7 +392,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                               ),
                               child: Stack(
                                 children: [
-                                  if (isDeload && !isRest)
+                                  if (isDeload && !isRest && !sessionExists)
                                     const Center(
                                       child: Text('D',
                                           style: TextStyle(
@@ -394,32 +401,9 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                                               color: Colors.white)),
                                     ),
                                   if (sessionExists)
-                                    Positioned(
-                                      top: 2,
-                                      right: 2,
-                                      child: Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.black,
-                                        ),
-                                        child: const Icon(Icons.check,
-                                            size: 6, color: Colors.white),
-                                      ),
-                                    ),
-                                  if (isCurrentWeek && !isToday)
-                                    Positioned(
-                                      top: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(1),
-                                        child: Text(
-                                          'W${weekIdx + 1}',
-                                          style:
-                                              SGText.mono(6, color: p.accent),
-                                        ),
-                                      ),
+                                    const Center(
+                                      child: Icon(Icons.check,
+                                          size: 16, color: Colors.white),
                                     ),
                                 ],
                               ),
@@ -832,6 +816,11 @@ class _SettingsRow extends ConsumerWidget {
           label: Text('Re-seed', style: SGText.body(13, color: p.textFaint)),
         ),
         TextButton.icon(
+          onPressed: () => _setWeek(context, ref),
+          icon: Icon(Icons.calendar_today, size: 16, color: p.textFaint),
+          label: Text('Set week', style: SGText.body(13, color: p.textFaint)),
+        ),
+        TextButton.icon(
           onPressed: () => _wipe(context, ref),
           icon: Icon(Icons.delete_outline, size: 16, color: p.accent),
           label: Text('Wipe data', style: SGText.body(13, color: p.accent)),
@@ -898,5 +887,41 @@ class _SettingsRow extends ConsumerWidget {
     await ref.read(dbProvider).wipeAllData();
     ref.invalidate(activeMesoProvider);
     ref.invalidate(allMesosProvider);
+  }
+
+  Future<void> _setWeek(BuildContext context, WidgetRef ref) async {
+    final p = pal(context);
+    final selectedWeek = await showSGSheet<int>(
+      context,
+      maxHeightFraction: 0.6,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Set Current Week', style: SGText.display(20, color: p.text)),
+          const SizedBox(height: 16),
+          ...List.generate(meso.numWeeks, (i) {
+            return ListTile(
+              title:
+                  Text('Week ${i + 1}', style: SGText.body(16, color: p.text)),
+              onTap: () => Navigator.pop(context, i),
+            );
+          }),
+          const SizedBox(height: 10),
+          SGButton.ghost(
+            label: 'Cancel',
+            color: p.textDim,
+            fullWidth: true,
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedWeek != null) {
+      final db = ref.read(dbProvider);
+      await db.setMesoCurrentWeek(meso.id, selectedWeek);
+      ref.invalidate(activeMesoProvider);
+      ref.invalidate(todayKeyProvider);
+    }
   }
 }
