@@ -89,11 +89,7 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
           ),
         ),
         const SizedBox(height: 16),
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.45,
-          ),
-          child: ReorderableListView(
+        ReorderableListView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             onReorder: (oldIdx, newIdx) {
@@ -113,7 +109,6 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
                 ),
             ],
           ),
-        ),
         const SizedBox(height: 12),
         SGButton.ghost(
           label: '+ Add exercise',
