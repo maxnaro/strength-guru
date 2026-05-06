@@ -191,38 +191,47 @@ class _DownloadView extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = palette;
     final pct = (progress * 100).toStringAsFixed(0);
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.download_rounded, size: 48, color: p.accent),
-          const SizedBox(height: 24),
-          Text('Downloading model',
-              style: SGText.display(20, color: p.text)),
-          const SizedBox(height: 6),
-          Text('3.1 GB · one-time download',
-              style: SGText.body(13, color: p.textDim)),
-          const SizedBox(height: 32),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: p.border,
-              valueColor: AlwaysStoppedAnimation(p.accent),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.download_rounded, size: 48, color: p.accent),
+                  const SizedBox(height: 24),
+                  Text('Downloading model',
+                      style: SGText.display(20, color: p.text)),
+                  const SizedBox(height: 6),
+                  Text('3.1 GB · one-time download',
+                      style: SGText.body(13, color: p.textDim)),
+                  const SizedBox(height: 32),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: p.border,
+                      valueColor: AlwaysStoppedAnimation(p.accent),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('$pct%', style: SGText.mono(12, color: p.textFaint)),
+                  const SizedBox(height: 40),
+                  SGButton.ghost(
+                    label: 'Cancel',
+                    color: p.textDim,
+                    fullWidth: true,
+                    onTap: onCancel,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          Text('$pct%', style: SGText.mono(12, color: p.textFaint)),
-          const SizedBox(height: 40),
-          SGButton.ghost(
-            label: 'Cancel',
-            color: p.textDim,
-            fullWidth: true,
-            onTap: onCancel,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -268,52 +277,61 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Import failed', style: SGText.display(20, color: palette.text)),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: palette.warn.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: palette.warn.withValues(alpha: 0.3), width: 0.5),
-            ),
-            child: Text(message,
-                style: SGText.mono(13, color: palette.warn)),
-          ),
-          if (rawResponse != null) ...[
-            const SizedBox(height: 12),
-            Text('Model output', style: SGText.mono(10, color: palette.textFaint)),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 200),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: palette.border, width: 0.5),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Import failed', style: SGText.display(20, color: palette.text)),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: palette.warn.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: palette.warn.withValues(alpha: 0.3), width: 0.5),
+                    ),
+                    child: Text(message,
+                        style: SGText.mono(13, color: palette.warn)),
+                  ),
+                  if (rawResponse != null) ...[
+                    const SizedBox(height: 12),
+                    Text('Model output', style: SGText.mono(10, color: palette.textFaint)),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: palette.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: palette.border, width: 0.5),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Text(rawResponse!,
+                            style: SGText.mono(11, color: palette.textDim)),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  SGButton.solid(
+                    label: 'Retry',
+                    color: palette.accent,
+                    fullWidth: true,
+                    onTap: onRetry,
+                  ),
+                ],
               ),
-              child: SingleChildScrollView(
-                child: Text(rawResponse!,
-                    style: SGText.mono(11, color: palette.textDim)),
-              ),
             ),
-          ],
-          const Spacer(),
-          SGButton.solid(
-            label: 'Retry',
-            color: palette.accent,
-            fullWidth: true,
-            onTap: onRetry,
           ),
-        ],
+        ),
       ),
     );
   }
