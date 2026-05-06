@@ -303,14 +303,15 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
         children: [
           // Header row
           Row(
-            children: _dayLabels
-                .map((l) => Expanded(
-                      child: Center(
-                        child:
-                            Text(l, style: SGText.mono(9, color: p.textFaint)),
-                      ),
-                    ))
-                .toList(),
+            children: [
+              ..._dayLabels.map((l) => Expanded(
+                    child: Center(
+                      child:
+                          Text(l, style: SGText.mono(9, color: p.textFaint)),
+                    ),
+                  )),
+              const SizedBox(width: 28),
+            ],
           ),
           const SizedBox(height: 4),
           // Week rows
@@ -549,14 +550,14 @@ class _TimelineView extends ConsumerWidget {
                     return GestureDetector(
                       onTap: () => ref.read(dbProvider).toggleDeloadWeek(meso.id, w),
                       behavior: HitTestBehavior.opaque,
-                      child: SizedBox(
+                      child: Container(
                         width: 68,
-                        child: Center(
-                          child: Text(
-                            isDeload ? 'DELOAD' : 'W${w + 1}',
-                            style:
-                                SGText.mono(9, color: isDeload ? p.warn : p.textDim),
-                          ),
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        alignment: Alignment.center,
+                        child: Text(
+                          isDeload ? 'DELOAD' : 'W${w + 1}',
+                          style:
+                              SGText.mono(9, color: isDeload ? p.warn : p.textDim),
                         ),
                       ),
                     );
@@ -644,7 +645,7 @@ class _TimelineView extends ConsumerWidget {
           ),
         ),
         Positioned(
-          right: 0,
+          right: -1,
           top: 0,
           bottom: 0,
           width: 40,
@@ -652,8 +653,8 @@ class _TimelineView extends ConsumerWidget {
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
                   colors: [p.bg, p.bg.withValues(alpha: 0)],
                 ),
               ),
