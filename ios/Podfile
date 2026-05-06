@@ -1,0 +1,71 @@
+platform :ios, '14.0'
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug'   => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first."
+  end
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get."
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  pod 'LlamaCpp', :path => 'Frameworks'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+
+  require 'xcodeproj'
+  project_path = File.expand_path('Runner.xcodeproj', __dir__)
+  project = Xcodeproj::Project.open(project_path)
+  runner = project.targets.find { |t| t.name == 'Runner' }
+
+  device_path = '$(SRCROOT)/Frameworks/llama.xcframework/ios-arm64/llama.framework/llama'
+  sim_path    = '$(SRCROOT)/Frameworks/llama.xcframework/ios-arm64-simulator/llama.framework/llama'
+
+  runner.build_configurations.each do |config|
+    {
+      'OTHER_LDFLAGS[sdk=iphoneos*]'        => device_path,
+      'OTHER_LDFLAGS[sdk=iphonesimulator*]' => sim_path,
+    }.each do |key, archive_path|
+      existing = config.build_settings[key]
+      flags = case existing
+              when nil   then ['$(inherited)']
+              when Array then existing.dup
+              else            existing.to_s.split
+              end
+
+      # -force_load ensures the static archive isn't dead-stripped.
+      # -Wl,-export_dynamic ensures symbols are visible to dlsym(RTLD_DEFAULT).
+      unless flags.each_cons(2).any? { |a, b| a == '-force_load' && b == archive_path }
+        flags.concat(['-force_load', archive_path])
+      end
+      flags << '-Wl,-export_dynamic' unless flags.include?('-Wl,-export_dynamic')
+
+      config.build_settings[key] = flags
+    end
+  end
+
+  project.save
+  puts 'llama.xcframework -force_load and -export_dynamic wired into Runner'
+end

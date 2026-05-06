@@ -50,6 +50,22 @@ jobs:
       - name: Build iOS (no codesign)
         run: flutter build ios --release --no-codesign
 
+      - name: Verify llama symbols in Runner binary
+        run: |
+          BIN=build/ios/iphoneos/Runner.app/Runner
+          file "$BIN"
+          echo "--- size ---"
+          ls -la "$BIN"
+          echo "--- llama_* symbols ---"
+          if nm -gU "$BIN" | grep -E ' _llama_' | head -20; then
+            echo "OK: llama symbols present in Runner binary"
+          else
+            echo "ERROR: llama symbols missing from Runner binary"
+            echo "--- OTHER_LDFLAGS in pbxproj (Runner target) ---"
+            grep -n -B1 -A3 OTHER_LDFLAGS ios/Runner.xcodeproj/project.pbxproj || true
+            exit 1
+          fi
+
       - name: Package IPA
         run: |
           mkdir -p Payload

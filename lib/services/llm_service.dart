@@ -29,7 +29,12 @@ class LlmService {
       } on Exception catch (e) {
         final msg = e.toString();
         if (msg.contains('libllama') || msg.contains('dlopen') || msg.contains('LlamaLibrary')) {
-          throw LlmException('LLM unavailable on this architecture (ARM64 only)');
+          final hint = Platform.isIOS
+              ? 'llama.xcframework not embedded in Runner target.'
+              : Platform.isAndroid
+                  ? 'llama-cpp-dart .aar missing from android/app/libs/.'
+                  : 'libllama shared library not found.';
+          throw LlmException('LLM native library failed to load. $hint\n$msg');
         }
         rethrow;
       }
