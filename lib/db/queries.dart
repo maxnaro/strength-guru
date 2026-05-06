@@ -92,6 +92,74 @@ extension MesoQueries on AppDatabase {
     await (update(mesocycles)..where((t) => t.id.equals(id)))
         .write(MesocyclesCompanion(name: Value(name)));
   }
+
+  Future<void> duplicateMeso(String id, String newName) async {
+    final meso =
+        await (select(mesocycles)..where((t) => t.id.equals(id))).getSingle();
+    final pDays = await (select(programDays)
+          ..where((t) => t.mesocycleId.equals(id)))
+        .get();
+    final wTargets = await (select(weekTargets)
+          ..where((t) => t.mesocycleId.equals(id)))
+        .get();
+    final dOverrides = await (select(dayOverrides)
+          ..where((t) => t.mesocycleId.equals(id)))
+        .get();
+
+    final newId_ = newId();
+    await transaction(() async {
+      await (update(mesocycles)..where((t) => t.isActive.equals(true)))
+          .write(const MesocyclesCompanion(isActive: Value(false)));
+
+      await into(mesocycles).insert(MesocyclesCompanion.insert(
+        id: newId_,
+        name: newName,
+        startDate: DateTime.now(),
+        isActive: const Value(true),
+        numWeeks: Value(meso.numWeeks),
+        deloadWeeks: Value(meso.deloadWeeks),
+      ));
+
+      for (final r in pDays) {
+        await into(programDays).insert(ProgramDaysCompanion.insert(
+          mesocycleId: newId_,
+          dayIdx: r.dayIdx,
+          label: Value(r.label),
+        ));
+      }
+
+      for (final r in wTargets) {
+        await into(weekTargets).insert(WeekTargetsCompanion.insert(
+          mesocycleId: newId_,
+          weekIdx: r.weekIdx,
+          exerciseId: r.exerciseId,
+          sets: r.sets,
+          reps: r.reps,
+          rir: r.rir,
+        ));
+      }
+
+      for (final r in dOverrides) {
+        await into(dayOverrides).insert(DayOverridesCompanion.insert(
+          mesocycleId: newId_,
+          weekIdx: r.weekIdx,
+          dayIdx: r.dayIdx,
+          exerciseIdsCsv: r.exerciseIdsCsv,
+        ));
+      }
+    });
+  }
+
+  Future<void> setMesoCurrentWeek(String id, int targetWeekIdx) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayDayIdx = (now.weekday - 1) % 7;
+    final daysSince = (targetWeekIdx * 7) + todayDayIdx;
+    final newStartDate = today.subtract(Duration(days: daysSince));
+
+    await (update(mesocycles)..where((t) => t.id.equals(id)))
+        .write(MesocyclesCompanion(startDate: Value(newStartDate)));
+  }
 }
 
 // ── WeekTarget queries ────────────────────────────────────────────────────────
