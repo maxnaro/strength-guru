@@ -62,6 +62,8 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
                 isActive: isActive,
                 palette: p,
                 onTap: isActive ? null : () => _activate(m),
+                onRename: (newName) => _handleRename(m, newName),
+                onDuplicate: (newName) => _handleDuplicate(m, newName),
               );
             }).toList(),
           ),
@@ -103,6 +105,22 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _handleRename(Mesocycle meso, String newName) async {
+    final db = ref.read(dbProvider);
+    await db.renameMeso(meso.id, newName);
+    ref.invalidate(activeMesoProvider);
+    ref.invalidate(allMesosProvider);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _handleDuplicate(Mesocycle meso, String newName) async {
+    final db = ref.read(dbProvider);
+    await db.duplicateMeso(meso.id, newName);
+    ref.invalidate(activeMesoProvider);
+    ref.invalidate(allMesosProvider);
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _handleCreate(String name) async {
     final db = ref.read(dbProvider);
     final trimmed = name.trim();
@@ -114,23 +132,119 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
   }
 }
 
+Future<String?> _showNameDialog(
+    BuildContext context, String title, String initialValue) async {
+  final controller = TextEditingController(text: initialValue);
+  final p = pal(context);
+  return showSGSheet<String>(
+    context,
+    isScrollControlled: true,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: SGText.display(20, color: p.text)),
+        const SizedBox(height: 16),
+        TextField(
+          controller: controller,
+          autofocus: true,
+          style: SGText.body(15, color: p.text),
+          decoration: InputDecoration(
+            hintText: 'Name',
+            hintStyle: SGText.body(15, color: p.textFaint),
+          ),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+            child: SGButton.ghost(
+              label: 'Cancel',
+              color: p.textDim,
+              fullWidth: true,
+              onTap: () => Navigator.pop(context),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SGButton.solid(
+              label: 'Confirm',
+              color: p.accent,
+              fullWidth: true,
+              onTap: () => Navigator.pop(context, controller.text.trim()),
+            ),
+          ),
+        ]),
+      ],
+    ),
+  );
+}
+
 class _MesoRow extends StatelessWidget {
   final Mesocycle meso;
   final bool isActive;
   final SGPalette palette;
   final VoidCallback? onTap;
+  final Function(String newName)? onRename;
+  final Function(String newName)? onDuplicate;
 
   const _MesoRow({
     required this.meso,
     required this.isActive,
     required this.palette,
     required this.onTap,
+    this.onRename,
+    this.onDuplicate,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: () {
+        showSGSheet(
+          context,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(meso.name, style: SGText.display(20, color: palette.text)),
+              const SizedBox(height: 16),
+              SGButton.solid(
+                label: 'Rename',
+                color: palette.accent,
+                fullWidth: true,
+                onTap: () async {
+                  Navigator.pop(context);
+                  final newName = await _showNameDialog(context, 'Rename', meso.name);
+                  if (newName != null && newName.isNotEmpty) {
+                    onRename?.call(newName);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              SGButton.solid(
+                label: 'Duplicate',
+                color: palette.accent,
+                fullWidth: true,
+                onTap: () async {
+                  Navigator.pop(context);
+                  final newName = await _showNameDialog(context, 'Duplicate', '${meso.name} (Copy)');
+                  if (newName != null && newName.isNotEmpty) {
+                    onDuplicate?.call(newName);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              SGButton.ghost(
+                label: 'Cancel',
+                color: palette.textDim,
+                fullWidth: true,
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

@@ -250,15 +250,16 @@ class _HeroCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Eyebrow chips
-                      Row(children: [
-                        SGChip('WEEK ${heroKey.weekIdx + 1}'),
-                        const SizedBox(width: 6),
-                        SGChip(dayLabel.toUpperCase()),
-                        if (isDeloadWeek) ...[
-                          const SizedBox(width: 6),
-                          const SGChip('DELOAD', tone: ChipTone.warn),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          SGChip('WEEK ${heroKey.weekIdx + 1}'),
+                          SGChip(dayLabel.toUpperCase()),
+                          if (isDeloadWeek)
+                            const SGChip('DELOAD', tone: ChipTone.warn),
                         ],
-                      ]),
+                      ),
                       const SizedBox(height: 12),
                       // Title
                       Text(
