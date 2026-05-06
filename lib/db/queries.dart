@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../models/meso_import_data.dart';
 import '../util/ids.dart';
 import 'database.dart';
 
@@ -586,6 +587,80 @@ extension MesoMutationQueries on AppDatabase {
         ),
       );
     });
+  }
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+
+extension MesoImportQueries on AppDatabase {
+  Future<Mesocycle> importMesoFromPlan(MesoImportData data) async {
+    final mesoId = newId();
+
+    await transaction(() async {
+      await (update(mesocycles)..where((t) => t.isActive.equals(true)))
+          .write(const MesocyclesCompanion(isActive: Value(false)));
+
+      await into(mesocycles).insert(MesocyclesCompanion.insert(
+        id: mesoId,
+        name: data.name,
+        startDate: DateTime.now(),
+        isActive: const Value(true),
+        numWeeks: Value(data.numWeeks),
+      ));
+
+      // Resolve / create all exercises up-front
+      final exIdByName = <String, String>{};
+      for (final day in data.days) {
+        for (final ex in day.exercises) {
+          if (exIdByName.containsKey(ex.name)) continue;
+          final e = await findOrCreateExerciseByName(ex.name, ex.muscleGroup);
+          exIdByName[ex.name] = e.id;
+        }
+      }
+
+      // ProgramDays
+      for (final day in data.days) {
+        await into(programDays).insert(ProgramDaysCompanion.insert(
+          mesocycleId: mesoId,
+          dayIdx: day.dayIdx,
+          label: Value(day.label.isEmpty ? null : day.label),
+        ));
+      }
+
+      // DayOverrides + WeekTargets per week
+      for (var w = 0; w < data.numWeeks; w++) {
+        for (final day in data.days) {
+          final exIds = day.exercises
+              .map((e) => exIdByName[e.name]!)
+              .toList();
+
+          await into(dayOverrides).insertOnConflictUpdate(
+            DayOverridesCompanion.insert(
+              mesocycleId: mesoId,
+              weekIdx: w,
+              dayIdx: day.dayIdx,
+              exerciseIdsCsv: exIds.join(','),
+            ),
+          );
+
+          for (final ex in day.exercises) {
+            final t = ex.targetForWeek(w);
+            await into(weekTargets).insertOnConflictUpdate(
+              WeekTargetsCompanion.insert(
+                mesocycleId: mesoId,
+                weekIdx: w,
+                exerciseId: exIdByName[ex.name]!,
+                sets: t.sets,
+                reps: t.reps,
+                rir: t.rir,
+              ),
+            );
+          }
+        }
+      }
+    });
+
+    return (select(mesocycles)..where((t) => t.id.equals(mesoId))).getSingle();
   }
 }
 
