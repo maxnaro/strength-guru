@@ -8,6 +8,12 @@ import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
 import 'exercise_picker.dart';
 
+class _SlotItem {
+  final Exercise exercise;
+  String? slotId;
+  _SlotItem({required this.exercise, this.slotId});
+}
+
 class DayProgramEditor extends ConsumerStatefulWidget {
   final Mesocycle meso;
   final int dayIdx;
@@ -23,7 +29,7 @@ class DayProgramEditor extends ConsumerStatefulWidget {
 }
 
 class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
-  List<Exercise>? _exercises;
+  List<_SlotItem>? _items;
   bool _initialized = false;
   late TextEditingController _labelController;
 
@@ -47,12 +53,14 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
     final daySettingsAsync = ref.watch(programDayProvider(key));
 
     if (!_initialized && asyncExs.hasValue && daySettingsAsync.hasValue) {
-      _exercises = List.from(asyncExs.value!);
+      _items = asyncExs.value!
+          .map((e) => _SlotItem(exercise: e.exercise, slotId: e.slot.id))
+          .toList();
       _labelController.text = daySettingsAsync.value?.label ?? '';
       _initialized = true;
     }
 
-    if (_exercises == null) {
+    if (_items == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
         child: Center(child: CircularProgressIndicator()),
@@ -95,17 +103,17 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
             onReorder: (oldIdx, newIdx) {
               setState(() {
                 if (newIdx > oldIdx) newIdx -= 1;
-                final item = _exercises!.removeAt(oldIdx);
-                _exercises!.insert(newIdx, item);
+                final item = _items!.removeAt(oldIdx);
+                _items!.insert(newIdx, item);
               });
             },
             children: [
-              for (int i = 0; i < _exercises!.length; i++)
+              for (int i = 0; i < _items!.length; i++)
                 _DraggableRow(
-                  key: ValueKey('${_exercises![i].id}_$i'),
+                  key: ValueKey('${_items![i].slotId ?? 'new'}_$i'),
                   index: i,
-                  exercise: _exercises![i],
-                  onDelete: () => setState(() => _exercises!.removeAt(i)),
+                  exercise: _items![i].exercise,
+                  onDelete: () => setState(() => _items!.removeAt(i)),
                 ),
             ],
           ),
@@ -137,13 +145,9 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
       maxHeightFraction: 0.8,
       child: ExercisePicker(
         defaultGroup: MuscleGroup.values[widget.dayIdx % 6], // fallback
-        excludeIds: _exercises!.map((e) => e.id).toSet(),
+        excludeIds: const {}, // Allow duplicates
         onSelected: (ex) {
-          if (_exercises!.any((e) => e.id == ex.id)) {
-            Navigator.pop(context);
-            return;
-          }
-          setState(() => _exercises!.add(ex));
+          setState(() => _items!.add(_SlotItem(exercise: ex)));
           Navigator.pop(context);
         },
       ),
@@ -188,13 +192,22 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
       if (proceed != true) return;
     }
 
-    final ids = _exercises!.map((e) => e.id).toList();
+    // Ensure all items have slots
+    final slotIds = <String>[];
+    for (final item in _items!) {
+      if (item.slotId == null) {
+        final slot = await db.createExerciseSlot(widget.meso.id, item.exercise.id);
+        item.slotId = slot.id;
+      }
+      slotIds.add(item.slotId!);
+    }
+
     await db.setWeekForwardOverride(
       widget.meso.id,
       0,
       widget.meso.numWeeks,
       widget.dayIdx,
-      ids,
+      slotIds,
     );
 
     await db.upsertProgramDay(

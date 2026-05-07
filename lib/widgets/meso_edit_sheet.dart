@@ -12,7 +12,7 @@ class MesoEditSheet extends ConsumerStatefulWidget {
   final String mesoId;
   final int weekIdx;
   final int numWeeks;
-  final String exerciseId;
+  final String slotId;
   final String exerciseName;
   final MuscleGroup group;
   final WeekTarget? initialTarget;
@@ -22,7 +22,7 @@ class MesoEditSheet extends ConsumerStatefulWidget {
     required this.mesoId,
     required this.weekIdx,
     required this.numWeeks,
-    required this.exerciseId,
+    required this.slotId,
     required this.exerciseName,
     required this.group,
     required this.initialTarget,
@@ -132,7 +132,7 @@ class _MesoEditSheetState extends ConsumerState<MesoEditSheet> {
           mesoId: widget.mesoId,
           fromWeekIdx: widget.weekIdx,
           numWeeks: widget.numWeeks,
-          exerciseId: widget.exerciseId,
+          slotId: widget.slotId,
           sets: _sets,
           reps: _reps,
           rir: _rir,
@@ -141,7 +141,7 @@ class _MesoEditSheetState extends ConsumerState<MesoEditSheet> {
         await db.upsertWeekTarget(
           mesoId: widget.mesoId,
           weekIdx: widget.weekIdx,
-          exerciseId: widget.exerciseId,
+          slotId: widget.slotId,
           sets: _sets,
           reps: _reps,
           rir: _rir,

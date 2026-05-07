@@ -50,11 +50,6 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
     final db = ref.read(dbProvider);
     final ex = await db.findOrCreateExerciseByName(name, _pickedGroup.name);
 
-    if (widget.excludeIds.contains(ex.id)) {
-      setState(() => _addError = 'Already in plan');
-      return;
-    }
-
     ref.invalidate(allExercisesProvider);
     setState(() => _addError = null);
     widget.onSelected(ex);
