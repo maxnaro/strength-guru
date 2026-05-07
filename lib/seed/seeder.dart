@@ -19,37 +19,59 @@ class Seeder {
 
   static Future<void> _seed(AppDatabase db) async {
     await db.transaction(() async {
-      // Insert exercises and collect key→id map.
-      final keyToId = <String, String>{};
+      // 1. Insert unique exercises by name and group.
+      final nameToExId = <String, String>{};
       for (final def in kExercises) {
-        final id = newId();
-        await db.into(db.exercises).insert(ExercisesCompanion.insert(
-          id: id,
-          name: def.name,
-          group: def.group,
-        ));
-        keyToId[def.key] = id;
+        if (!nameToExId.containsKey(def.name)) {
+          final id = newId();
+          await db.into(db.exercises).insert(ExercisesCompanion.insert(
+                id: id,
+                name: def.name,
+                group: def.group,
+              ));
+          nameToExId[def.name] = id;
+        }
       }
 
       final startDate = _thisWeekMonday();
       final mesoId = newId();
       await db.into(db.mesocycles).insert(MesocyclesCompanion.insert(
-        id: mesoId,
-        name: 'Zercher Focus',
-        startDate: startDate,
-        isActive: const Value(true),
-        numWeeks: const Value(9),
-        deloadWeeks: const Value('3,8'),
-      ));
+            id: mesoId,
+            name: 'Zercher Focus',
+            startDate: startDate,
+            isActive: const Value(true),
+            numWeeks: const Value(9),
+            deloadWeeks: const Value('3,8'),
+          ));
+
+      // 2. Create slots for each ExerciseDef key.
+      final keyToSlotId = <String, String>{};
+      for (final def in kExercises) {
+        final slotId = newId();
+        await db.into(db.exerciseSlots).insert(ExerciseSlotsCompanion.insert(
+              id: slotId,
+              mesocycleId: mesoId,
+              exerciseId: nameToExId[def.name]!,
+            ));
+        keyToSlotId[def.key] = slotId;
+      }
 
       // Day labels
-      final dayLabels = ['Chest & Shoulders', 'Quads & Calves', 'Rest', 'Back', 'Glutes & Hamstrings', 'Triceps & Biceps', 'Rest'];
+      final dayLabels = [
+        'Chest & Shoulders',
+        'Quads & Calves',
+        'Rest',
+        'Back',
+        'Glutes & Hamstrings',
+        'Triceps & Biceps',
+        'Rest'
+      ];
       for (var d = 0; d < 7; d++) {
         await db.into(db.programDays).insert(ProgramDaysCompanion.insert(
-          mesocycleId: mesoId,
-          dayIdx: d,
-          label: Value(dayLabels[d]),
-        ));
+              mesocycleId: mesoId,
+              dayIdx: d,
+              label: Value(dayLabels[d]),
+            ));
       }
 
       final weeklyRir = [2, 2, 1, 4, 1, 1, 2, 0, 4];
@@ -58,7 +80,7 @@ class Seeder {
       for (var w = 0; w < 9; w++) {
         final rir = weeklyRir[w];
         for (final def in kExercises) {
-          final exId = keyToId[def.key]!;
+          final slotId = keyToSlotId[def.key]!;
           var reps = def.baseReps;
           var targetRir = rir;
 
@@ -70,13 +92,13 @@ class Seeder {
           }
 
           await db.into(db.weekTargets).insert(WeekTargetsCompanion.insert(
-            mesocycleId: mesoId,
-            weekIdx: w,
-            exerciseId: exId,
-            sets: def.baseSets,
-            reps: reps,
-            rir: targetRir,
-          ));
+                mesocycleId: mesoId,
+                weekIdx: w,
+                slotId: slotId,
+                sets: def.baseSets,
+                reps: reps,
+                rir: targetRir,
+              ));
         }
 
         // Day Overrides to handle exercise variations and specific ordering.
@@ -84,7 +106,9 @@ class Seeder {
           0: [
             'dips_top',
             'dips_backoff',
-            (w == 0 || w == 4 || w == 5) ? 'barbell_shoulder_press' : 'machine_shoulder_press',
+            (w == 0 || w == 4 || w == 5)
+                ? 'barbell_shoulder_press'
+                : 'machine_shoulder_press',
             (w == 2 || w == 4) ? 'dumbbell_chest_flyes' : 'cable_chest_flyes',
             'dumbbell_lateral_raises',
             'cable_lateral_raises',
@@ -129,13 +153,13 @@ class Seeder {
         for (var d = 0; d < 7; d++) {
           final keys = dayExercises[d]!;
           if (keys.isEmpty) continue;
-          final ids = keys.map((k) => keyToId[k]!).join(',');
+          final ids = keys.map((k) => keyToSlotId[k]!).join(',');
           await db.into(db.dayOverrides).insert(DayOverridesCompanion.insert(
-            mesocycleId: mesoId,
-            weekIdx: w,
-            dayIdx: d,
-            exerciseIdsCsv: ids,
-          ));
+                mesocycleId: mesoId,
+                weekIdx: w,
+                dayIdx: d,
+                exerciseIdsCsv: ids,
+              ));
         }
       }
     });
@@ -147,5 +171,4 @@ class Seeder {
     final monday = now.subtract(Duration(days: dayOfWeek));
     return DateTime(monday.year, monday.month, monday.day);
   }
-
 }
