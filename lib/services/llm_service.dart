@@ -14,7 +14,6 @@ class LlmService {
     // Enable wakelock to prevent system sleep during heavy LLM load
     await WakelockPlus.enable();
 
-    // Reduce nCtx for stability on 6GB iOS devices.
     // Using Q3_K_M model (~2.3GB) allows for some gpuLayers.
     final modelParams = ModelParams(path: path, gpuLayers: 15);
     const ctxParams = ContextParams(nCtx: 16384, nBatch: 256, nUbatch: 256);
@@ -34,7 +33,9 @@ class LlmService {
               );
       } on Exception catch (e) {
         final msg = e.toString();
-        if (msg.contains('libllama') || msg.contains('dlopen') || msg.contains('LlamaLibrary')) {
+        if (msg.contains('libllama') ||
+            msg.contains('dlopen') ||
+            msg.contains('LlamaLibrary')) {
           final hint = Platform.isIOS
               ? 'llama.xcframework not embedded in Runner target.'
               : Platform.isAndroid
@@ -76,7 +77,8 @@ class LlmService {
   String _buildPrompt(String csv) =>
       '<bos><|turn>user\n${_instructions(csv)}<turn|>\n<|turn>model\n';
 
-  String _instructions(String csv) => '''You are a precision workout parser. Extract every exercise row from the provided CSV and output JSON.
+  String _instructions(String csv) =>
+      '''You are a precision workout parser. Extract every exercise row from the provided CSV and output JSON.
 
 STRICT NUMERIC RULES:
 1. RIR & RPE ARE THE SAME: If the CSV provides RPE (e.g., "8"), convert it to RIR using (10 - RPE).

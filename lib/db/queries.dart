@@ -608,13 +608,17 @@ extension MesoImportQueries on AppDatabase {
         numWeeks: Value(data.numWeeks),
       ));
 
-      // Resolve / create all exercises up-front
+      // Resolve / create all exercises and slots up-front
       final exIdByName = <String, String>{};
+      final slotIdByExName = <String, String>{};
       for (final day in data.days) {
         for (final ex in day.exercises) {
           if (exIdByName.containsKey(ex.name)) continue;
           final e = await findOrCreateExerciseByName(ex.name, ex.muscleGroup);
           exIdByName[ex.name] = e.id;
+
+          final slot = await findOrCreateExerciseSlot(mesoId, e.id);
+          slotIdByExName[ex.name] = slot.id;
         }
       }
 
@@ -630,8 +634,8 @@ extension MesoImportQueries on AppDatabase {
       // DayOverrides + WeekTargets per week
       for (var w = 0; w < data.numWeeks; w++) {
         for (final day in data.days) {
-          final exIds = day.exercises
-              .map((e) => exIdByName[e.name]!)
+          final slotIds = day.exercises
+              .map((e) => slotIdByExName[e.name]!)
               .toList();
 
           await into(dayOverrides).insertOnConflictUpdate(
@@ -639,7 +643,7 @@ extension MesoImportQueries on AppDatabase {
               mesocycleId: mesoId,
               weekIdx: w,
               dayIdx: day.dayIdx,
-              exerciseIdsCsv: exIds.join(','),
+              exerciseIdsCsv: slotIds.join(','),
             ),
           );
 
@@ -649,7 +653,7 @@ extension MesoImportQueries on AppDatabase {
               WeekTargetsCompanion.insert(
                 mesocycleId: mesoId,
                 weekIdx: w,
-                exerciseId: exIdByName[ex.name]!,
+                slotId: slotIdByExName[ex.name]!,
                 sets: t.sets,
                 reps: t.reps,
                 rir: t.rir,
