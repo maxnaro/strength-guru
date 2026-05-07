@@ -10,8 +10,10 @@ class LlmService {
   Future<MesoImportData> interpretPlan(String csvContent) async {
     final path = await ModelService.modelPath();
 
-    final modelParams = ModelParams(path: path, gpuLayers: 99);
-    const ctxParams = ContextParams(nCtx: 4096, nBatch: 512, nUbatch: 512);
+    // Reduce gpuLayers and nCtx for stability on 6GB iOS devices.
+    // gpuLayers: 0 (CPU) is slowest but most stable for debugging memory.
+    final modelParams = ModelParams(path: path, gpuLayers: 0);
+    const ctxParams = ContextParams(nCtx: 2048, nBatch: 256, nUbatch: 256);
 
     LlamaEngine? engine;
     try {
@@ -42,12 +44,18 @@ class LlmService {
       final session = await engine.createSession();
       final buffer = StringBuffer();
 
+      // Basic prompt truncation to avoid exceeding nCtx
+      var promptCsv = csvContent;
+      if (promptCsv.length > 4000) {
+        promptCsv = promptCsv.substring(0, 4000) + '... [truncated]';
+      }
+
       await for (final ev in session.generate(
-        prompt: _buildPrompt(csvContent),
+        prompt: _buildPrompt(promptCsv),
         addSpecial: true,
         parseSpecial: true,
         sampler: const SamplerParams(temperature: 0.0),
-        maxTokens: 2048,
+        maxTokens: 1024,
       )) {
         switch (ev) {
           case TokenEvent():
