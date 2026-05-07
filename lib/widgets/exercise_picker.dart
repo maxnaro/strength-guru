@@ -113,16 +113,14 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
                   const SizedBox(width: 8),
                   SGButton.soft(
                     label: 'Add',
+                    color: (_nameCtrl.text.isNotEmpty && !isDuplicate) ? null : p.textFaint,
                     onTap: (_nameCtrl.text.isNotEmpty && !isDuplicate) ? _handleAddCustom : null,
                   ),
                 ],
               ),
-              if (_addError != null || isDuplicate) ...[
+              if (_addError != null) ...[
                 const SizedBox(height: 8),
-                Text(
-                  isDuplicate ? 'Already exists' : _addError!,
-                  style: SGText.body(13, color: p.warn),
-                ),
+                Text(_addError!, style: SGText.body(13, color: p.warn)),
               ],
               const SizedBox(height: 16),
               Wrap(
