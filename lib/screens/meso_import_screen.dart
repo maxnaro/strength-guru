@@ -207,7 +207,7 @@ class _DownloadView extends StatelessWidget {
                   Text('Downloading model',
                       style: SGText.display(20, color: p.text)),
                   const SizedBox(height: 6),
-                  Text('3.1 GB · one-time download',
+                  Text('2.3 GB · one-time download',
                       style: SGText.body(13, color: p.textDim)),
                   const SizedBox(height: 32),
                   ClipRRect(
