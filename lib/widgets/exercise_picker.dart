@@ -26,7 +26,6 @@ class ExercisePicker extends ConsumerStatefulWidget {
 class _ExercisePickerState extends ConsumerState<ExercisePicker> {
   final _nameCtrl = TextEditingController();
   late MuscleGroup _pickedGroup = widget.defaultGroup;
-  String _searchQuery = '';
   String? _addError;
 
   @override
@@ -66,6 +65,10 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
     final p = pal(context);
     final exercisesAsync = ref.watch(allExercisesProvider);
 
+    final query = _nameCtrl.text.trim().toLowerCase();
+    final allExercises = exercisesAsync.valueOrNull ?? [];
+    final isDuplicate = allExercises.any((e) => e.name.toLowerCase() == query);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -104,14 +107,14 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
                           border: InputBorder.none,
                           fillColor: Colors.transparent
                         ),
-                        onChanged: (v) => setState(() => _searchQuery = v),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   SGButton.soft(
                     label: 'Add',
-                    onTap: _nameCtrl.text.isNotEmpty ? _handleAddCustom : null,
+                    color: (_nameCtrl.text.isNotEmpty && !isDuplicate) ? null : p.textFaint,
+                    onTap: (_nameCtrl.text.isNotEmpty && !isDuplicate) ? _handleAddCustom : null,
                   ),
                 ],
               ),
@@ -154,25 +157,25 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
           data: (list) {
             final filtered = list
                 .where((e) => !widget.excludeIds.contains(e.id))
-                .where((e) => e.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+                .where((e) => e.name.toLowerCase().contains(query))
                 .toList();
 
-            final sameGroup = filtered.where((e) => e.group == widget.defaultGroup.name).toList();
-            final otherGroup = filtered.where((e) => e.group != widget.defaultGroup.name).toList();
+            final sameGroup = filtered.where((e) => e.group == _pickedGroup.name).toList();
+            final otherGroup = filtered.where((e) => e.group != _pickedGroup.name).toList();
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (sameGroup.isNotEmpty) ...[
-                  Text('SAME GROUP', style: SGText.mono(10, color: p.textFaint)),
+                  Text('${_pickedGroup.label.toUpperCase()} EXERCISES', style: SGText.mono(10, color: p.textFaint)),
                   const SizedBox(height: 12),
                   ...sameGroup.map((e) => _ExerciseRow(e, onTap: () => widget.onSelected(e))),
                   const SizedBox(height: 16),
                 ],
-                if (otherGroup.isNotEmpty) ...[
+                if (query.isNotEmpty && otherGroup.isNotEmpty) ...[
                   if (sameGroup.isNotEmpty)
                     const SizedBox(height: 8),
-                  Text('OTHER EXERCISES', style: SGText.mono(10, color: p.textFaint)),
+                  Text('OTHER GROUPS', style: SGText.mono(10, color: p.textFaint)),
                   const SizedBox(height: 12),
                   ...otherGroup.map((e) => _ExerciseRow(e, onTap: () => widget.onSelected(e))),
                 ],
