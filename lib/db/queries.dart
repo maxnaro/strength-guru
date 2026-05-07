@@ -39,6 +39,33 @@ extension ExerciseQueries on AppDatabase {
         ExercisesCompanion.insert(id: id, name: name, group: group));
     return (select(exercises)..where((t) => t.id.equals(id))).getSingle();
   }
+
+  Future<ExerciseSlot> findOrCreateExerciseSlot(
+      String mesoId, String exerciseId) async {
+    final existing = await (select(exerciseSlots)
+          ..where((t) =>
+              t.mesocycleId.equals(mesoId) & t.exerciseId.equals(exerciseId)))
+        .getSingleOrNull();
+    if (existing != null) return existing;
+
+    return createExerciseSlot(mesoId, exerciseId);
+  }
+
+  Future<ExerciseSlot> createExerciseSlot(
+      String mesoId, String exerciseId) async {
+    final id = newId();
+    await into(exerciseSlots).insert(ExerciseSlotsCompanion.insert(
+      id: id,
+      mesocycleId: mesoId,
+      exerciseId: exerciseId,
+    ));
+    return (select(exerciseSlots)..where((t) => t.id.equals(id))).getSingle();
+  }
+
+  Future<List<ExerciseSlot>> getSlotsByIds(List<String> ids) {
+    if (ids.isEmpty) return Future.value([]);
+    return (select(exerciseSlots)..where((t) => t.id.isIn(ids))).get();
+  }
 }
 
 // ── Mesocycle queries ─────────────────────────────────────────────────────────
@@ -118,6 +145,9 @@ extension MesoQueries on AppDatabase {
     final pDays = await (select(programDays)
           ..where((t) => t.mesocycleId.equals(id)))
         .get();
+    final slots = await (select(exerciseSlots)
+          ..where((t) => t.mesocycleId.equals(id)))
+        .get();
     final wTargets = await (select(weekTargets)
           ..where((t) => t.mesocycleId.equals(id)))
         .get();
@@ -147,11 +177,22 @@ extension MesoQueries on AppDatabase {
         ));
       }
 
+      final slotMap = <String, String>{};
+      for (final r in slots) {
+        final newSlotId = newId();
+        await into(exerciseSlots).insert(ExerciseSlotsCompanion.insert(
+          id: newSlotId,
+          mesocycleId: newId_,
+          exerciseId: r.exerciseId,
+        ));
+        slotMap[r.id] = newSlotId;
+      }
+
       for (final r in wTargets) {
         await into(weekTargets).insert(WeekTargetsCompanion.insert(
           mesocycleId: newId_,
           weekIdx: r.weekIdx,
-          exerciseId: r.exerciseId,
+          slotId: slotMap[r.slotId]!,
           sets: r.sets,
           reps: r.reps,
           rir: r.rir,
@@ -159,11 +200,16 @@ extension MesoQueries on AppDatabase {
       }
 
       for (final r in dOverrides) {
+        final slotIds = r.exerciseIdsCsv
+            .split(',')
+            .where((s) => s.isNotEmpty)
+            .map((s) => slotMap[s]!)
+            .join(',');
         await into(dayOverrides).insert(DayOverridesCompanion.insert(
           mesocycleId: newId_,
           weekIdx: r.weekIdx,
           dayIdx: r.dayIdx,
-          exerciseIdsCsv: r.exerciseIdsCsv,
+          exerciseIdsCsv: slotIds,
         ));
       }
     });
@@ -189,22 +235,22 @@ extension WeekTargetQueries on AppDatabase {
           ..where((t) =>
               t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
         .get();
-    return {for (final r in rows) r.exerciseId: r};
+    return {for (final r in rows) r.slotId: r};
   }
 
-  Future<WeekTarget?> getWeekTarget(String mesoId, int weekIdx, String exerciseId) {
+  Future<WeekTarget?> getWeekTarget(String mesoId, int weekIdx, String slotId) {
     return (select(weekTargets)
           ..where((t) =>
               t.mesocycleId.equals(mesoId) &
               t.weekIdx.equals(weekIdx) &
-              t.exerciseId.equals(exerciseId)))
+              t.slotId.equals(slotId)))
         .getSingleOrNull();
   }
 
   Future<void> upsertWeekTarget({
     required String mesoId,
     required int weekIdx,
-    required String exerciseId,
+    required String slotId,
     required int sets,
     required int reps,
     required int rir,
@@ -212,7 +258,7 @@ extension WeekTargetQueries on AppDatabase {
     return into(weekTargets).insertOnConflictUpdate(WeekTargetsCompanion.insert(
       mesocycleId: mesoId,
       weekIdx: weekIdx,
-      exerciseId: exerciseId,
+      slotId: slotId,
       sets: sets,
       reps: reps,
       rir: rir,
@@ -223,7 +269,7 @@ extension WeekTargetQueries on AppDatabase {
     required String mesoId,
     required int fromWeekIdx,
     required int numWeeks,
-    required String exerciseId,
+    required String slotId,
     required int sets,
     required int reps,
     required int rir,
@@ -232,7 +278,7 @@ extension WeekTargetQueries on AppDatabase {
       await upsertWeekTarget(
         mesoId: mesoId,
         weekIdx: w,
-        exerciseId: exerciseId,
+        slotId: slotId,
         sets: sets,
         reps: reps,
         rir: rir,
@@ -254,21 +300,21 @@ extension DayOverrideQueries on AppDatabase {
   }
 
   Future<void> setDayOverride(
-      String mesoId, int weekIdx, int dayIdx, List<String> exerciseIds) {
+      String mesoId, int weekIdx, int dayIdx, List<String> slotIds) {
     return into(dayOverrides).insertOnConflictUpdate(
       DayOverridesCompanion.insert(
         mesocycleId: mesoId,
         weekIdx: weekIdx,
         dayIdx: dayIdx,
-        exerciseIdsCsv: exerciseIds.join(','),
+        exerciseIdsCsv: slotIds.join(','),
       ),
     );
   }
 
   Future<void> setWeekForwardOverride(
-      String mesoId, int fromWeek, int numWeeks, int dayIdx, List<String> exerciseIds) async {
+      String mesoId, int fromWeek, int numWeeks, int dayIdx, List<String> slotIds) async {
     for (var w = fromWeek; w < numWeeks; w++) {
-      await setDayOverride(mesoId, w, dayIdx, exerciseIds);
+      await setDayOverride(mesoId, w, dayIdx, slotIds);
     }
   }
 
@@ -322,7 +368,7 @@ extension SetEntryQueries on AppDatabase {
     return (select(setEntries)
           ..where((t) => t.sessionId.equals(sessionId))
           ..orderBy([
-            (t) => OrderingTerm.asc(t.exerciseId),
+            (t) => OrderingTerm.asc(t.slotId),
             (t) => OrderingTerm.asc(t.setIndex),
           ]))
         .watch();
@@ -332,7 +378,7 @@ extension SetEntryQueries on AppDatabase {
     return (select(setEntries)
           ..where((t) => t.sessionId.equals(sessionId))
           ..orderBy([
-            (t) => OrderingTerm.asc(t.exerciseId),
+            (t) => OrderingTerm.asc(t.slotId),
             (t) => OrderingTerm.asc(t.setIndex),
           ]))
         .get();
@@ -341,6 +387,7 @@ extension SetEntryQueries on AppDatabase {
   Future<void> upsertSetEntry({
     required String sessionId,
     required String exerciseId,
+    required String slotId,
     required int setIndex,
     double? weight,
     int? reps,
@@ -350,7 +397,7 @@ extension SetEntryQueries on AppDatabase {
     final existing = await (select(setEntries)
           ..where((t) =>
               t.sessionId.equals(sessionId) &
-              t.exerciseId.equals(exerciseId) &
+              t.slotId.equals(slotId) &
               t.setIndex.equals(setIndex)))
         .getSingleOrNull();
 
@@ -369,6 +416,7 @@ extension SetEntryQueries on AppDatabase {
         id: newId(),
         sessionId: sessionId,
         exerciseId: exerciseId,
+        slotId: Value(slotId),
         setIndex: setIndex,
         weight: Value(weight),
         reps: Value(reps),
