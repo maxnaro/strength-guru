@@ -17,7 +17,7 @@ class LlmService {
     // Reduce nCtx for stability on 6GB iOS devices.
     // Using Q3_K_M model (~2.3GB) allows for some gpuLayers.
     final modelParams = ModelParams(path: path, gpuLayers: 15);
-    const ctxParams = ContextParams(nCtx: 2048, nBatch: 256, nUbatch: 256);
+    const ctxParams = ContextParams(nCtx: 16384, nBatch: 256, nUbatch: 256);
 
     LlamaEngine? engine;
     try {
@@ -48,18 +48,12 @@ class LlmService {
       final session = await engine.createSession();
       final buffer = StringBuffer();
 
-      // Basic prompt truncation to avoid exceeding nCtx
-      var promptCsv = csvContent;
-      if (promptCsv.length > 4000) {
-        promptCsv = promptCsv.substring(0, 4000) + '... [truncated]';
-      }
-
       await for (final ev in session.generate(
-        prompt: _buildPrompt(promptCsv),
+        prompt: _buildPrompt(csvContent),
         addSpecial: true,
         parseSpecial: true,
         sampler: const SamplerParams(temperature: 0.0),
-        maxTokens: 1024,
+        maxTokens: 8192,
       )) {
         switch (ev) {
           case TokenEvent():
@@ -82,13 +76,31 @@ class LlmService {
   String _buildPrompt(String csv) =>
       '<bos><|turn>user\n${_instructions(csv)}<turn|>\n<|turn>model\n';
 
-  String _instructions(String csv) => '''You are a workout plan parser. Read the CSV and output JSON only.
+  String _instructions(String csv) => '''You are a precision workout parser. Extract every exercise row from the provided CSV and output JSON.
+
+STRICT NUMERIC RULES:
+1. RIR & RPE ARE THE SAME: If the CSV provides RPE (e.g., "8"), convert it to RIR using (10 - RPE).
+   - Example: RPE 8 = 2 RIR.
+   - Example: RPE 7.5 = 2 RIR (round to nearest integer).
+   - If RIR is provided directly, use it.
+   - If BOTH are missing, use 0.
+2. INTEGER ONLY: "sets", "reps", and "rir" MUST be integers.
+3. COMPLEX NOTATION: If reps are "8/8/8" or "8, 6, 7", take the FIRST number (8).
+4. RANGES: If reps are "8-10", take the LOWEST number (8).
+5. TEXT FALLBACK: If reps is "AMRAP" or "Failure", use 10.
+6. STRIP UNITS: Use only the number. Never include "kg", "lbs", or "sec".
+
+EXTRACTION RULES:
+- Include EVERY row. Do not summarize or skip.
+- Remove modifiers like "(Heavy)" or "(Back off)" from the exercise name. Only provide the base exercise name.
+- Muscle groups: chest, back, shoulders, arms, legs, core, other.
+- The number of weeks should be dynamic to match the input CSV.
 
 OUTPUT: A single JSON object. No markdown. No code blocks. No explanation. Just JSON.
 
 SCHEMA:
 {
-  "name": "string",
+  "name": "Block Name",
   "numWeeks": integer,
   "days": [
     {
@@ -109,9 +121,9 @@ SCHEMA:
 
 RULES:
 - dayIdx is 0-based.
+- weekIdx is 0-based.
+- If the CSV contains multiple weeks of data for an exercise, include a weekTarget for EACH week.
 - If all weeks share same volume, weekTargets has one entry with weekIdx 0.
-- If RIR is absent, use 2.
-- Infer muscleGroup from exercise name.
 
 CSV:
 $csv''';
