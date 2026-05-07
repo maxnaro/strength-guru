@@ -80,8 +80,6 @@ final dbProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
-
 final tabIndexProvider = StateProvider<int>((ref) => 0);
 
 final selectedLogDayProvider = StateProvider<DayKey?>((ref) => null);
@@ -170,9 +168,7 @@ final dayPlanProvider =
     final seen = <String>{};
     return [for (final id in ids) if (byId[id] != null && seen.add(id)) byId[id]!];
   }
-  final names = DefaultPlan.exerciseNamesForDay(key.dayIdx);
-  if (names.isEmpty) return [];
-  return db.exercisesByNames(names);
+  return [];
 });
 
 final dayGroupProvider =
@@ -193,9 +189,7 @@ final programDayExercisesProvider =
     final seen = <String>{};
     return [for (final id in ids) if (byId[id] != null && seen.add(id)) byId[id]!];
   }
-  final names = DefaultPlan.exerciseNamesForDay(k.dayIdx);
-  if (names.isEmpty) return [];
-  return db.exercisesByNames(names);
+  return [];
 });
 
 // ── Session log provider ──────────────────────────────────────────────────────
