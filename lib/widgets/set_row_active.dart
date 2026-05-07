@@ -9,6 +9,7 @@ import '../theme/sg_atoms.dart';
 class SetRowActive extends ConsumerStatefulWidget {
   final int setIndex;
   final String exerciseId;
+  final String slotId;
   final String? sessionId;
   final int targetReps;
   final int targetRir;
@@ -21,6 +22,7 @@ class SetRowActive extends ConsumerStatefulWidget {
     super.key,
     required this.setIndex,
     required this.exerciseId,
+    required this.slotId,
     required this.sessionId,
     required this.targetReps,
     required this.targetRir,

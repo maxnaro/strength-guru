@@ -553,7 +553,7 @@ class _TimelineView extends ConsumerWidget {
               ..._trainingDays.map((dayIdx) {
                 final groupAsync = ref.watch(dayGroupProvider(DayKey(meso.id, 0, dayIdx)));
                 final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
-                final exercisesAsync = ref.watch(programDayExercisesProvider(ProgramDayKey(meso.id, dayIdx)));
+                final itemsAsync = ref.watch(programDayExercisesProvider(ProgramDayKey(meso.id, dayIdx)));
                 final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, dayIdx)));
                 final customLabel = daySettingsAsync.valueOrNull?.label;
 
@@ -595,23 +595,23 @@ class _TimelineView extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       // Exercise rows
-                      exercisesAsync.when(
-                        data: (exercises) => Column(
-                          children: exercises.map((ex) {
+                      itemsAsync.when(
+                        data: (items) => Column(
+                          children: items.map((item) {
                             return _TimelineRow(
-                              exercise: ex,
+                              item: item,
                               mesoId: meso.id,
                               group: group,
                               numWeeks: meso.numWeeks,
                               allTargets: allTargets,
                               palette: p,
                               brightness: brightness,
-                              onNameTap: () => _programSwap(context, ref, group, ex, dayIdx),
+                              onNameTap: () => _programSwap(context, ref, group, item, dayIdx),
                               onCellTap: (weekIdx, target) => _editCell(
                                 context,
                                 ref,
                                 weekIdx: weekIdx,
-                                exercise: ex,
+                                item: item,
                                 group: group,
                                 target: target,
                               ),
@@ -655,25 +655,30 @@ class _TimelineView extends ConsumerWidget {
   }
 
   void _programSwap(BuildContext context, WidgetRef ref, MuscleGroup group,
-      Exercise ex, int dayIdx) {
+      ExerciseSlotWithExercise item, int dayIdx) {
     showSGSheet(
       context,
       maxHeightFraction: 0.8,
       child: ExercisePicker(
         defaultGroup: group,
-        excludeIds: {ex.id},
+        excludeIds: const {}, // Allow duplicate exercises in a program swap too
         onSelected: (newEx) async {
           final db = ref.read(dbProvider);
           final key = ProgramDayKey(meso.id, dayIdx);
+          
+          // Create a NEW slot for the new exercise
+          final newSlot = await db.createExerciseSlot(meso.id, newEx.id);
+          
+          // Fetch current program slots and replace the ID
           final current = await ref.read(programDayExercisesProvider(key).future);
-          final ids = current.map((e) => e.id == ex.id ? newEx.id : e.id).toList();
+          final slotIds = current.map((e) => e.slot.id == item.slot.id ? newSlot.id : e.slot.id).toList();
 
           await db.setWeekForwardOverride(
             meso.id,
             0,
             meso.numWeeks,
             dayIdx,
-            ids,
+            slotIds,
           );
 
           ref.invalidate(programDayExercisesProvider(key));
@@ -692,7 +697,7 @@ class _TimelineView extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     required int weekIdx,
-    required Exercise exercise,
+    required ExerciseSlotWithExercise item,
     required MuscleGroup group,
     required WeekTarget? target,
   }) {
@@ -704,8 +709,8 @@ class _TimelineView extends ConsumerWidget {
         mesoId: meso.id,
         weekIdx: weekIdx,
         numWeeks: meso.numWeeks,
-        exerciseId: exercise.id,
-        exerciseName: exercise.name,
+        slotId: item.slot.id,
+        exerciseName: item.name,
         group: group,
         initialTarget: target,
       ),
@@ -714,7 +719,7 @@ class _TimelineView extends ConsumerWidget {
 }
 
 class _TimelineRow extends ConsumerWidget {
-  final Exercise exercise;
+  final ExerciseSlotWithExercise item;
   final String mesoId;
   final MuscleGroup group;
   final int numWeeks;
@@ -725,7 +730,7 @@ class _TimelineRow extends ConsumerWidget {
   final void Function(int weekIdx, WeekTarget? target) onCellTap;
 
   const _TimelineRow({
-    required this.exercise,
+    required this.item,
     required this.mesoId,
     required this.group,
     required this.numWeeks,
@@ -748,7 +753,7 @@ class _TimelineRow extends ConsumerWidget {
             child: SizedBox(
               width: 130,
               child: Text(
-                exercise.name,
+                item.name,
                 style:
                     SGText.body(12, weight: FontWeight.w500, color: palette.text),
                 overflow: TextOverflow.ellipsis,
@@ -757,7 +762,7 @@ class _TimelineRow extends ConsumerWidget {
           ),
           // Week cells
           ...List.generate(numWeeks, (w) {
-            final target = allTargets[w]?[exercise.id];
+            final target = allTargets[w]?[item.slot.id];
             final isDeload = ref.watch(isDeloadWeekProvider(WeekKey(mesoId, w)));
             return GestureDetector(
               onTap: () => onCellTap(w, target),

@@ -6,6 +6,19 @@ import 'db/plan.dart';
 import 'db/queries.dart';
 import 'theme/groups.dart';
 
+// ── Models ────────────────────────────────────────────────────────────────────
+
+class ExerciseSlotWithExercise {
+  final ExerciseSlot slot;
+  final Exercise exercise;
+  ExerciseSlotWithExercise(this.slot, this.exercise);
+
+  String get id => slot.id;
+  String get exerciseId => exercise.id;
+  String get name => exercise.name;
+  String get group => exercise.group;
+}
+
 // ── Provider keys ─────────────────────────────────────────────────────────────
 
 @immutable
@@ -158,36 +171,52 @@ final heroKeyProvider = Provider<DayKey?>((ref) {
 // ── Day plan provider ─────────────────────────────────────────────────────────
 
 final dayPlanProvider =
-    FutureProvider.family<List<Exercise>, DayKey>((ref, key) async {
+    FutureProvider.family<List<ExerciseSlotWithExercise>, DayKey>((ref, key) async {
   final db = ref.read(dbProvider);
   final override = await db.getDayOverride(key.mesoId, key.weekIdx, key.dayIdx);
   if (override != null) {
-    final ids = override.exerciseIdsCsv.split(',');
-    final exs = await db.exercisesByIds(ids);
-    final byId = {for (final e in exs) e.id: e};
-    final seen = <String>{};
-    return [for (final id in ids) if (byId[id] != null && seen.add(id)) byId[id]!];
+    final slotIds = override.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
+    final slots = await db.getSlotsByIds(slotIds);
+    final exIds = slots.map((s) => s.exerciseId).toList();
+    final exs = await db.exercisesByIds(exIds);
+
+    final slotMap = {for (final s in slots) s.id: s};
+    final exMap = {for (final e in exs) e.id: e};
+
+    return [
+      for (final sId in slotIds)
+        if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
+          ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
+    ];
   }
   return [];
 });
 
 final dayGroupProvider =
     FutureProvider.family<MuscleGroup, DayKey>((ref, key) async {
-  final exercises = await ref.watch(dayPlanProvider(key).future);
+  final items = await ref.watch(dayPlanProvider(key).future);
   return MuscleGroupX.primaryFromGroups(
-      exercises.map((e) => e.group).toList());
+      items.map((e) => e.group).toList());
 });
 
 final programDayExercisesProvider =
-    FutureProvider.family<List<Exercise>, ProgramDayKey>((ref, k) async {
+    FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((ref, k) async {
   final db = ref.read(dbProvider);
   final ov = await db.getDayOverride(k.mesoId, 0, k.dayIdx);
   if (ov != null) {
-    final ids = ov.exerciseIdsCsv.split(',');
-    final exs = await db.exercisesByIds(ids);
-    final byId = {for (final e in exs) e.id: e};
-    final seen = <String>{};
-    return [for (final id in ids) if (byId[id] != null && seen.add(id)) byId[id]!];
+    final slotIds = ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
+    final slots = await db.getSlotsByIds(slotIds);
+    final exIds = slots.map((s) => s.exerciseId).toList();
+    final exs = await db.exercisesByIds(exIds);
+
+    final slotMap = {for (final s in slots) s.id: s};
+    final exMap = {for (final e in exs) e.id: e};
+
+    return [
+      for (final sId in slotIds)
+        if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
+          ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
+    ];
   }
   return [];
 });

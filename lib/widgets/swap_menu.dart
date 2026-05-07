@@ -12,6 +12,7 @@ enum SwapScope { sessionOnly, weekForward }
 
 class SwapMenu extends ConsumerStatefulWidget {
   final Exercise currentExercise;
+  final String slotId;
   final DayKey dayKey;
   final Mesocycle meso;
   final VoidCallback onSwapped;
@@ -19,6 +20,7 @@ class SwapMenu extends ConsumerStatefulWidget {
   const SwapMenu({
     super.key,
     required this.currentExercise,
+    required this.slotId,
     required this.dayKey,
     required this.meso,
     required this.onSwapped,
@@ -35,13 +37,11 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final currentGroup = MuscleGroupX.fromString(widget.currentExercise.group);
-    final planIds = ref
-        .watch(dayPlanProvider(widget.dayKey))
-        .valueOrNull
-        ?.map((e) => e.id)
-        .toSet() ?? {};
-    // Exclude all exercises currently in plan except the one being swapped out.
-    final excludeIds = planIds..remove(widget.currentExercise.id);
+    
+    // In the new slot-based architecture, we don't necessarily need to exclude 
+    // the same exercise because we allow duplicates. 
+    // However, for the picker, excluding the *exact* same exercise is still reasonable.
+    final excludeIds = <String>{}; 
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -74,17 +74,45 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
     final db = ref.read(dbProvider);
     final key = widget.dayKey;
 
-    // Fetch current exercise list (with overrides applied).
-    final currentList = await ref.read(dayPlanProvider(key).future);
-    final newIds = currentList
-        .map((ex) => ex.id == widget.currentExercise.id ? newExercise.id : ex.id)
+    // 1. Create a NEW slot for the new exercise
+    final newSlot = await db.createExerciseSlot(widget.meso.id, newExercise.id);
+
+    // 2. Baseline targets from the old slot
+    final oldTarget = await db.getWeekTarget(widget.meso.id, key.weekIdx, widget.slotId);
+    if (oldTarget != null) {
+      if (_scope == SwapScope.sessionOnly) {
+        await db.upsertWeekTarget(
+          mesoId: widget.meso.id,
+          weekIdx: key.weekIdx,
+          slotId: newSlot.id,
+          sets: oldTarget.sets,
+          reps: oldTarget.reps,
+          rir: oldTarget.rir,
+        );
+      } else {
+        await db.applyWeekTargetForward(
+          mesoId: widget.meso.id,
+          fromWeekIdx: key.weekIdx,
+          numWeeks: widget.meso.numWeeks,
+          slotId: newSlot.id,
+          sets: oldTarget.sets,
+          reps: oldTarget.reps,
+          rir: oldTarget.rir,
+        );
+      }
+    }
+
+    // 3. Fetch current slot list for this day and swap the ID
+    final currentItems = await ref.read(dayPlanProvider(key).future);
+    final newSlotIds = currentItems
+        .map((item) => item.slot.id == widget.slotId ? newSlot.id : item.slot.id)
         .toList();
 
     if (_scope == SwapScope.sessionOnly) {
-      await db.setDayOverride(key.mesoId, key.weekIdx, key.dayIdx, newIds);
+      await db.setDayOverride(key.mesoId, key.weekIdx, key.dayIdx, newSlotIds);
     } else {
       await db.setWeekForwardOverride(
-          key.mesoId, key.weekIdx, widget.meso.numWeeks, key.dayIdx, newIds);
+          key.mesoId, key.weekIdx, widget.meso.numWeeks, key.dayIdx, newSlotIds);
     }
 
     ref.invalidate(dayPlanProvider(key));

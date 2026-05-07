@@ -576,6 +576,248 @@ class ExercisesCompanion extends UpdateCompanion<Exercise> {
   }
 }
 
+class $ExerciseSlotsTable extends ExerciseSlots
+    with TableInfo<$ExerciseSlotsTable, ExerciseSlot> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExerciseSlotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mesocycleIdMeta =
+      const VerificationMeta('mesocycleId');
+  @override
+  late final GeneratedColumn<String> mesocycleId = GeneratedColumn<String>(
+      'mesocycle_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES mesocycles (id) ON DELETE CASCADE'));
+  static const VerificationMeta _exerciseIdMeta =
+      const VerificationMeta('exerciseId');
+  @override
+  late final GeneratedColumn<String> exerciseId = GeneratedColumn<String>(
+      'exercise_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES exercises (id) ON DELETE CASCADE'));
+  @override
+  List<GeneratedColumn> get $columns => [id, mesocycleId, exerciseId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'exercise_slots';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExerciseSlot> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('mesocycle_id')) {
+      context.handle(
+          _mesocycleIdMeta,
+          mesocycleId.isAcceptableOrUnknown(
+              data['mesocycle_id']!, _mesocycleIdMeta));
+    } else if (isInserting) {
+      context.missing(_mesocycleIdMeta);
+    }
+    if (data.containsKey('exercise_id')) {
+      context.handle(
+          _exerciseIdMeta,
+          exerciseId.isAcceptableOrUnknown(
+              data['exercise_id']!, _exerciseIdMeta));
+    } else if (isInserting) {
+      context.missing(_exerciseIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExerciseSlot map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExerciseSlot(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      mesocycleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mesocycle_id'])!,
+      exerciseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}exercise_id'])!,
+    );
+  }
+
+  @override
+  $ExerciseSlotsTable createAlias(String alias) {
+    return $ExerciseSlotsTable(attachedDatabase, alias);
+  }
+}
+
+class ExerciseSlot extends DataClass implements Insertable<ExerciseSlot> {
+  final String id;
+  final String mesocycleId;
+  final String exerciseId;
+  const ExerciseSlot(
+      {required this.id, required this.mesocycleId, required this.exerciseId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['mesocycle_id'] = Variable<String>(mesocycleId);
+    map['exercise_id'] = Variable<String>(exerciseId);
+    return map;
+  }
+
+  ExerciseSlotsCompanion toCompanion(bool nullToAbsent) {
+    return ExerciseSlotsCompanion(
+      id: Value(id),
+      mesocycleId: Value(mesocycleId),
+      exerciseId: Value(exerciseId),
+    );
+  }
+
+  factory ExerciseSlot.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExerciseSlot(
+      id: serializer.fromJson<String>(json['id']),
+      mesocycleId: serializer.fromJson<String>(json['mesocycleId']),
+      exerciseId: serializer.fromJson<String>(json['exerciseId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mesocycleId': serializer.toJson<String>(mesocycleId),
+      'exerciseId': serializer.toJson<String>(exerciseId),
+    };
+  }
+
+  ExerciseSlot copyWith(
+          {String? id, String? mesocycleId, String? exerciseId}) =>
+      ExerciseSlot(
+        id: id ?? this.id,
+        mesocycleId: mesocycleId ?? this.mesocycleId,
+        exerciseId: exerciseId ?? this.exerciseId,
+      );
+  ExerciseSlot copyWithCompanion(ExerciseSlotsCompanion data) {
+    return ExerciseSlot(
+      id: data.id.present ? data.id.value : this.id,
+      mesocycleId:
+          data.mesocycleId.present ? data.mesocycleId.value : this.mesocycleId,
+      exerciseId:
+          data.exerciseId.present ? data.exerciseId.value : this.exerciseId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExerciseSlot(')
+          ..write('id: $id, ')
+          ..write('mesocycleId: $mesocycleId, ')
+          ..write('exerciseId: $exerciseId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, mesocycleId, exerciseId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExerciseSlot &&
+          other.id == this.id &&
+          other.mesocycleId == this.mesocycleId &&
+          other.exerciseId == this.exerciseId);
+}
+
+class ExerciseSlotsCompanion extends UpdateCompanion<ExerciseSlot> {
+  final Value<String> id;
+  final Value<String> mesocycleId;
+  final Value<String> exerciseId;
+  final Value<int> rowid;
+  const ExerciseSlotsCompanion({
+    this.id = const Value.absent(),
+    this.mesocycleId = const Value.absent(),
+    this.exerciseId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExerciseSlotsCompanion.insert({
+    required String id,
+    required String mesocycleId,
+    required String exerciseId,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        mesocycleId = Value(mesocycleId),
+        exerciseId = Value(exerciseId);
+  static Insertable<ExerciseSlot> custom({
+    Expression<String>? id,
+    Expression<String>? mesocycleId,
+    Expression<String>? exerciseId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mesocycleId != null) 'mesocycle_id': mesocycleId,
+      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExerciseSlotsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? mesocycleId,
+      Value<String>? exerciseId,
+      Value<int>? rowid}) {
+    return ExerciseSlotsCompanion(
+      id: id ?? this.id,
+      mesocycleId: mesocycleId ?? this.mesocycleId,
+      exerciseId: exerciseId ?? this.exerciseId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mesocycleId.present) {
+      map['mesocycle_id'] = Variable<String>(mesocycleId.value);
+    }
+    if (exerciseId.present) {
+      map['exercise_id'] = Variable<String>(exerciseId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExerciseSlotsCompanion(')
+          ..write('id: $id, ')
+          ..write('mesocycleId: $mesocycleId, ')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $WeekTargetsTable extends WeekTargets
     with TableInfo<$WeekTargetsTable, WeekTarget> {
   @override
@@ -597,15 +839,14 @@ class $WeekTargetsTable extends WeekTargets
   late final GeneratedColumn<int> weekIdx = GeneratedColumn<int>(
       'week_idx', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _exerciseIdMeta =
-      const VerificationMeta('exerciseId');
+  static const VerificationMeta _slotIdMeta = const VerificationMeta('slotId');
   @override
-  late final GeneratedColumn<String> exerciseId = GeneratedColumn<String>(
-      'exercise_id', aliasedName, false,
+  late final GeneratedColumn<String> slotId = GeneratedColumn<String>(
+      'slot_id', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: true,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES exercises (id) ON DELETE CASCADE'));
+          'REFERENCES exercise_slots (id) ON DELETE CASCADE'));
   static const VerificationMeta _setsMeta = const VerificationMeta('sets');
   @override
   late final GeneratedColumn<int> sets = GeneratedColumn<int>(
@@ -623,7 +864,7 @@ class $WeekTargetsTable extends WeekTargets
       type: DriftSqlType.int, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns =>
-      [mesocycleId, weekIdx, exerciseId, sets, reps, rir];
+      [mesocycleId, weekIdx, slotId, sets, reps, rir];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -648,13 +889,11 @@ class $WeekTargetsTable extends WeekTargets
     } else if (isInserting) {
       context.missing(_weekIdxMeta);
     }
-    if (data.containsKey('exercise_id')) {
-      context.handle(
-          _exerciseIdMeta,
-          exerciseId.isAcceptableOrUnknown(
-              data['exercise_id']!, _exerciseIdMeta));
+    if (data.containsKey('slot_id')) {
+      context.handle(_slotIdMeta,
+          slotId.isAcceptableOrUnknown(data['slot_id']!, _slotIdMeta));
     } else if (isInserting) {
-      context.missing(_exerciseIdMeta);
+      context.missing(_slotIdMeta);
     }
     if (data.containsKey('sets')) {
       context.handle(
@@ -678,7 +917,7 @@ class $WeekTargetsTable extends WeekTargets
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {mesocycleId, weekIdx, exerciseId};
+  Set<GeneratedColumn> get $primaryKey => {mesocycleId, weekIdx, slotId};
   @override
   WeekTarget map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -687,8 +926,8 @@ class $WeekTargetsTable extends WeekTargets
           .read(DriftSqlType.string, data['${effectivePrefix}mesocycle_id'])!,
       weekIdx: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}week_idx'])!,
-      exerciseId: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}exercise_id'])!,
+      slotId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}slot_id'])!,
       sets: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sets'])!,
       reps: attachedDatabase.typeMapping
@@ -707,14 +946,14 @@ class $WeekTargetsTable extends WeekTargets
 class WeekTarget extends DataClass implements Insertable<WeekTarget> {
   final String mesocycleId;
   final int weekIdx;
-  final String exerciseId;
+  final String slotId;
   final int sets;
   final int reps;
   final int rir;
   const WeekTarget(
       {required this.mesocycleId,
       required this.weekIdx,
-      required this.exerciseId,
+      required this.slotId,
       required this.sets,
       required this.reps,
       required this.rir});
@@ -723,7 +962,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     final map = <String, Expression>{};
     map['mesocycle_id'] = Variable<String>(mesocycleId);
     map['week_idx'] = Variable<int>(weekIdx);
-    map['exercise_id'] = Variable<String>(exerciseId);
+    map['slot_id'] = Variable<String>(slotId);
     map['sets'] = Variable<int>(sets);
     map['reps'] = Variable<int>(reps);
     map['rir'] = Variable<int>(rir);
@@ -734,7 +973,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     return WeekTargetsCompanion(
       mesocycleId: Value(mesocycleId),
       weekIdx: Value(weekIdx),
-      exerciseId: Value(exerciseId),
+      slotId: Value(slotId),
       sets: Value(sets),
       reps: Value(reps),
       rir: Value(rir),
@@ -747,7 +986,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     return WeekTarget(
       mesocycleId: serializer.fromJson<String>(json['mesocycleId']),
       weekIdx: serializer.fromJson<int>(json['weekIdx']),
-      exerciseId: serializer.fromJson<String>(json['exerciseId']),
+      slotId: serializer.fromJson<String>(json['slotId']),
       sets: serializer.fromJson<int>(json['sets']),
       reps: serializer.fromJson<int>(json['reps']),
       rir: serializer.fromJson<int>(json['rir']),
@@ -759,7 +998,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     return <String, dynamic>{
       'mesocycleId': serializer.toJson<String>(mesocycleId),
       'weekIdx': serializer.toJson<int>(weekIdx),
-      'exerciseId': serializer.toJson<String>(exerciseId),
+      'slotId': serializer.toJson<String>(slotId),
       'sets': serializer.toJson<int>(sets),
       'reps': serializer.toJson<int>(reps),
       'rir': serializer.toJson<int>(rir),
@@ -769,14 +1008,14 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
   WeekTarget copyWith(
           {String? mesocycleId,
           int? weekIdx,
-          String? exerciseId,
+          String? slotId,
           int? sets,
           int? reps,
           int? rir}) =>
       WeekTarget(
         mesocycleId: mesocycleId ?? this.mesocycleId,
         weekIdx: weekIdx ?? this.weekIdx,
-        exerciseId: exerciseId ?? this.exerciseId,
+        slotId: slotId ?? this.slotId,
         sets: sets ?? this.sets,
         reps: reps ?? this.reps,
         rir: rir ?? this.rir,
@@ -786,8 +1025,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
       mesocycleId:
           data.mesocycleId.present ? data.mesocycleId.value : this.mesocycleId,
       weekIdx: data.weekIdx.present ? data.weekIdx.value : this.weekIdx,
-      exerciseId:
-          data.exerciseId.present ? data.exerciseId.value : this.exerciseId,
+      slotId: data.slotId.present ? data.slotId.value : this.slotId,
       sets: data.sets.present ? data.sets.value : this.sets,
       reps: data.reps.present ? data.reps.value : this.reps,
       rir: data.rir.present ? data.rir.value : this.rir,
@@ -799,7 +1037,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     return (StringBuffer('WeekTarget(')
           ..write('mesocycleId: $mesocycleId, ')
           ..write('weekIdx: $weekIdx, ')
-          ..write('exerciseId: $exerciseId, ')
+          ..write('slotId: $slotId, ')
           ..write('sets: $sets, ')
           ..write('reps: $reps, ')
           ..write('rir: $rir')
@@ -809,14 +1047,14 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
 
   @override
   int get hashCode =>
-      Object.hash(mesocycleId, weekIdx, exerciseId, sets, reps, rir);
+      Object.hash(mesocycleId, weekIdx, slotId, sets, reps, rir);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is WeekTarget &&
           other.mesocycleId == this.mesocycleId &&
           other.weekIdx == this.weekIdx &&
-          other.exerciseId == this.exerciseId &&
+          other.slotId == this.slotId &&
           other.sets == this.sets &&
           other.reps == this.reps &&
           other.rir == this.rir);
@@ -825,7 +1063,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
 class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
   final Value<String> mesocycleId;
   final Value<int> weekIdx;
-  final Value<String> exerciseId;
+  final Value<String> slotId;
   final Value<int> sets;
   final Value<int> reps;
   final Value<int> rir;
@@ -833,7 +1071,7 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
   const WeekTargetsCompanion({
     this.mesocycleId = const Value.absent(),
     this.weekIdx = const Value.absent(),
-    this.exerciseId = const Value.absent(),
+    this.slotId = const Value.absent(),
     this.sets = const Value.absent(),
     this.reps = const Value.absent(),
     this.rir = const Value.absent(),
@@ -842,21 +1080,21 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
   WeekTargetsCompanion.insert({
     required String mesocycleId,
     required int weekIdx,
-    required String exerciseId,
+    required String slotId,
     required int sets,
     required int reps,
     required int rir,
     this.rowid = const Value.absent(),
   })  : mesocycleId = Value(mesocycleId),
         weekIdx = Value(weekIdx),
-        exerciseId = Value(exerciseId),
+        slotId = Value(slotId),
         sets = Value(sets),
         reps = Value(reps),
         rir = Value(rir);
   static Insertable<WeekTarget> custom({
     Expression<String>? mesocycleId,
     Expression<int>? weekIdx,
-    Expression<String>? exerciseId,
+    Expression<String>? slotId,
     Expression<int>? sets,
     Expression<int>? reps,
     Expression<int>? rir,
@@ -865,7 +1103,7 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     return RawValuesInsertable({
       if (mesocycleId != null) 'mesocycle_id': mesocycleId,
       if (weekIdx != null) 'week_idx': weekIdx,
-      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (slotId != null) 'slot_id': slotId,
       if (sets != null) 'sets': sets,
       if (reps != null) 'reps': reps,
       if (rir != null) 'rir': rir,
@@ -876,7 +1114,7 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
   WeekTargetsCompanion copyWith(
       {Value<String>? mesocycleId,
       Value<int>? weekIdx,
-      Value<String>? exerciseId,
+      Value<String>? slotId,
       Value<int>? sets,
       Value<int>? reps,
       Value<int>? rir,
@@ -884,7 +1122,7 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     return WeekTargetsCompanion(
       mesocycleId: mesocycleId ?? this.mesocycleId,
       weekIdx: weekIdx ?? this.weekIdx,
-      exerciseId: exerciseId ?? this.exerciseId,
+      slotId: slotId ?? this.slotId,
       sets: sets ?? this.sets,
       reps: reps ?? this.reps,
       rir: rir ?? this.rir,
@@ -901,8 +1139,8 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     if (weekIdx.present) {
       map['week_idx'] = Variable<int>(weekIdx.value);
     }
-    if (exerciseId.present) {
-      map['exercise_id'] = Variable<String>(exerciseId.value);
+    if (slotId.present) {
+      map['slot_id'] = Variable<String>(slotId.value);
     }
     if (sets.present) {
       map['sets'] = Variable<int>(sets.value);
@@ -924,7 +1162,7 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     return (StringBuffer('WeekTargetsCompanion(')
           ..write('mesocycleId: $mesocycleId, ')
           ..write('weekIdx: $weekIdx, ')
-          ..write('exerciseId: $exerciseId, ')
+          ..write('slotId: $slotId, ')
           ..write('sets: $sets, ')
           ..write('reps: $reps, ')
           ..write('rir: $rir, ')
@@ -1799,6 +2037,14 @@ class $SetEntriesTable extends SetEntries
       requiredDuringInsert: true,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'REFERENCES exercises (id) ON DELETE CASCADE'));
+  static const VerificationMeta _slotIdMeta = const VerificationMeta('slotId');
+  @override
+  late final GeneratedColumn<String> slotId = GeneratedColumn<String>(
+      'slot_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES exercise_slots (id) ON DELETE CASCADE'));
   static const VerificationMeta _setIndexMeta =
       const VerificationMeta('setIndex');
   @override
@@ -1836,8 +2082,18 @@ class $SetEntriesTable extends SetEntries
       'logged_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, sessionId, exerciseId, setIndex, weight, reps, rir, done, loggedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        sessionId,
+        exerciseId,
+        slotId,
+        setIndex,
+        weight,
+        reps,
+        rir,
+        done,
+        loggedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1866,6 +2122,10 @@ class $SetEntriesTable extends SetEntries
               data['exercise_id']!, _exerciseIdMeta));
     } else if (isInserting) {
       context.missing(_exerciseIdMeta);
+    }
+    if (data.containsKey('slot_id')) {
+      context.handle(_slotIdMeta,
+          slotId.isAcceptableOrUnknown(data['slot_id']!, _slotIdMeta));
     }
     if (data.containsKey('set_index')) {
       context.handle(_setIndexMeta,
@@ -1908,6 +2168,8 @@ class $SetEntriesTable extends SetEntries
           .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
       exerciseId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}exercise_id'])!,
+      slotId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}slot_id']),
       setIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}set_index'])!,
       weight: attachedDatabase.typeMapping
@@ -1933,6 +2195,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
   final String id;
   final String sessionId;
   final String exerciseId;
+  final String? slotId;
   final int setIndex;
   final double? weight;
   final int? reps;
@@ -1943,6 +2206,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
       {required this.id,
       required this.sessionId,
       required this.exerciseId,
+      this.slotId,
       required this.setIndex,
       this.weight,
       this.reps,
@@ -1955,6 +2219,9 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
     map['id'] = Variable<String>(id);
     map['session_id'] = Variable<String>(sessionId);
     map['exercise_id'] = Variable<String>(exerciseId);
+    if (!nullToAbsent || slotId != null) {
+      map['slot_id'] = Variable<String>(slotId);
+    }
     map['set_index'] = Variable<int>(setIndex);
     if (!nullToAbsent || weight != null) {
       map['weight'] = Variable<double>(weight);
@@ -1977,6 +2244,8 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
       id: Value(id),
       sessionId: Value(sessionId),
       exerciseId: Value(exerciseId),
+      slotId:
+          slotId == null && nullToAbsent ? const Value.absent() : Value(slotId),
       setIndex: Value(setIndex),
       weight:
           weight == null && nullToAbsent ? const Value.absent() : Value(weight),
@@ -1996,6 +2265,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
       id: serializer.fromJson<String>(json['id']),
       sessionId: serializer.fromJson<String>(json['sessionId']),
       exerciseId: serializer.fromJson<String>(json['exerciseId']),
+      slotId: serializer.fromJson<String?>(json['slotId']),
       setIndex: serializer.fromJson<int>(json['setIndex']),
       weight: serializer.fromJson<double?>(json['weight']),
       reps: serializer.fromJson<int?>(json['reps']),
@@ -2011,6 +2281,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
       'id': serializer.toJson<String>(id),
       'sessionId': serializer.toJson<String>(sessionId),
       'exerciseId': serializer.toJson<String>(exerciseId),
+      'slotId': serializer.toJson<String?>(slotId),
       'setIndex': serializer.toJson<int>(setIndex),
       'weight': serializer.toJson<double?>(weight),
       'reps': serializer.toJson<int?>(reps),
@@ -2024,6 +2295,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
           {String? id,
           String? sessionId,
           String? exerciseId,
+          Value<String?> slotId = const Value.absent(),
           int? setIndex,
           Value<double?> weight = const Value.absent(),
           Value<int?> reps = const Value.absent(),
@@ -2034,6 +2306,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
         id: id ?? this.id,
         sessionId: sessionId ?? this.sessionId,
         exerciseId: exerciseId ?? this.exerciseId,
+        slotId: slotId.present ? slotId.value : this.slotId,
         setIndex: setIndex ?? this.setIndex,
         weight: weight.present ? weight.value : this.weight,
         reps: reps.present ? reps.value : this.reps,
@@ -2047,6 +2320,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       exerciseId:
           data.exerciseId.present ? data.exerciseId.value : this.exerciseId,
+      slotId: data.slotId.present ? data.slotId.value : this.slotId,
       setIndex: data.setIndex.present ? data.setIndex.value : this.setIndex,
       weight: data.weight.present ? data.weight.value : this.weight,
       reps: data.reps.present ? data.reps.value : this.reps,
@@ -2062,6 +2336,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
           ..write('id: $id, ')
           ..write('sessionId: $sessionId, ')
           ..write('exerciseId: $exerciseId, ')
+          ..write('slotId: $slotId, ')
           ..write('setIndex: $setIndex, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps, ')
@@ -2073,8 +2348,8 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, sessionId, exerciseId, setIndex, weight, reps, rir, done, loggedAt);
+  int get hashCode => Object.hash(id, sessionId, exerciseId, slotId, setIndex,
+      weight, reps, rir, done, loggedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2082,6 +2357,7 @@ class SetEntry extends DataClass implements Insertable<SetEntry> {
           other.id == this.id &&
           other.sessionId == this.sessionId &&
           other.exerciseId == this.exerciseId &&
+          other.slotId == this.slotId &&
           other.setIndex == this.setIndex &&
           other.weight == this.weight &&
           other.reps == this.reps &&
@@ -2094,6 +2370,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
   final Value<String> id;
   final Value<String> sessionId;
   final Value<String> exerciseId;
+  final Value<String?> slotId;
   final Value<int> setIndex;
   final Value<double?> weight;
   final Value<int?> reps;
@@ -2105,6 +2382,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
     this.id = const Value.absent(),
     this.sessionId = const Value.absent(),
     this.exerciseId = const Value.absent(),
+    this.slotId = const Value.absent(),
     this.setIndex = const Value.absent(),
     this.weight = const Value.absent(),
     this.reps = const Value.absent(),
@@ -2117,6 +2395,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
     required String id,
     required String sessionId,
     required String exerciseId,
+    this.slotId = const Value.absent(),
     required int setIndex,
     this.weight = const Value.absent(),
     this.reps = const Value.absent(),
@@ -2132,6 +2411,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
     Expression<String>? id,
     Expression<String>? sessionId,
     Expression<String>? exerciseId,
+    Expression<String>? slotId,
     Expression<int>? setIndex,
     Expression<double>? weight,
     Expression<int>? reps,
@@ -2144,6 +2424,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
       if (id != null) 'id': id,
       if (sessionId != null) 'session_id': sessionId,
       if (exerciseId != null) 'exercise_id': exerciseId,
+      if (slotId != null) 'slot_id': slotId,
       if (setIndex != null) 'set_index': setIndex,
       if (weight != null) 'weight': weight,
       if (reps != null) 'reps': reps,
@@ -2158,6 +2439,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
       {Value<String>? id,
       Value<String>? sessionId,
       Value<String>? exerciseId,
+      Value<String?>? slotId,
       Value<int>? setIndex,
       Value<double?>? weight,
       Value<int?>? reps,
@@ -2169,6 +2451,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
       id: id ?? this.id,
       sessionId: sessionId ?? this.sessionId,
       exerciseId: exerciseId ?? this.exerciseId,
+      slotId: slotId ?? this.slotId,
       setIndex: setIndex ?? this.setIndex,
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
@@ -2190,6 +2473,9 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
     }
     if (exerciseId.present) {
       map['exercise_id'] = Variable<String>(exerciseId.value);
+    }
+    if (slotId.present) {
+      map['slot_id'] = Variable<String>(slotId.value);
     }
     if (setIndex.present) {
       map['set_index'] = Variable<int>(setIndex.value);
@@ -2221,6 +2507,7 @@ class SetEntriesCompanion extends UpdateCompanion<SetEntry> {
           ..write('id: $id, ')
           ..write('sessionId: $sessionId, ')
           ..write('exerciseId: $exerciseId, ')
+          ..write('slotId: $slotId, ')
           ..write('setIndex: $setIndex, ')
           ..write('weight: $weight, ')
           ..write('reps: $reps, ')
@@ -2238,6 +2525,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $MesocyclesTable mesocycles = $MesocyclesTable(this);
   late final $ExercisesTable exercises = $ExercisesTable(this);
+  late final $ExerciseSlotsTable exerciseSlots = $ExerciseSlotsTable(this);
   late final $WeekTargetsTable weekTargets = $WeekTargetsTable(this);
   late final $ProgramDaysTable programDays = $ProgramDaysTable(this);
   late final $DayOverridesTable dayOverrides = $DayOverridesTable(this);
@@ -2250,6 +2538,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
         mesocycles,
         exercises,
+        exerciseSlots,
         weekTargets,
         programDays,
         dayOverrides,
@@ -2263,11 +2552,25 @@ abstract class _$AppDatabase extends GeneratedDatabase {
             on: TableUpdateQuery.onTableName('mesocycles',
                 limitUpdateKind: UpdateKind.delete),
             result: [
-              TableUpdate('week_targets', kind: UpdateKind.delete),
+              TableUpdate('exercise_slots', kind: UpdateKind.delete),
             ],
           ),
           WritePropagation(
             on: TableUpdateQuery.onTableName('exercises',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('exercise_slots', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('mesocycles',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('week_targets', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('exercise_slots',
                 limitUpdateKind: UpdateKind.delete),
             result: [
               TableUpdate('week_targets', kind: UpdateKind.delete),
@@ -2308,6 +2611,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
               TableUpdate('set_entries', kind: UpdateKind.delete),
             ],
           ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('exercise_slots',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('set_entries', kind: UpdateKind.delete),
+            ],
+          ),
         ],
       );
 }
@@ -2334,6 +2644,21 @@ typedef $$MesocyclesTableUpdateCompanionBuilder = MesocyclesCompanion Function({
 final class $$MesocyclesTableReferences
     extends BaseReferences<_$AppDatabase, $MesocyclesTable, Mesocycle> {
   $$MesocyclesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ExerciseSlotsTable, List<ExerciseSlot>>
+      _exerciseSlotsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.exerciseSlots,
+              aliasName: $_aliasNameGenerator(
+                  db.mesocycles.id, db.exerciseSlots.mesocycleId));
+
+  $$ExerciseSlotsTableProcessedTableManager get exerciseSlotsRefs {
+    final manager = $$ExerciseSlotsTableTableManager($_db, $_db.exerciseSlots)
+        .filter((f) => f.mesocycleId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_exerciseSlotsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 
   static MultiTypedResultKey<$WeekTargetsTable, List<WeekTarget>>
       _weekTargetsRefsTable(_$AppDatabase db) =>
@@ -2422,6 +2747,27 @@ class $$MesocyclesTableFilterComposer
 
   ColumnFilters<String> get deloadWeeks => $composableBuilder(
       column: $table.deloadWeeks, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> exerciseSlotsRefs(
+      Expression<bool> Function($$ExerciseSlotsTableFilterComposer f) f) {
+    final $$ExerciseSlotsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.exerciseSlots,
+        getReferencedColumn: (t) => t.mesocycleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExerciseSlotsTableFilterComposer(
+              $db: $db,
+              $table: $db.exerciseSlots,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 
   Expression<bool> weekTargetsRefs(
       Expression<bool> Function($$WeekTargetsTableFilterComposer f) f) {
@@ -2563,6 +2909,27 @@ class $$MesocyclesTableAnnotationComposer
   GeneratedColumn<String> get deloadWeeks => $composableBuilder(
       column: $table.deloadWeeks, builder: (column) => column);
 
+  Expression<T> exerciseSlotsRefs<T extends Object>(
+      Expression<T> Function($$ExerciseSlotsTableAnnotationComposer a) f) {
+    final $$ExerciseSlotsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.exerciseSlots,
+        getReferencedColumn: (t) => t.mesocycleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExerciseSlotsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.exerciseSlots,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
   Expression<T> weekTargetsRefs<T extends Object>(
       Expression<T> Function($$WeekTargetsTableAnnotationComposer a) f) {
     final $$WeekTargetsTableAnnotationComposer composer = $composerBuilder(
@@ -2660,7 +3027,8 @@ class $$MesocyclesTableTableManager extends RootTableManager<
     (Mesocycle, $$MesocyclesTableReferences),
     Mesocycle,
     PrefetchHooks Function(
-        {bool weekTargetsRefs,
+        {bool exerciseSlotsRefs,
+        bool weekTargetsRefs,
         bool programDaysRefs,
         bool dayOverridesRefs,
         bool sessionLogsRefs})> {
@@ -2717,13 +3085,15 @@ class $$MesocyclesTableTableManager extends RootTableManager<
                   ))
               .toList(),
           prefetchHooksCallback: (
-              {weekTargetsRefs = false,
+              {exerciseSlotsRefs = false,
+              weekTargetsRefs = false,
               programDaysRefs = false,
               dayOverridesRefs = false,
               sessionLogsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
+                if (exerciseSlotsRefs) db.exerciseSlots,
                 if (weekTargetsRefs) db.weekTargets,
                 if (programDaysRefs) db.programDays,
                 if (dayOverridesRefs) db.dayOverrides,
@@ -2732,6 +3102,19 @@ class $$MesocyclesTableTableManager extends RootTableManager<
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
+                  if (exerciseSlotsRefs)
+                    await $_getPrefetchedData<Mesocycle, $MesocyclesTable,
+                            ExerciseSlot>(
+                        currentTable: table,
+                        referencedTable: $$MesocyclesTableReferences
+                            ._exerciseSlotsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$MesocyclesTableReferences(db, table, p0)
+                                .exerciseSlotsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.mesocycleId == item.id),
+                        typedResults: items),
                   if (weekTargetsRefs)
                     await $_getPrefetchedData<Mesocycle, $MesocyclesTable,
                             WeekTarget>(
@@ -2803,7 +3186,8 @@ typedef $$MesocyclesTableProcessedTableManager = ProcessedTableManager<
     (Mesocycle, $$MesocyclesTableReferences),
     Mesocycle,
     PrefetchHooks Function(
-        {bool weekTargetsRefs,
+        {bool exerciseSlotsRefs,
+        bool weekTargetsRefs,
         bool programDaysRefs,
         bool dayOverridesRefs,
         bool sessionLogsRefs})>;
@@ -2824,17 +3208,17 @@ final class $$ExercisesTableReferences
     extends BaseReferences<_$AppDatabase, $ExercisesTable, Exercise> {
   $$ExercisesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$WeekTargetsTable, List<WeekTarget>>
-      _weekTargetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.weekTargets,
-          aliasName:
-              $_aliasNameGenerator(db.exercises.id, db.weekTargets.exerciseId));
+  static MultiTypedResultKey<$ExerciseSlotsTable, List<ExerciseSlot>>
+      _exerciseSlotsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.exerciseSlots,
+              aliasName: $_aliasNameGenerator(
+                  db.exercises.id, db.exerciseSlots.exerciseId));
 
-  $$WeekTargetsTableProcessedTableManager get weekTargetsRefs {
-    final manager = $$WeekTargetsTableTableManager($_db, $_db.weekTargets)
+  $$ExerciseSlotsTableProcessedTableManager get exerciseSlotsRefs {
+    final manager = $$ExerciseSlotsTableTableManager($_db, $_db.exerciseSlots)
         .filter((f) => f.exerciseId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_weekTargetsRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(_exerciseSlotsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -2873,19 +3257,19 @@ class $$ExercisesTableFilterComposer
   ColumnFilters<String> get group => $composableBuilder(
       column: $table.group, builder: (column) => ColumnFilters(column));
 
-  Expression<bool> weekTargetsRefs(
-      Expression<bool> Function($$WeekTargetsTableFilterComposer f) f) {
-    final $$WeekTargetsTableFilterComposer composer = $composerBuilder(
+  Expression<bool> exerciseSlotsRefs(
+      Expression<bool> Function($$ExerciseSlotsTableFilterComposer f) f) {
+    final $$ExerciseSlotsTableFilterComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.id,
-        referencedTable: $db.weekTargets,
+        referencedTable: $db.exerciseSlots,
         getReferencedColumn: (t) => t.exerciseId,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$WeekTargetsTableFilterComposer(
+            $$ExerciseSlotsTableFilterComposer(
               $db: $db,
-              $table: $db.weekTargets,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -2953,19 +3337,19 @@ class $$ExercisesTableAnnotationComposer
   GeneratedColumn<String> get group =>
       $composableBuilder(column: $table.group, builder: (column) => column);
 
-  Expression<T> weekTargetsRefs<T extends Object>(
-      Expression<T> Function($$WeekTargetsTableAnnotationComposer a) f) {
-    final $$WeekTargetsTableAnnotationComposer composer = $composerBuilder(
+  Expression<T> exerciseSlotsRefs<T extends Object>(
+      Expression<T> Function($$ExerciseSlotsTableAnnotationComposer a) f) {
+    final $$ExerciseSlotsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.id,
-        referencedTable: $db.weekTargets,
+        referencedTable: $db.exerciseSlots,
         getReferencedColumn: (t) => t.exerciseId,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$WeekTargetsTableAnnotationComposer(
+            $$ExerciseSlotsTableAnnotationComposer(
               $db: $db,
-              $table: $db.weekTargets,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3007,7 +3391,7 @@ class $$ExercisesTableTableManager extends RootTableManager<
     $$ExercisesTableUpdateCompanionBuilder,
     (Exercise, $$ExercisesTableReferences),
     Exercise,
-    PrefetchHooks Function({bool weekTargetsRefs, bool setEntriesRefs})> {
+    PrefetchHooks Function({bool exerciseSlotsRefs, bool setEntriesRefs})> {
   $$ExercisesTableTableManager(_$AppDatabase db, $ExercisesTable table)
       : super(TableManagerState(
           db: db,
@@ -3049,25 +3433,25 @@ class $$ExercisesTableTableManager extends RootTableManager<
                   ))
               .toList(),
           prefetchHooksCallback: (
-              {weekTargetsRefs = false, setEntriesRefs = false}) {
+              {exerciseSlotsRefs = false, setEntriesRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
-                if (weekTargetsRefs) db.weekTargets,
+                if (exerciseSlotsRefs) db.exerciseSlots,
                 if (setEntriesRefs) db.setEntries
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
-                  if (weekTargetsRefs)
+                  if (exerciseSlotsRefs)
                     await $_getPrefetchedData<Exercise, $ExercisesTable,
-                            WeekTarget>(
+                            ExerciseSlot>(
                         currentTable: table,
                         referencedTable: $$ExercisesTableReferences
-                            ._weekTargetsRefsTable(db),
+                            ._exerciseSlotsRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$ExercisesTableReferences(db, table, p0)
-                                .weekTargetsRefs,
+                                .exerciseSlotsRefs,
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.exerciseId == item.id),
@@ -3103,12 +3487,490 @@ typedef $$ExercisesTableProcessedTableManager = ProcessedTableManager<
     $$ExercisesTableUpdateCompanionBuilder,
     (Exercise, $$ExercisesTableReferences),
     Exercise,
-    PrefetchHooks Function({bool weekTargetsRefs, bool setEntriesRefs})>;
+    PrefetchHooks Function({bool exerciseSlotsRefs, bool setEntriesRefs})>;
+typedef $$ExerciseSlotsTableCreateCompanionBuilder = ExerciseSlotsCompanion
+    Function({
+  required String id,
+  required String mesocycleId,
+  required String exerciseId,
+  Value<int> rowid,
+});
+typedef $$ExerciseSlotsTableUpdateCompanionBuilder = ExerciseSlotsCompanion
+    Function({
+  Value<String> id,
+  Value<String> mesocycleId,
+  Value<String> exerciseId,
+  Value<int> rowid,
+});
+
+final class $$ExerciseSlotsTableReferences
+    extends BaseReferences<_$AppDatabase, $ExerciseSlotsTable, ExerciseSlot> {
+  $$ExerciseSlotsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $MesocyclesTable _mesocycleIdTable(_$AppDatabase db) =>
+      db.mesocycles.createAlias(
+          $_aliasNameGenerator(db.exerciseSlots.mesocycleId, db.mesocycles.id));
+
+  $$MesocyclesTableProcessedTableManager get mesocycleId {
+    final $_column = $_itemColumn<String>('mesocycle_id')!;
+
+    final manager = $$MesocyclesTableTableManager($_db, $_db.mesocycles)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_mesocycleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $ExercisesTable _exerciseIdTable(_$AppDatabase db) =>
+      db.exercises.createAlias(
+          $_aliasNameGenerator(db.exerciseSlots.exerciseId, db.exercises.id));
+
+  $$ExercisesTableProcessedTableManager get exerciseId {
+    final $_column = $_itemColumn<String>('exercise_id')!;
+
+    final manager = $$ExercisesTableTableManager($_db, $_db.exercises)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_exerciseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$WeekTargetsTable, List<WeekTarget>>
+      _weekTargetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.weekTargets,
+          aliasName:
+              $_aliasNameGenerator(db.exerciseSlots.id, db.weekTargets.slotId));
+
+  $$WeekTargetsTableProcessedTableManager get weekTargetsRefs {
+    final manager = $$WeekTargetsTableTableManager($_db, $_db.weekTargets)
+        .filter((f) => f.slotId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_weekTargetsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$SetEntriesTable, List<SetEntry>>
+      _setEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.setEntries,
+          aliasName:
+              $_aliasNameGenerator(db.exerciseSlots.id, db.setEntries.slotId));
+
+  $$SetEntriesTableProcessedTableManager get setEntriesRefs {
+    final manager = $$SetEntriesTableTableManager($_db, $_db.setEntries)
+        .filter((f) => f.slotId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_setEntriesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$ExerciseSlotsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExerciseSlotsTable> {
+  $$ExerciseSlotsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  $$MesocyclesTableFilterComposer get mesocycleId {
+    final $$MesocyclesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableFilterComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$ExercisesTableFilterComposer get exerciseId {
+    final $$ExercisesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.exerciseId,
+        referencedTable: $db.exercises,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExercisesTableFilterComposer(
+              $db: $db,
+              $table: $db.exercises,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<bool> weekTargetsRefs(
+      Expression<bool> Function($$WeekTargetsTableFilterComposer f) f) {
+    final $$WeekTargetsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.weekTargets,
+        getReferencedColumn: (t) => t.slotId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WeekTargetsTableFilterComposer(
+              $db: $db,
+              $table: $db.weekTargets,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> setEntriesRefs(
+      Expression<bool> Function($$SetEntriesTableFilterComposer f) f) {
+    final $$SetEntriesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.setEntries,
+        getReferencedColumn: (t) => t.slotId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SetEntriesTableFilterComposer(
+              $db: $db,
+              $table: $db.setEntries,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$ExerciseSlotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExerciseSlotsTable> {
+  $$ExerciseSlotsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  $$MesocyclesTableOrderingComposer get mesocycleId {
+    final $$MesocyclesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableOrderingComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$ExercisesTableOrderingComposer get exerciseId {
+    final $$ExercisesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.exerciseId,
+        referencedTable: $db.exercises,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExercisesTableOrderingComposer(
+              $db: $db,
+              $table: $db.exercises,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ExerciseSlotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExerciseSlotsTable> {
+  $$ExerciseSlotsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  $$MesocyclesTableAnnotationComposer get mesocycleId {
+    final $$MesocyclesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$ExercisesTableAnnotationComposer get exerciseId {
+    final $$ExercisesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.exerciseId,
+        referencedTable: $db.exercises,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExercisesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.exercises,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<T> weekTargetsRefs<T extends Object>(
+      Expression<T> Function($$WeekTargetsTableAnnotationComposer a) f) {
+    final $$WeekTargetsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.weekTargets,
+        getReferencedColumn: (t) => t.slotId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$WeekTargetsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.weekTargets,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> setEntriesRefs<T extends Object>(
+      Expression<T> Function($$SetEntriesTableAnnotationComposer a) f) {
+    final $$SetEntriesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.setEntries,
+        getReferencedColumn: (t) => t.slotId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SetEntriesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.setEntries,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$ExerciseSlotsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ExerciseSlotsTable,
+    ExerciseSlot,
+    $$ExerciseSlotsTableFilterComposer,
+    $$ExerciseSlotsTableOrderingComposer,
+    $$ExerciseSlotsTableAnnotationComposer,
+    $$ExerciseSlotsTableCreateCompanionBuilder,
+    $$ExerciseSlotsTableUpdateCompanionBuilder,
+    (ExerciseSlot, $$ExerciseSlotsTableReferences),
+    ExerciseSlot,
+    PrefetchHooks Function(
+        {bool mesocycleId,
+        bool exerciseId,
+        bool weekTargetsRefs,
+        bool setEntriesRefs})> {
+  $$ExerciseSlotsTableTableManager(_$AppDatabase db, $ExerciseSlotsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExerciseSlotsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExerciseSlotsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExerciseSlotsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> mesocycleId = const Value.absent(),
+            Value<String> exerciseId = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExerciseSlotsCompanion(
+            id: id,
+            mesocycleId: mesocycleId,
+            exerciseId: exerciseId,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String mesocycleId,
+            required String exerciseId,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExerciseSlotsCompanion.insert(
+            id: id,
+            mesocycleId: mesocycleId,
+            exerciseId: exerciseId,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ExerciseSlotsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: (
+              {mesocycleId = false,
+              exerciseId = false,
+              weekTargetsRefs = false,
+              setEntriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (weekTargetsRefs) db.weekTargets,
+                if (setEntriesRefs) db.setEntries
+              ],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (mesocycleId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.mesocycleId,
+                    referencedTable:
+                        $$ExerciseSlotsTableReferences._mesocycleIdTable(db),
+                    referencedColumn:
+                        $$ExerciseSlotsTableReferences._mesocycleIdTable(db).id,
+                  ) as T;
+                }
+                if (exerciseId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.exerciseId,
+                    referencedTable:
+                        $$ExerciseSlotsTableReferences._exerciseIdTable(db),
+                    referencedColumn:
+                        $$ExerciseSlotsTableReferences._exerciseIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (weekTargetsRefs)
+                    await $_getPrefetchedData<ExerciseSlot, $ExerciseSlotsTable,
+                            WeekTarget>(
+                        currentTable: table,
+                        referencedTable: $$ExerciseSlotsTableReferences
+                            ._weekTargetsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ExerciseSlotsTableReferences(db, table, p0)
+                                .weekTargetsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.slotId == item.id),
+                        typedResults: items),
+                  if (setEntriesRefs)
+                    await $_getPrefetchedData<ExerciseSlot, $ExerciseSlotsTable,
+                            SetEntry>(
+                        currentTable: table,
+                        referencedTable: $$ExerciseSlotsTableReferences
+                            ._setEntriesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ExerciseSlotsTableReferences(db, table, p0)
+                                .setEntriesRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.slotId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ExerciseSlotsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ExerciseSlotsTable,
+    ExerciseSlot,
+    $$ExerciseSlotsTableFilterComposer,
+    $$ExerciseSlotsTableOrderingComposer,
+    $$ExerciseSlotsTableAnnotationComposer,
+    $$ExerciseSlotsTableCreateCompanionBuilder,
+    $$ExerciseSlotsTableUpdateCompanionBuilder,
+    (ExerciseSlot, $$ExerciseSlotsTableReferences),
+    ExerciseSlot,
+    PrefetchHooks Function(
+        {bool mesocycleId,
+        bool exerciseId,
+        bool weekTargetsRefs,
+        bool setEntriesRefs})>;
 typedef $$WeekTargetsTableCreateCompanionBuilder = WeekTargetsCompanion
     Function({
   required String mesocycleId,
   required int weekIdx,
-  required String exerciseId,
+  required String slotId,
   required int sets,
   required int reps,
   required int rir,
@@ -3118,7 +3980,7 @@ typedef $$WeekTargetsTableUpdateCompanionBuilder = WeekTargetsCompanion
     Function({
   Value<String> mesocycleId,
   Value<int> weekIdx,
-  Value<String> exerciseId,
+  Value<String> slotId,
   Value<int> sets,
   Value<int> reps,
   Value<int> rir,
@@ -3144,16 +4006,16 @@ final class $$WeekTargetsTableReferences
         manager.$state.copyWith(prefetchedData: [item]));
   }
 
-  static $ExercisesTable _exerciseIdTable(_$AppDatabase db) =>
-      db.exercises.createAlias(
-          $_aliasNameGenerator(db.weekTargets.exerciseId, db.exercises.id));
+  static $ExerciseSlotsTable _slotIdTable(_$AppDatabase db) =>
+      db.exerciseSlots.createAlias(
+          $_aliasNameGenerator(db.weekTargets.slotId, db.exerciseSlots.id));
 
-  $$ExercisesTableProcessedTableManager get exerciseId {
-    final $_column = $_itemColumn<String>('exercise_id')!;
+  $$ExerciseSlotsTableProcessedTableManager get slotId {
+    final $_column = $_itemColumn<String>('slot_id')!;
 
-    final manager = $$ExercisesTableTableManager($_db, $_db.exercises)
+    final manager = $$ExerciseSlotsTableTableManager($_db, $_db.exerciseSlots)
         .filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_exerciseIdTable($_db));
+    final item = $_typedResult.readTableOrNull(_slotIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -3201,18 +4063,18 @@ class $$WeekTargetsTableFilterComposer
     return composer;
   }
 
-  $$ExercisesTableFilterComposer get exerciseId {
-    final $$ExercisesTableFilterComposer composer = $composerBuilder(
+  $$ExerciseSlotsTableFilterComposer get slotId {
+    final $$ExerciseSlotsTableFilterComposer composer = $composerBuilder(
         composer: this,
-        getCurrentColumn: (t) => t.exerciseId,
-        referencedTable: $db.exercises,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
         getReferencedColumn: (t) => t.id,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$ExercisesTableFilterComposer(
+            $$ExerciseSlotsTableFilterComposer(
               $db: $db,
-              $table: $db.exercises,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3263,18 +4125,18 @@ class $$WeekTargetsTableOrderingComposer
     return composer;
   }
 
-  $$ExercisesTableOrderingComposer get exerciseId {
-    final $$ExercisesTableOrderingComposer composer = $composerBuilder(
+  $$ExerciseSlotsTableOrderingComposer get slotId {
+    final $$ExerciseSlotsTableOrderingComposer composer = $composerBuilder(
         composer: this,
-        getCurrentColumn: (t) => t.exerciseId,
-        referencedTable: $db.exercises,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
         getReferencedColumn: (t) => t.id,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$ExercisesTableOrderingComposer(
+            $$ExerciseSlotsTableOrderingComposer(
               $db: $db,
-              $table: $db.exercises,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3325,18 +4187,18 @@ class $$WeekTargetsTableAnnotationComposer
     return composer;
   }
 
-  $$ExercisesTableAnnotationComposer get exerciseId {
-    final $$ExercisesTableAnnotationComposer composer = $composerBuilder(
+  $$ExerciseSlotsTableAnnotationComposer get slotId {
+    final $$ExerciseSlotsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
-        getCurrentColumn: (t) => t.exerciseId,
-        referencedTable: $db.exercises,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
         getReferencedColumn: (t) => t.id,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$ExercisesTableAnnotationComposer(
+            $$ExerciseSlotsTableAnnotationComposer(
               $db: $db,
-              $table: $db.exercises,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3357,7 +4219,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
     $$WeekTargetsTableUpdateCompanionBuilder,
     (WeekTarget, $$WeekTargetsTableReferences),
     WeekTarget,
-    PrefetchHooks Function({bool mesocycleId, bool exerciseId})> {
+    PrefetchHooks Function({bool mesocycleId, bool slotId})> {
   $$WeekTargetsTableTableManager(_$AppDatabase db, $WeekTargetsTable table)
       : super(TableManagerState(
           db: db,
@@ -3371,7 +4233,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> mesocycleId = const Value.absent(),
             Value<int> weekIdx = const Value.absent(),
-            Value<String> exerciseId = const Value.absent(),
+            Value<String> slotId = const Value.absent(),
             Value<int> sets = const Value.absent(),
             Value<int> reps = const Value.absent(),
             Value<int> rir = const Value.absent(),
@@ -3380,7 +4242,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
               WeekTargetsCompanion(
             mesocycleId: mesocycleId,
             weekIdx: weekIdx,
-            exerciseId: exerciseId,
+            slotId: slotId,
             sets: sets,
             reps: reps,
             rir: rir,
@@ -3389,7 +4251,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String mesocycleId,
             required int weekIdx,
-            required String exerciseId,
+            required String slotId,
             required int sets,
             required int reps,
             required int rir,
@@ -3398,7 +4260,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
               WeekTargetsCompanion.insert(
             mesocycleId: mesocycleId,
             weekIdx: weekIdx,
-            exerciseId: exerciseId,
+            slotId: slotId,
             sets: sets,
             reps: reps,
             rir: rir,
@@ -3410,7 +4272,7 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
                     $$WeekTargetsTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({mesocycleId = false, exerciseId = false}) {
+          prefetchHooksCallback: ({mesocycleId = false, slotId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -3437,14 +4299,14 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
                         $$WeekTargetsTableReferences._mesocycleIdTable(db).id,
                   ) as T;
                 }
-                if (exerciseId) {
+                if (slotId) {
                   state = state.withJoin(
                     currentTable: table,
-                    currentColumn: table.exerciseId,
+                    currentColumn: table.slotId,
                     referencedTable:
-                        $$WeekTargetsTableReferences._exerciseIdTable(db),
+                        $$WeekTargetsTableReferences._slotIdTable(db),
                     referencedColumn:
-                        $$WeekTargetsTableReferences._exerciseIdTable(db).id,
+                        $$WeekTargetsTableReferences._slotIdTable(db).id,
                   ) as T;
                 }
 
@@ -3469,7 +4331,7 @@ typedef $$WeekTargetsTableProcessedTableManager = ProcessedTableManager<
     $$WeekTargetsTableUpdateCompanionBuilder,
     (WeekTarget, $$WeekTargetsTableReferences),
     WeekTarget,
-    PrefetchHooks Function({bool mesocycleId, bool exerciseId})>;
+    PrefetchHooks Function({bool mesocycleId, bool slotId})>;
 typedef $$ProgramDaysTableCreateCompanionBuilder = ProgramDaysCompanion
     Function({
   required String mesocycleId,
@@ -4328,6 +5190,7 @@ typedef $$SetEntriesTableCreateCompanionBuilder = SetEntriesCompanion Function({
   required String id,
   required String sessionId,
   required String exerciseId,
+  Value<String?> slotId,
   required int setIndex,
   Value<double?> weight,
   Value<int?> reps,
@@ -4340,6 +5203,7 @@ typedef $$SetEntriesTableUpdateCompanionBuilder = SetEntriesCompanion Function({
   Value<String> id,
   Value<String> sessionId,
   Value<String> exerciseId,
+  Value<String?> slotId,
   Value<int> setIndex,
   Value<double?> weight,
   Value<int?> reps,
@@ -4378,6 +5242,21 @@ final class $$SetEntriesTableReferences
     final manager = $$ExercisesTableTableManager($_db, $_db.exercises)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_exerciseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $ExerciseSlotsTable _slotIdTable(_$AppDatabase db) =>
+      db.exerciseSlots.createAlias(
+          $_aliasNameGenerator(db.setEntries.slotId, db.exerciseSlots.id));
+
+  $$ExerciseSlotsTableProcessedTableManager? get slotId {
+    final $_column = $_itemColumn<String>('slot_id');
+    if ($_column == null) return null;
+    final manager = $$ExerciseSlotsTableTableManager($_db, $_db.exerciseSlots)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_slotIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -4446,6 +5325,26 @@ class $$SetEntriesTableFilterComposer
             $$ExercisesTableFilterComposer(
               $db: $db,
               $table: $db.exercises,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$ExerciseSlotsTableFilterComposer get slotId {
+    final $$ExerciseSlotsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExerciseSlotsTableFilterComposer(
+              $db: $db,
+              $table: $db.exerciseSlots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -4524,6 +5423,26 @@ class $$SetEntriesTableOrderingComposer
             ));
     return composer;
   }
+
+  $$ExerciseSlotsTableOrderingComposer get slotId {
+    final $$ExerciseSlotsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExerciseSlotsTableOrderingComposer(
+              $db: $db,
+              $table: $db.exerciseSlots,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$SetEntriesTableAnnotationComposer
@@ -4595,6 +5514,26 @@ class $$SetEntriesTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$ExerciseSlotsTableAnnotationComposer get slotId {
+    final $$ExerciseSlotsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.slotId,
+        referencedTable: $db.exerciseSlots,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExerciseSlotsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.exerciseSlots,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$SetEntriesTableTableManager extends RootTableManager<
@@ -4608,7 +5547,7 @@ class $$SetEntriesTableTableManager extends RootTableManager<
     $$SetEntriesTableUpdateCompanionBuilder,
     (SetEntry, $$SetEntriesTableReferences),
     SetEntry,
-    PrefetchHooks Function({bool sessionId, bool exerciseId})> {
+    PrefetchHooks Function({bool sessionId, bool exerciseId, bool slotId})> {
   $$SetEntriesTableTableManager(_$AppDatabase db, $SetEntriesTable table)
       : super(TableManagerState(
           db: db,
@@ -4623,6 +5562,7 @@ class $$SetEntriesTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> sessionId = const Value.absent(),
             Value<String> exerciseId = const Value.absent(),
+            Value<String?> slotId = const Value.absent(),
             Value<int> setIndex = const Value.absent(),
             Value<double?> weight = const Value.absent(),
             Value<int?> reps = const Value.absent(),
@@ -4635,6 +5575,7 @@ class $$SetEntriesTableTableManager extends RootTableManager<
             id: id,
             sessionId: sessionId,
             exerciseId: exerciseId,
+            slotId: slotId,
             setIndex: setIndex,
             weight: weight,
             reps: reps,
@@ -4647,6 +5588,7 @@ class $$SetEntriesTableTableManager extends RootTableManager<
             required String id,
             required String sessionId,
             required String exerciseId,
+            Value<String?> slotId = const Value.absent(),
             required int setIndex,
             Value<double?> weight = const Value.absent(),
             Value<int?> reps = const Value.absent(),
@@ -4659,6 +5601,7 @@ class $$SetEntriesTableTableManager extends RootTableManager<
             id: id,
             sessionId: sessionId,
             exerciseId: exerciseId,
+            slotId: slotId,
             setIndex: setIndex,
             weight: weight,
             reps: reps,
@@ -4673,7 +5616,8 @@ class $$SetEntriesTableTableManager extends RootTableManager<
                     $$SetEntriesTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({sessionId = false, exerciseId = false}) {
+          prefetchHooksCallback: (
+              {sessionId = false, exerciseId = false, slotId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -4710,6 +5654,16 @@ class $$SetEntriesTableTableManager extends RootTableManager<
                         $$SetEntriesTableReferences._exerciseIdTable(db).id,
                   ) as T;
                 }
+                if (slotId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.slotId,
+                    referencedTable:
+                        $$SetEntriesTableReferences._slotIdTable(db),
+                    referencedColumn:
+                        $$SetEntriesTableReferences._slotIdTable(db).id,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -4732,7 +5686,7 @@ typedef $$SetEntriesTableProcessedTableManager = ProcessedTableManager<
     $$SetEntriesTableUpdateCompanionBuilder,
     (SetEntry, $$SetEntriesTableReferences),
     SetEntry,
-    PrefetchHooks Function({bool sessionId, bool exerciseId})>;
+    PrefetchHooks Function({bool sessionId, bool exerciseId, bool slotId})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4741,6 +5695,8 @@ class $AppDatabaseManager {
       $$MesocyclesTableTableManager(_db, _db.mesocycles);
   $$ExercisesTableTableManager get exercises =>
       $$ExercisesTableTableManager(_db, _db.exercises);
+  $$ExerciseSlotsTableTableManager get exerciseSlots =>
+      $$ExerciseSlotsTableTableManager(_db, _db.exerciseSlots);
   $$WeekTargetsTableTableManager get weekTargets =>
       $$WeekTargetsTableTableManager(_db, _db.weekTargets);
   $$ProgramDaysTableTableManager get programDays =>

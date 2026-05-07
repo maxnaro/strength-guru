@@ -112,10 +112,10 @@ class _DayView extends ConsumerWidget {
     final brightness = Theme.of(context).brightness;
 
     final planAsync = ref.watch(dayPlanProvider(heroKey));
-    final exercises = planAsync.valueOrNull ?? [];
+    final items = planAsync.valueOrNull ?? [];
     final group = MuscleGroupX.primaryFromGroups(
-        exercises.map((e) => e.group).toList());
-    final isRest = exercises.isEmpty;
+        items.map((e) => e.group).toList());
+    final isRest = items.isEmpty;
 
     final targetsAsync =
         ref.watch(weekTargetsProvider(WeekKey(meso.id, heroKey.weekIdx)));
@@ -192,7 +192,7 @@ class _HeroCard extends ConsumerWidget {
   final MuscleGroup group;
   final bool isRest;
   final Brightness brightness;
-  final AsyncValue<List<Exercise>> planAsync;
+  final AsyncValue<List<ExerciseSlotWithExercise>> planAsync;
   final AsyncValue<Map<String, WeekTarget>> targetsAsync;
   final AsyncValue<SessionLog?> sessionAsync;
 
@@ -210,7 +210,7 @@ class _HeroCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = pal(context);
-    final exercises = planAsync.valueOrNull ?? [];
+    final items = planAsync.valueOrNull ?? [];
     final targets = targetsAsync.valueOrNull ?? {};
     final session = sessionAsync.valueOrNull;
     final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, heroKey.dayIdx)));
@@ -224,8 +224,8 @@ class _HeroCard extends ConsumerWidget {
     final allEntries = setsAsync.valueOrNull ?? [];
     final doneCount = allEntries.where((e) => e.done).length;
 
-    final totalSets = exercises.fold<int>(
-        0, (sum, ex) => sum + (targets[ex.id]?.sets ?? 0));
+    final totalSets = items.fold<int>(
+        0, (sum, item) => sum + (targets[item.slot.id]?.sets ?? 0));
 
     final dayLabel = _dayLabel(heroKey.dayIdx);
     final splitName = customLabel ?? group.title;
@@ -381,7 +381,7 @@ class _QuickStats extends StatelessWidget {
 class _PlanList extends ConsumerWidget {
   final DayKey heroKey;
   final MuscleGroup group;
-  final AsyncValue<List<Exercise>> planAsync;
+  final AsyncValue<List<ExerciseSlotWithExercise>> planAsync;
   final AsyncValue<Map<String, WeekTarget>> targetsAsync;
   final AsyncValue<SessionLog?> sessionAsync;
 
@@ -397,7 +397,7 @@ class _PlanList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = pal(context);
     final brightness = Theme.of(context).brightness;
-    final exercises = planAsync.valueOrNull ?? [];
+    final items = planAsync.valueOrNull ?? [];
     final targets = targetsAsync.valueOrNull ?? {};
     final session = sessionAsync.valueOrNull;
 
@@ -406,7 +406,7 @@ class _PlanList extends ConsumerWidget {
         : const AsyncData<List<SetEntry>>([]);
     final allEntries = setsAsync.valueOrNull ?? [];
 
-    if (exercises.isEmpty) {
+    if (items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Text('No exercises.', style: SGText.body(14, color: p.textDim)),
@@ -422,14 +422,14 @@ class _PlanList extends ConsumerWidget {
           border: Border.all(color: p.border, width: 0.5),
         ),
         child: Column(
-          children: exercises.indexed.map((item) {
-            final (idx, ex) = item;
-            final target = targets[ex.id];
-            final exEntries = allEntries.where((e) => e.exerciseId == ex.id);
+          children: items.indexed.map((entry) {
+            final (idx, item) = entry;
+            final target = targets[item.slot.id];
+            final exEntries = allEntries.where((e) => e.slotId == item.slot.id);
             final doneCount = exEntries.where((e) => e.done).length;
             final totalSets = target?.sets ?? 0;
             final isDone = totalSets > 0 && doneCount >= totalSets;
-            final exGroup = MuscleGroupX.fromString(ex.group);
+            final exGroup = MuscleGroupX.fromString(item.group);
 
             return Column(
               children: [
@@ -462,7 +462,7 @@ class _PlanList extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(ex.name,
+                              Text(item.name,
                                   style: SGText.body(15,
                                       weight: FontWeight.w600,
                                       color: p.text)),
@@ -485,7 +485,7 @@ class _PlanList extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (idx < exercises.length - 1)
+                if (idx < items.length - 1)
                   Divider(
                       height: 1, indent: 64, endIndent: 0, color: p.border),
               ],

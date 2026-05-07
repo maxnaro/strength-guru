@@ -23,9 +23,9 @@ class LogScreen extends ConsumerStatefulWidget {
 }
 
 class _LogScreenState extends ConsumerState<LogScreen> {
-  ({String exerciseId, int setIndex})? _userActiveSet;
+  ({String slotId, int setIndex})? _userActiveSet;
   DayKey? _lastDayKey;
-  final Map<String, int> _extraSetsByExId = {};
+  final Map<String, int> _extraSetsBySlotId = {};
   final Set<String> _locallyDeletedSetIds = {};
   final Set<String> _locallySkippedSetKeys = {};
 
@@ -40,6 +40,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     required DayKey effective,
     required String? sessionId,
     required String exerciseId,
+    required String slotId,
     required int setIndex,
     double? weight,
     int? reps,
@@ -57,6 +58,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     await db.upsertSetEntry(
       sessionId: sessionId,
       exerciseId: exerciseId,
+      slotId: slotId,
       setIndex: setIndex,
       weight: weight,
       reps: reps,
@@ -66,7 +68,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     ref.invalidate(suggestedWeightProvider(exerciseId));
 
     if (mounted &&
-        _userActiveSet?.exerciseId == exerciseId &&
+        _userActiveSet?.slotId == slotId &&
         _userActiveSet?.setIndex == setIndex) {
       setState(() => _userActiveSet = null);
     }
@@ -129,13 +131,13 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     final splitName =
         daySettingsAsync.valueOrNull?.label ?? '${group.label} Session';
 
-    final exercises = planAsync.valueOrNull ?? [];
+    final items = planAsync.valueOrNull ?? [];
     final targets = targetsAsync.valueOrNull ?? {};
 
     // Reset user selections when day changes
     if (effective != _lastDayKey) {
       _userActiveSet = null;
-      _extraSetsByExId.clear();
+      _extraSetsBySlotId.clear();
       _locallyDeletedSetIds.clear();
       _locallySkippedSetKeys.clear();
       _lastDayKey = effective;
@@ -149,13 +151,16 @@ class _LogScreenState extends ConsumerState<LogScreen> {
         .where((e) => !_locallyDeletedSetIds.contains(e.id))
         .toList();
 
-    final entriesByEx = <String, List<SetEntry>>{};
+    final entriesBySlot = <String, List<SetEntry>>{};
     for (final e in filteredEntries) {
-      (entriesByEx[e.exerciseId] ??= []).add(e);
+      final sId = e.slotId;
+      if (sId != null) {
+        (entriesBySlot[sId] ??= []).add(e);
+      }
     }
 
-    final isRestDay = exercises.isEmpty;
-    final implicitActive = _computeActiveSet(exercises, entriesByEx, targets);
+    final isRestDay = items.isEmpty;
+    final implicitActive = _computeActiveSet(items, entriesBySlot, targets);
     final effectiveActiveSet = _userActiveSet ?? implicitActive;
 
     // Header height: base content + top safe area
@@ -223,21 +228,21 @@ class _LogScreenState extends ConsumerState<LogScreen> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) {
-                    final ex = exercises[i];
-                    final target = targets[ex.id];
-                    final exGroup = MuscleGroupX.fromString(ex.group);
-                    final exEntries = entriesByEx[ex.id] ?? [];
+                    final item = items[i];
+                    final target = targets[item.slot.id];
+                    final exGroup = MuscleGroupX.fromString(item.group);
+                    final exEntries = entriesBySlot[item.slot.id] ?? [];
                     final suggestedW =
-                        ref.watch(suggestedWeightProvider(ex.id)).valueOrNull;
+                        ref.watch(suggestedWeightProvider(item.exerciseId)).valueOrNull;
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: _ExerciseCard(
-                        exercise: ex,
+                        item: item,
                         group: exGroup,
                         target: target,
                         entries: exEntries,
                         activeSet: effectiveActiveSet,
-                        extraSets: _extraSetsByExId[ex.id] ?? 0,
+                        extraSets: _extraSetsBySlotId[item.slot.id] ?? 0,
                         sessionId: sessionLog?.id,
                         suggestedWeight: suggestedW,
                         meso: meso,
@@ -245,38 +250,39 @@ class _LogScreenState extends ConsumerState<LogScreen> {
                         onLogSet: (si, w, r, ri) => _logSet(
                           effective: effective,
                           sessionId: sessionLog?.id,
-                          exerciseId: ex.id,
+                          exerciseId: item.exerciseId,
+                          slotId: item.slot.id,
                           setIndex: si,
                           weight: w,
                           reps: r,
                           rir: ri,
                         ),
                         onActivate: (si) => setState(
-                          () => _userActiveSet = (exerciseId: ex.id, setIndex: si),
+                          () => _userActiveSet = (slotId: item.slot.id, setIndex: si),
                         ),
                         onAddSet: () => setState(
-                          () => _extraSetsByExId[ex.id] = (_extraSetsByExId[ex.id] ?? 0) + 1,
+                          () => _extraSetsBySlotId[item.slot.id] = (_extraSetsBySlotId[item.slot.id] ?? 0) + 1,
                         ),
                         onRemoveSet: () => setState(
-                          () => _extraSetsByExId[ex.id] = max(0, (_extraSetsByExId[ex.id] ?? 0) - 1),
+                          () => _extraSetsBySlotId[item.slot.id] = max(0, (_extraSetsBySlotId[item.slot.id] ?? 0) - 1),
                         ),
                         onDeleteSet: (entryId) {
                           setState(() => _locallyDeletedSetIds.add(entryId));
                           ref.read(dbProvider).deleteSetEntry(entryId);
-                          ref.invalidate(suggestedWeightProvider(ex.id));
+                          ref.invalidate(suggestedWeightProvider(item.exerciseId));
                         },
                         onSkipSet: (setIndex) {
-                          setState(() => _locallySkippedSetKeys.add('${ex.id}-$setIndex'));
+                          setState(() => _locallySkippedSetKeys.add('${item.slot.id}-$setIndex'));
                         },
                         skippedSetIndices: _locallySkippedSetKeys
-                            .where((k) => k.startsWith('${ex.id}-'))
+                            .where((k) => k.startsWith('${item.slot.id}-'))
                             .map((k) => int.parse(k.split('-').last))
                             .toSet(),
                         onSwapped: () => ref.invalidate(dayPlanProvider(effective)),
                       ),
                     );
                   },
-                  childCount: exercises.length,
+                  childCount: items.length,
                 ),
               ),
             ),
@@ -288,18 +294,18 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     );
   }
 
-  static ({String exerciseId, int setIndex})? _computeActiveSet(
-    List<Exercise> exercises,
-    Map<String, List<SetEntry>> entriesByEx,
+  static ({String slotId, int setIndex})? _computeActiveSet(
+    List<ExerciseSlotWithExercise> items,
+    Map<String, List<SetEntry>> entriesBySlot,
     Map<String, WeekTarget> targets,
   ) {
-    for (final ex in exercises) {
-      final target = targets[ex.id];
+    for (final item in items) {
+      final target = targets[item.slot.id];
       if (target == null) continue;
-      final entries = entriesByEx[ex.id] ?? [];
+      final entries = entriesBySlot[item.slot.id] ?? [];
       for (var i = 0; i < target.sets; i++) {
         final done = entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
-        if (done == null) return (exerciseId: ex.id, setIndex: i);
+        if (done == null) return (slotId: item.slot.id, setIndex: i);
       }
     }
     return null;
@@ -576,11 +582,11 @@ class _SessionHeader extends StatelessWidget {
 // ── Exercise card ─────────────────────────────────────────────────────────────
 
 class _ExerciseCard extends ConsumerWidget {
-  final Exercise exercise;
+  final ExerciseSlotWithExercise item;
   final MuscleGroup group;
   final WeekTarget? target;
   final List<SetEntry> entries;
-  final ({String exerciseId, int setIndex})? activeSet;
+  final ({String slotId, int setIndex})? activeSet;
   final int extraSets;
   final String? sessionId;
   final double? suggestedWeight;
@@ -597,7 +603,7 @@ class _ExerciseCard extends ConsumerWidget {
   final VoidCallback onSwapped;
 
   const _ExerciseCard({
-    required this.exercise,
+    required this.item,
     required this.group,
     required this.target,
     required this.entries,
@@ -648,7 +654,7 @@ class _ExerciseCard extends ConsumerWidget {
                 SGGroupDot(group, size: 8),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(exercise.name,
+                  child: Text(item.name,
                       style: SGText.body(15,
                           weight: FontWeight.w700, color: p.text)),
                 ),
@@ -678,15 +684,16 @@ class _ExerciseCard extends ConsumerWidget {
 
             final entry =
                 entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
-            final isActive = activeSet?.exerciseId == exercise.id &&
+            final isActive = activeSet?.slotId == item.slot.id &&
                 activeSet?.setIndex == i;
 
             Widget row;
             if (isActive) {
               row = SetRowActive(
-                key: ValueKey('active-${exercise.id}-$i'),
+                key: ValueKey('active-${item.slot.id}-$i'),
                 setIndex: i,
-                exerciseId: exercise.id,
+                exerciseId: item.exerciseId,
+                slotId: item.slot.id,
                 sessionId: sessionId,
                 targetReps: target?.reps ?? 8,
                 targetRir: target?.rir ?? 3,
@@ -713,7 +720,7 @@ class _ExerciseCard extends ConsumerWidget {
             }
 
             return Dismissible(
-              key: ValueKey('dismiss-${exercise.id}-$i-${entry?.id}-$numSets'),
+              key: ValueKey('dismiss-${item.slot.id}-$i-${entry?.id}-$numSets'),
               direction: DismissDirection.endToStart,
               onDismissed: (_) {
                 if (entry != null) {
@@ -753,7 +760,8 @@ class _ExerciseCard extends ConsumerWidget {
       isScrollControlled: true,
       maxHeightFraction: 0.78,
       child: SwapMenu(
-        currentExercise: exercise,
+        currentExercise: item.exercise,
+        slotId: item.slot.id,
         dayKey: dayKey,
         meso: meso,
         onSwapped: onSwapped,
