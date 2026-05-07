@@ -31,12 +31,11 @@ class _StrengthGuruAppState extends ConsumerState<StrengthGuruApp> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
       title: 'StrengthGuru',
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: themeMode,
+      themeMode: ThemeMode.system,
       home: FutureBuilder(
         future: _seedFuture,
         builder: (ctx, snap) {

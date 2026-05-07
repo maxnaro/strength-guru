@@ -88,6 +88,25 @@ extension MesoQueries on AppDatabase {
     return (select(mesocycles)..where((t) => t.id.equals(id))).getSingle();
   }
 
+  Future<void> deleteMeso(String id) async {
+    await transaction(() async {
+      final meso =
+          await (select(mesocycles)..where((t) => t.id.equals(id))).getSingle();
+      await (delete(mesocycles)..where((t) => t.id.equals(id))).go();
+
+      if (meso.isActive) {
+        final next = await (select(mesocycles)
+              ..orderBy([(t) => OrderingTerm.desc(t.startDate)])
+              ..limit(1))
+            .getSingleOrNull();
+        if (next != null) {
+          await (update(mesocycles)..where((t) => t.id.equals(next.id)))
+              .write(const MesocyclesCompanion(isActive: Value(true)));
+        }
+      }
+    });
+  }
+
   Future<void> renameMeso(String id, String name) async {
     await (update(mesocycles)..where((t) => t.id.equals(id)))
         .write(MesocyclesCompanion(name: Value(name)));

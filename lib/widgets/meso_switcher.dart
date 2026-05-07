@@ -64,6 +64,7 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
                 onTap: isActive ? null : () => _activate(m),
                 onRename: (newName) => _handleRename(m, newName),
                 onDuplicate: (newName) => _handleDuplicate(m, newName),
+                onDelete: () => _handleDelete(m),
               );
             }).toList(),
           ),
@@ -116,6 +117,14 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
   Future<void> _handleDuplicate(Mesocycle meso, String newName) async {
     final db = ref.read(dbProvider);
     await db.duplicateMeso(meso.id, newName);
+    ref.invalidate(activeMesoProvider);
+    ref.invalidate(allMesosProvider);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _handleDelete(Mesocycle meso) async {
+    final db = ref.read(dbProvider);
+    await db.deleteMeso(meso.id);
     ref.invalidate(activeMesoProvider);
     ref.invalidate(allMesosProvider);
     if (mounted) Navigator.of(context).pop();
@@ -187,6 +196,7 @@ class _MesoRow extends StatelessWidget {
   final VoidCallback? onTap;
   final Function(String newName)? onRename;
   final Function(String newName)? onDuplicate;
+  final VoidCallback? onDelete;
 
   const _MesoRow({
     required this.meso,
@@ -195,6 +205,7 @@ class _MesoRow extends StatelessWidget {
     required this.onTap,
     this.onRename,
     this.onDuplicate,
+    this.onDelete,
   });
 
   @override
@@ -231,6 +242,35 @@ class _MesoRow extends StatelessWidget {
                   final newName = await _showNameDialog(context, 'Duplicate', '${meso.name} (Copy)');
                   if (newName != null && newName.isNotEmpty) {
                     onDuplicate?.call(newName);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              SGButton.solid(
+                label: 'Delete',
+                color: palette.warn,
+                fullWidth: true,
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete Mesocycle?'),
+                      content: Text('Are you sure you want to delete "${meso.name}"?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text('Delete', style: TextStyle(color: palette.warn)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    if (context.mounted) Navigator.pop(context);
+                    onDelete?.call();
                   }
                 },
               ),

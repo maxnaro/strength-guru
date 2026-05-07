@@ -503,7 +503,7 @@ class _TimelineView extends ConsumerWidget {
 
   const _TimelineView({required this.meso});
 
-  static const _trainingDays = [0, 1, 2, 4, 5]; // Mon,Tue,Wed,Fri,Sat
+  static const _trainingDays = [0, 1, 2, 3, 4, 5, 6]; // Mon-Sun
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -825,20 +825,6 @@ class _SettingsRow extends ConsumerWidget {
           icon: Icon(Icons.delete_outline, size: 16, color: p.accent),
           label: Text('Wipe data', style: SGText.body(13, color: p.accent)),
         ),
-        Consumer(builder: (ctx, r, _) {
-          final mode = r.watch(themeModeProvider);
-          final isDark = mode == ThemeMode.dark ||
-              (mode == ThemeMode.system &&
-                  MediaQuery.platformBrightnessOf(context) == Brightness.dark);
-          return TextButton.icon(
-            onPressed: () => r.read(themeModeProvider.notifier).state =
-                isDark ? ThemeMode.light : ThemeMode.dark,
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode,
-                size: 16, color: p.textFaint),
-            label: Text(isDark ? 'Light' : 'Dark',
-                style: SGText.body(13, color: p.textFaint)),
-          );
-        }),
       ],
     );
   }
