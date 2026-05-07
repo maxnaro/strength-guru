@@ -249,13 +249,22 @@ class _LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: palette.accent),
-          const SizedBox(height: 16),
-          Text(label, style: SGText.body(14, color: palette.textDim)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: palette.accent),
+            const SizedBox(height: 24),
+            Text(label, style: SGText.display(20, color: palette.text)),
+            const SizedBox(height: 8),
+            Text(
+              'Please stay on this screen.\nClosing the app will stop the interpretation.',
+              textAlign: TextAlign.center,
+              style: SGText.body(14, color: palette.textDim),
+            ),
+          ],
+        ),
       ),
     );
   }

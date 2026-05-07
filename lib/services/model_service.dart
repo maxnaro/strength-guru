@@ -5,12 +5,12 @@ import 'package:background_downloader/background_downloader.dart';
 
 class ModelService {
   static const _modelUrl =
-      'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf';
-  static const _filename = 'gemma-4-E2B-it-Q4_K_M.gguf';
+      'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q3_K_M.gguf';
+  static const _filename = 'gemma-4-E2B-it-Q3_K_M.gguf';
   static const _subdir = 'sg_models';
   static const _taskId = 'sg-model-download';
-  // Sanity floor: real file is ~3.11 GB
-  static const _minBytes = 2800000000;
+  // Sanity floor: real file is ~2.32 GB
+  static const _minBytes = 2200000000;
   // Fallback if Q4_K_M triggers JetSam kill on 6 GB iOS devices:
   // _modelUrl = '.../gemma-4-E2B-it-Q3_K_M.gguf'
   // _filename = 'gemma-4-E2B-it-Q3_K_M.gguf'

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/meso_import_data.dart';
 import 'model_service.dart';
@@ -10,9 +11,12 @@ class LlmService {
   Future<MesoImportData> interpretPlan(String csvContent) async {
     final path = await ModelService.modelPath();
 
-    // Reduce gpuLayers and nCtx for stability on 6GB iOS devices.
-    // gpuLayers: 0 (CPU) is slowest but most stable for debugging memory.
-    final modelParams = ModelParams(path: path, gpuLayers: 0);
+    // Enable wakelock to prevent system sleep during heavy LLM load
+    await WakelockPlus.enable();
+
+    // Reduce nCtx for stability on 6GB iOS devices.
+    // Using Q3_K_M model (~2.3GB) allows for some gpuLayers.
+    final modelParams = ModelParams(path: path, gpuLayers: 15);
     const ctxParams = ContextParams(nCtx: 2048, nBatch: 256, nUbatch: 256);
 
     LlamaEngine? engine;
@@ -71,6 +75,7 @@ class LlmService {
       return _parse(buffer.toString());
     } finally {
       await engine?.dispose();
+      await WakelockPlus.disable();
     }
   }
 
