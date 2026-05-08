@@ -9,15 +9,15 @@ import '../models/meso_import_data.dart';
 import 'model_service.dart';
 
 class LlmService {
-  static const bool useLmStudio = true;
-  static const String _lmStudioUrl = 'http://10.0.2.2:1234/v1/chat/completions';
+  static const String defaultUrl = 'http://10.0.2.2:1234/v1/chat/completions';
 
-  Future<MesoImportData> interpretPlan(String csvContent) async {
-    if (useLmStudio) {
-      return _runLmStudio(csvContent);
+  Future<MesoImportData> interpretPlan(String csvContent, {String? apiUrl}) async {
+    if (apiUrl != null) {
+      return _runExternalApi(csvContent, apiUrl);
     }
 
     final path = await ModelService.modelPath();
+    // ...
 
     // Enable wakelock to prevent system sleep during heavy LLM load
     await WakelockPlus.enable();
@@ -85,9 +85,9 @@ class LlmService {
   String _buildPrompt(String csv) =>
       '<bos><|turn>user\n${_instructions(csv)}<turn|>\n<|turn>model\n';
 
-  Future<MesoImportData> _runLmStudio(String csvContent) async {
+  Future<MesoImportData> _runExternalApi(String csvContent, String url) async {
     final response = await http.post(
-      Uri.parse(_lmStudioUrl),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'model': 'local-model',
@@ -99,7 +99,7 @@ class LlmService {
     );
 
     if (response.statusCode != 200) {
-      throw LlmException('LM Studio failed: ${response.body}');
+      throw LlmException('API failed: ${response.body}');
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -123,10 +123,11 @@ STRICT NUMERIC RULES:
 6. STRIP UNITS: Use only the number. Never include "kg", "lbs", or "sec".
 
 EXTRACTION RULES:
-- Include EVERY row. Do not summarize or skip.
+- Include EVERY day. If a day has no exercises or is labeled "Rest", include it with "exercises": [].
+- DO NOT pad the week. If the input has 4 days, the output must have EXACTLY 4 days.
 - Remove modifiers like "(Heavy)" or "(Back off)" from the exercise name. Only provide the base exercise name.
 - Muscle groups: chest, back, shoulders, arms, legs, core, other.
-- The number of weeks should be dynamic to match the input CSV.
+- "numWeeks" should be the total number of progression weeks found in the CSV.
 
 OUTPUT: A single JSON object. No markdown. No code blocks. No explanation. Just JSON.
 
@@ -151,35 +152,57 @@ SCHEMA:
   ]
 }
 
-RULES:
-- dayIdx is 0-based.
-- weekIdx is 0-based.
-- If the CSV contains multiple weeks of data for an exercise, include a weekTarget for EACH week.
-- If all weeks share same volume, weekTargets has one entry with weekIdx 0.
-
-EXAMPLE INPUT:
-Day 1: Chest & Back
-Bench Press,Chest,3,8,2
-Rows,Back,3,10,2
+EXAMPLE INPUT (Multi-week progression with Rest Day):
+Day 1: Chest,Exercise,Group,W1 Sets,W1 Reps,W1 RIR,W2 Sets,W2 Reps,W2 RIR
+Bench Press,chest,3,8,2,4,8,1
+Incline DB Press,chest,3,10,2,3,10,1
+Day 2: Rest,,,,,,,,
+Day 3: Legs,Exercise,Group,W1 Sets,W1 Reps,W1 RIR,W2 Sets,W2 Reps,W2 RIR
+Squats,legs,3,5,3,3,5,2
 
 EXAMPLE OUTPUT:
 {
-  "name": "My Meso",
-  "numWeeks": 1,
+  "name": "Progressive Meso",
+  "numWeeks": 2,
   "days": [
     {
       "dayIdx": 0,
-      "label": "Day 1: Chest & Back",
+      "label": "Day 1: Chest",
       "exercises": [
         {
           "name": "Bench Press",
           "muscleGroup": "chest",
-          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 }]
+          "weekTargets": [
+            { "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 },
+            { "weekIdx": 1, "sets": 4, "reps": 8, "rir": 1 }
+          ]
         },
         {
-          "name": "Rows",
-          "muscleGroup": "back",
-          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 10, "rir": 2 }]
+          "name": "Incline DB Press",
+          "muscleGroup": "chest",
+          "weekTargets": [
+            { "weekIdx": 0, "sets": 3, "reps": 10, "rir": 2 },
+            { "weekIdx": 1, "sets": 3, "reps": 10, "rir": 1 }
+          ]
+        }
+      ]
+    },
+    {
+      "dayIdx": 1,
+      "label": "Day 2: Rest",
+      "exercises": []
+    },
+    {
+      "dayIdx": 2,
+      "label": "Day 3: Legs",
+      "exercises": [
+        {
+          "name": "Squats",
+          "muscleGroup": "legs",
+          "weekTargets": [
+            { "weekIdx": 0, "sets": 3, "reps": 5, "rir": 3 },
+            { "weekIdx": 1, "sets": 3, "reps": 5, "rir": 2 }
+          ]
         }
       ]
     }

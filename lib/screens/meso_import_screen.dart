@@ -14,7 +14,7 @@ import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
 import '../widgets/exercise_picker.dart';
 
-enum _Phase { downloadingModel, loading, error, review, importing }
+enum _Phase { configuration, downloadingModel, loading, error, review, importing }
 
 class MesoImportScreen extends ConsumerStatefulWidget {
   final String csvContent;
@@ -26,25 +26,50 @@ class MesoImportScreen extends ConsumerStatefulWidget {
 }
 
 class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
-  _Phase _phase = _Phase.loading;
+  _Phase _phase = _Phase.loading; // Will be set to configuration in initState
   MesoImportData? _data;
   String? _errorMessage;
   String? _rawLlmResponse;
   double _downloadProgress = 0;
   StreamSubscription<double>? _downloadSub;
   final _nameController = TextEditingController();
+  final _apiUrlController = TextEditingController();
+  bool _useExternalApi = true;
 
   @override
   void initState() {
     super.initState();
-    _runLlm();
+    _loadConfigAndStart();
   }
 
   @override
   void dispose() {
     _downloadSub?.cancel();
     _nameController.dispose();
+    _apiUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadConfigAndStart() async {
+    final db = ref.read(dbProvider);
+    final savedUrl = await db.getSetting('llm_api_url');
+    final useExternal = await db.getSetting('llm_use_external');
+
+    if (mounted) {
+      setState(() {
+        _apiUrlController.text = savedUrl ?? LlmService.defaultUrl;
+        _useExternalApi = useExternal == 'true' || useExternal == null;
+        _phase = _Phase.configuration;
+      });
+    }
+  }
+
+  Future<void> _startProcessing() async {
+    final db = ref.read(dbProvider);
+    await db.setSetting('llm_api_url', _apiUrlController.text.trim());
+    await db.setSetting('llm_use_external', _useExternalApi.toString());
+
+    _runLlm();
   }
 
   Future<void> _runLlm() async {
@@ -55,7 +80,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     });
 
     try {
-      if (!LlmService.useLmStudio && !await ModelService.isDownloaded()) {
+      if (!_useExternalApi && !await ModelService.isDownloaded()) {
         setState(() {
           _phase = _Phase.downloadingModel;
           _downloadProgress = 0;
@@ -83,7 +108,10 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
           .where((line) => line.isNotEmpty && line.replaceAll(',', '').trim().isNotEmpty)
           .join('\n');
 
-      final data = await LlmService().interpretPlan(cleanedCsv);
+      final data = await LlmService().interpretPlan(
+        cleanedCsv,
+        apiUrl: _useExternalApi ? _apiUrlController.text.trim() : null,
+      );
       await _matchExercises(data);
       _nameController.text = data.name;
       setState(() {
@@ -108,7 +136,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     ModelService.cancel();
     _downloadSub?.cancel();
     _downloadSub = null;
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) setState(() => _phase = _Phase.configuration);
   }
 
   Future<void> _matchExercises(MesoImportData data) async {
@@ -171,6 +199,13 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
         title: Text('Import Plan', style: SGText.display(17, color: p.text)),
       ),
       body: switch (_phase) {
+        _Phase.configuration => _ConfigView(
+            apiUrlController: _apiUrlController,
+            useExternalApi: _useExternalApi,
+            palette: p,
+            onToggleApi: (val) => setState(() => _useExternalApi = val),
+            onStart: _startProcessing,
+          ),
         _Phase.downloadingModel => _DownloadView(
             progress: _downloadProgress,
             palette: p,
@@ -192,6 +227,159 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
             onImport: _import,
           ),
       },
+    );
+  }
+}
+
+// ── Configuration ─────────────────────────────────────────────────────────────
+
+class _ConfigView extends StatelessWidget {
+  final TextEditingController apiUrlController;
+  final bool useExternalApi;
+  final SGPalette palette;
+  final ValueChanged<bool> onToggleApi;
+  final VoidCallback onStart;
+
+  const _ConfigView({
+    required this.apiUrlController,
+    required this.useExternalApi,
+    required this.palette,
+    required this.onToggleApi,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('LLM Configuration',
+                      style: SGText.display(20, color: p.text)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Choose how you want to interpret this CSV file. Using an external API (like LM Studio) is much faster than on-device processing.',
+                    style: SGText.body(14, color: p.textDim),
+                  ),
+                  const SizedBox(height: 32),
+                  _ConfigOption(
+                    title: 'External API (OpenAI Compatible)',
+                    subtitle: 'Fastest. Requires LM Studio or similar running.',
+                    icon: Icons.api_rounded,
+                    selected: useExternalApi,
+                    palette: p,
+                    onTap: () => onToggleApi(true),
+                  ),
+                  if (useExternalApi) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: p.border, width: 0.5),
+                      ),
+                      child: TextField(
+                        controller: apiUrlController,
+                        style: SGText.mono(13, color: p.text),
+                        decoration: InputDecoration(
+                          hintText: 'http://...',
+                          hintStyle: SGText.mono(13, color: p.textFaint),
+                          border: InputBorder.none,
+                          labelText: 'Endpoint URL',
+                          labelStyle: SGText.body(11, color: p.textFaint),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _ConfigOption(
+                    title: 'On-Device LLM',
+                    subtitle: 'Private and offline. Slower (2-3 mins).',
+                    icon: Icons.phonelink_setup_rounded,
+                    selected: !useExternalApi,
+                    palette: p,
+                    onTap: () => onToggleApi(false),
+                  ),
+                  const Spacer(),
+                  SGButton.solid(
+                    label: 'Start Interpretation',
+                    color: p.accent,
+                    fullWidth: true,
+                    onTap: onStart,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfigOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final SGPalette palette;
+  final VoidCallback onTap;
+
+  const _ConfigOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.palette,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: selected ? p.accent.withValues(alpha: 0.05) : p.bg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? p.accent : p.border,
+            width: selected ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? p.accent : p.textDim, size: 28),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: SGText.body(15,
+                          color: selected ? p.text : p.textDim,
+                          weight: selected ? FontWeight.w700 : FontWeight.w500)),
+                  Text(subtitle, style: SGText.body(12, color: p.textFaint)),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle_rounded, color: p.accent, size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

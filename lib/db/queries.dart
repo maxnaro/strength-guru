@@ -682,3 +682,19 @@ extension WipeQueries on AppDatabase {
     });
   }
 }
+
+// ── Settings queries ──────────────────────────────────────────────────────────
+
+extension SettingsQueries on AppDatabase {
+  Future<String?> getSetting(String key) async {
+    final row = await (select(settings)..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  Future<void> setSetting(String key, String value) {
+    return into(settings).insertOnConflictUpdate(
+      SettingsCompanion.insert(key: key, value: value),
+    );
+  }
+}

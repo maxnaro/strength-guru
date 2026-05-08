@@ -105,6 +105,14 @@ class SetEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class Settings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
 
 @DriftDatabase(tables: [
@@ -116,12 +124,13 @@ class SetEntries extends Table {
   DayOverrides,
   SessionLogs,
   SetEntries,
+  Settings,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -292,6 +301,10 @@ class AppDatabase extends _$AppDatabase {
                     .write(WeekTargetsCompanion(slotId: Value(slot.id)));
               }
             }
+          }
+
+          if (from < 7) {
+            await m.createTable(settings);
           }
         },
       );
