@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
 import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -8,7 +9,14 @@ import '../models/meso_import_data.dart';
 import 'model_service.dart';
 
 class LlmService {
+  static const bool useLmStudio = true;
+  static const String _lmStudioUrl = 'http://10.0.2.2:1234/v1/chat/completions';
+
   Future<MesoImportData> interpretPlan(String csvContent) async {
+    if (useLmStudio) {
+      return _runLmStudio(csvContent);
+    }
+
     final path = await ModelService.modelPath();
 
     // Enable wakelock to prevent system sleep during heavy LLM load
@@ -77,6 +85,28 @@ class LlmService {
   String _buildPrompt(String csv) =>
       '<bos><|turn>user\n${_instructions(csv)}<turn|>\n<|turn>model\n';
 
+  Future<MesoImportData> _runLmStudio(String csvContent) async {
+    final response = await http.post(
+      Uri.parse(_lmStudioUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'model': 'local-model',
+        'messages': [
+          {'role': 'user', 'content': _instructions(csvContent)},
+        ],
+        'temperature': 0.0,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw LlmException('LM Studio failed: ${response.body}');
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final text = json['choices'][0]['message']['content'] as String;
+    return _parse(text);
+  }
+
   String _instructions(String csv) =>
       '''You are a precision workout parser. Extract every exercise row from the provided CSV and output JSON.
 
@@ -127,7 +157,36 @@ RULES:
 - If the CSV contains multiple weeks of data for an exercise, include a weekTarget for EACH week.
 - If all weeks share same volume, weekTargets has one entry with weekIdx 0.
 
-CSV:
+EXAMPLE INPUT:
+Day 1: Chest & Back
+Bench Press,Chest,3,8,2
+Rows,Back,3,10,2
+
+EXAMPLE OUTPUT:
+{
+  "name": "My Meso",
+  "numWeeks": 1,
+  "days": [
+    {
+      "dayIdx": 0,
+      "label": "Day 1: Chest & Back",
+      "exercises": [
+        {
+          "name": "Bench Press",
+          "muscleGroup": "chest",
+          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 }]
+        },
+        {
+          "name": "Rows",
+          "muscleGroup": "back",
+          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 10, "rir": 2 }]
+        }
+      ]
+    }
+  ]
+}
+
+ACTUAL CSV TO PARSE:
 $csv''';
 
   MesoImportData _parse(String raw) {
@@ -142,6 +201,9 @@ $csv''';
       throw LlmException('No JSON object in response', rawResponse: raw);
     }
     text = text.substring(start, end + 1);
+
+    // Strip trailing commas that break jsonDecode
+    text = text.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
 
     try {
       final json = jsonDecode(text) as Map<String, dynamic>;
