@@ -217,10 +217,10 @@ class _LogScreenState extends ConsumerState<LogScreen> {
                   extraSetsByExId: pageKey == effective ? _extraSetsByExId : {},
                   locallyDeletedSetIds: pageKey == effective ? _locallyDeletedSetIds : {},
                   locallySkippedSetKeys: pageKey == effective ? _locallySkippedSetKeys : {},
-                  onLogSet: (slotId, si, w, r, ri) => _logSet(
+                  onLogSet: (exId, slotId, si, w, r, ri) => _logSet(
                     effective: pageKey,
                     sessionId: ref.read(sessionLogProvider(pageKey)).valueOrNull?.id,
-                    exerciseId: _userActiveSet!.exerciseId,
+                    exerciseId: exId,
                     slotId: slotId,
                     setIndex: si,
                     weight: w,
@@ -265,7 +265,7 @@ class _DayView extends ConsumerWidget {
   final Set<String> locallyDeletedSetIds;
   final Set<String> locallySkippedSetKeys;
 
-  final Future<void> Function(String slotId, int setIndex, double? weight, int reps, int rir) onLogSet;
+  final Future<void> Function(String exId, String slotId, int setIndex, double? weight, int reps, int rir) onLogSet;
   final void Function(String exId, int setIndex) onActivate;
   final void Function(String exId) onAddSet;
   final void Function(String exId) onRemoveSet;
@@ -350,7 +350,7 @@ class _DayView extends ConsumerWidget {
                     suggestedWeight: suggestedW,
                     meso: meso,
                     dayKey: dayKey,
-                    onLogSet: (si, w, r, ri) => onLogSet(item.slot.id, si, w, r, ri),
+                    onLogSet: (si, w, r, ri) => onLogSet(ex.id, item.slot.id, si, w, r, ri),
                     onActivate: (si) => onActivate(ex.id, si),
                     onAddSet: () => onAddSet(ex.id),
                     onRemoveSet: () => onRemoveSet(ex.id),
