@@ -516,6 +516,7 @@ extension MesoMutationQueries on AppDatabase {
 
   Future<void> deleteWeek(String mesoId, int weekIdx) async {
     await transaction(() async {
+      // 1. Delete data for the target week
       await (delete(weekTargets)
             ..where((t) =>
                 t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
@@ -528,6 +529,62 @@ extension MesoMutationQueries on AppDatabase {
             ..where((t) =>
                 t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
           .go();
+
+      // 2. Shift subsequent weeks down
+      final shiftTarget = 'UPDATE week_targets SET week_idx = week_idx - 1 '
+          'WHERE mesocycle_id = ? AND week_idx > ?';
+      await customUpdate(shiftTarget, variables: [
+        Variable<String>(mesoId),
+        Variable<int>(weekIdx),
+      ], updates: {
+        weekTargets
+      });
+
+      final shiftOverrides = 'UPDATE day_overrides SET week_idx = week_idx - 1 '
+          'WHERE mesocycle_id = ? AND week_idx > ?';
+      await customUpdate(shiftOverrides, variables: [
+        Variable<String>(mesoId),
+        Variable<int>(weekIdx),
+      ], updates: {
+        dayOverrides
+      });
+
+      // Shifting session logs requires care due to unique index on (mesocycle_id, week_idx, day_idx).
+      // We update them in descending order to avoid collisions.
+      final logsToShift = await (select(sessionLogs)
+            ..where((t) =>
+                t.mesocycleId.equals(mesoId) & t.weekIdx.isBiggerThanValue(weekIdx))
+            ..orderBy([(t) => OrderingTerm(expression: t.weekIdx, mode: OrderingMode.desc)]))
+          .get();
+
+      for (final log in logsToShift) {
+        await (update(sessionLogs)..where((t) => t.id.equals(log.id))).write(
+          SessionLogsCompanion(weekIdx: Value(log.weekIdx - 1)),
+        );
+      }
+
+      // 3. Update Mesocycle metadata
+      final meso = await (select(mesocycles)..where((t) => t.id.equals(mesoId)))
+          .getSingle();
+
+      final oldDeloads =
+          meso.deloadWeeks.split(',').where((s) => s.isNotEmpty).map(int.parse).toSet();
+      final newDeloads = <int>{};
+      for (final d in oldDeloads) {
+        if (d < weekIdx) {
+          newDeloads.add(d);
+        } else if (d > weekIdx) {
+          newDeloads.add(d - 1);
+        }
+        // if d == weekIdx, it's removed
+      }
+
+      await (update(mesocycles)..where((t) => t.id.equals(mesoId))).write(
+        MesocyclesCompanion(
+          numWeeks: Value(meso.numWeeks - 1),
+          deloadWeeks: Value(newDeloads.join(',')),
+        ),
+      );
     });
   }
 }
