@@ -12,13 +12,19 @@ class LlmService {
   static const String defaultUrl = 'http://10.0.2.2:1234/v1/chat/completions';
 
   Future<MesoImportData> interpretPlan(String csvContent, {String? apiUrl}) async {
-    if (apiUrl != null) {
-      return _runExternalApi(csvContent, apiUrl);
-    }
-
-    final path = await ModelService.modelPath();
-    // Enable wakelock to prevent system sleep during heavy LLM load
     await WakelockPlus.enable();
+    try {
+      if (apiUrl != null) {
+        return await _runExternalApi(csvContent, apiUrl);
+      }
+      return await _runLocalInterpretation(csvContent);
+    } finally {
+      await WakelockPlus.disable();
+    }
+  }
+
+  Future<MesoImportData> _runLocalInterpretation(String csvContent) async {
+    final path = await ModelService.modelPath();
 
     // Using Q3_K_M model (~2.3GB) allows for some gpuLayers.
     final modelParams = ModelParams(path: path, gpuLayers: 15);
@@ -76,7 +82,6 @@ class LlmService {
       return _parse(buffer.toString());
     } finally {
       await engine?.dispose();
-      await WakelockPlus.disable();
     }
   }
 
