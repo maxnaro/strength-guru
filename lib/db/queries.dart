@@ -531,7 +531,7 @@ extension MesoMutationQueries on AppDatabase {
           .go();
 
       // 2. Shift subsequent weeks down
-      final shiftTarget = 'UPDATE week_targets SET week_idx = week_idx - 1 '
+      const shiftTarget = 'UPDATE week_targets SET week_idx = week_idx - 1 '
           'WHERE mesocycle_id = ? AND week_idx > ?';
       await customUpdate(shiftTarget, variables: [
         Variable<String>(mesoId),
@@ -540,7 +540,7 @@ extension MesoMutationQueries on AppDatabase {
         weekTargets
       });
 
-      final shiftOverrides = 'UPDATE day_overrides SET week_idx = week_idx - 1 '
+      const shiftOverrides = 'UPDATE day_overrides SET week_idx = week_idx - 1 '
           'WHERE mesocycle_id = ? AND week_idx > ?';
       await customUpdate(shiftOverrides, variables: [
         Variable<String>(mesoId),

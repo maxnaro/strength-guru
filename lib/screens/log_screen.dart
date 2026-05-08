@@ -23,9 +23,9 @@ class LogScreen extends ConsumerStatefulWidget {
 }
 
 class _LogScreenState extends ConsumerState<LogScreen> {
-  ({String exerciseId, int setIndex})? _userActiveSet;
+  ({String slotId, int setIndex})? _userActiveSet;
   DayKey? _lastDayKey;
-  final Map<String, int> _extraSetsByExId = {};
+  final Map<String, int> _extraSetsBySlotId = {};
   final Set<String> _locallyDeletedSetIds = {};
   final Set<String> _locallySkippedSetKeys = {};
 
@@ -83,7 +83,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     ref.invalidate(suggestedWeightProvider(exerciseId));
 
     if (mounted &&
-        _userActiveSet?.exerciseId == exerciseId &&
+        _userActiveSet?.slotId == slotId &&
         _userActiveSet?.setIndex == setIndex) {
       setState(() => _userActiveSet = null);
     }
@@ -145,7 +145,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
     // Reset user selections when day changes
     if (effective != _lastDayKey) {
       _userActiveSet = null;
-      _extraSetsByExId.clear();
+      _extraSetsBySlotId.clear();
       _locallyDeletedSetIds.clear();
       _locallySkippedSetKeys.clear();
       _lastDayKey = effective;
@@ -214,7 +214,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
                   dayKey: pageKey,
                   bottomPad: bottomPad,
                   userActiveSet: pageKey == effective ? _userActiveSet : null,
-                  extraSetsByExId: pageKey == effective ? _extraSetsByExId : {},
+                  extraSetsBySlotId: pageKey == effective ? _extraSetsBySlotId : {},
                   locallyDeletedSetIds: pageKey == effective ? _locallyDeletedSetIds : {},
                   locallySkippedSetKeys: pageKey == effective ? _locallySkippedSetKeys : {},
                   onLogSet: (exId, slotId, si, w, r, ri) => _logSet(
@@ -227,22 +227,22 @@ class _LogScreenState extends ConsumerState<LogScreen> {
                     reps: r,
                     rir: ri,
                   ),
-                  onActivate: (exId, si) => setState(
-                    () => _userActiveSet = (exerciseId: exId, setIndex: si),
+                  onActivate: (slotId, si) => setState(
+                    () => _userActiveSet = (slotId: slotId, setIndex: si),
                   ),
-                  onAddSet: (exId) => setState(
-                    () => _extraSetsByExId[exId] = (_extraSetsByExId[exId] ?? 0) + 1,
+                  onAddSet: (slotId) => setState(
+                    () => _extraSetsBySlotId[slotId] = (_extraSetsBySlotId[slotId] ?? 0) + 1,
                   ),
-                  onRemoveSet: (exId) => setState(
-                    () => _extraSetsByExId[exId] = max(0, (_extraSetsByExId[exId] ?? 0) - 1),
+                  onRemoveSet: (slotId) => setState(
+                    () => _extraSetsBySlotId[slotId] = max(0, (_extraSetsBySlotId[slotId] ?? 0) - 1),
                   ),
                   onDeleteSet: (exId, entryId) {
                     setState(() => _locallyDeletedSetIds.add(entryId));
                     ref.read(dbProvider).deleteSetEntry(entryId);
                     ref.invalidate(suggestedWeightProvider(exId));
                   },
-                  onSkipSet: (exId, setIndex) {
-                    setState(() => _locallySkippedSetKeys.add('$exId-$setIndex'));
+                  onSkipSet: (slotId, setIndex) {
+                    setState(() => _locallySkippedSetKeys.add('$slotId-$setIndex'));
                   },
                 );
               },
@@ -260,24 +260,24 @@ class _DayView extends ConsumerWidget {
   final Mesocycle meso;
   final DayKey dayKey;
   final double bottomPad;
-  final ({String exerciseId, int setIndex})? userActiveSet;
-  final Map<String, int> extraSetsByExId;
+  final ({String slotId, int setIndex})? userActiveSet;
+  final Map<String, int> extraSetsBySlotId;
   final Set<String> locallyDeletedSetIds;
   final Set<String> locallySkippedSetKeys;
 
   final Future<void> Function(String exId, String slotId, int setIndex, double? weight, int reps, int rir) onLogSet;
-  final void Function(String exId, int setIndex) onActivate;
-  final void Function(String exId) onAddSet;
-  final void Function(String exId) onRemoveSet;
+  final void Function(String slotId, int setIndex) onActivate;
+  final void Function(String slotId) onAddSet;
+  final void Function(String slotId) onRemoveSet;
   final void Function(String exId, String entryId) onDeleteSet;
-  final void Function(String exId, int setIndex) onSkipSet;
+  final void Function(String slotId, int setIndex) onSkipSet;
 
   const _DayView({
     required this.meso,
     required this.dayKey,
     required this.bottomPad,
     required this.userActiveSet,
-    required this.extraSetsByExId,
+    required this.extraSetsBySlotId,
     required this.locallyDeletedSetIds,
     required this.locallySkippedSetKeys,
     required this.onLogSet,
@@ -308,13 +308,14 @@ class _DayView extends ConsumerWidget {
         .where((e) => !locallyDeletedSetIds.contains(e.id))
         .toList();
 
-    final entriesByEx = <String, List<SetEntry>>{};
+    final entriesBySlot = <String, List<SetEntry>>{};
     for (final e in filteredEntries) {
-      (entriesByEx[e.exerciseId] ??= []).add(e);
+      final key = e.slotId ?? e.exerciseId;
+      (entriesBySlot[key] ??= []).add(e);
     }
 
     final isRestDay = items.isEmpty;
-    final implicitActive = _computeActiveSet(items, entriesByEx, targets);
+    final implicitActive = _computeActiveSet(items, entriesBySlot, targets);
     final effectiveActiveSet = userActiveSet ?? implicitActive;
 
     if (isRestDay) {
@@ -334,7 +335,7 @@ class _DayView extends ConsumerWidget {
                 final ex = item.exercise;
                 final target = targets[item.slot.id];
                 final exGroup = MuscleGroupX.fromString(ex.group);
-                final exEntries = entriesByEx[ex.id] ?? [];
+                final exEntries = entriesBySlot[item.slot.id] ?? [];
                 final suggestedW =
                     ref.watch(suggestedWeightProvider(ex.id)).valueOrNull;
                 return Padding(
@@ -345,19 +346,19 @@ class _DayView extends ConsumerWidget {
                     target: target,
                     entries: exEntries,
                     activeSet: effectiveActiveSet,
-                    extraSets: extraSetsByExId[ex.id] ?? 0,
+                    extraSets: extraSetsBySlotId[item.slot.id] ?? 0,
                     sessionId: sessionLog?.id,
                     suggestedWeight: suggestedW,
                     meso: meso,
                     dayKey: dayKey,
                     onLogSet: (si, w, r, ri) => onLogSet(ex.id, item.slot.id, si, w, r, ri),
-                    onActivate: (si) => onActivate(ex.id, si),
-                    onAddSet: () => onAddSet(ex.id),
-                    onRemoveSet: () => onRemoveSet(ex.id),
+                    onActivate: (si) => onActivate(item.slot.id, si),
+                    onAddSet: () => onAddSet(item.slot.id),
+                    onRemoveSet: () => onRemoveSet(item.slot.id),
                     onDeleteSet: (entryId) => onDeleteSet(ex.id, entryId),
-                    onSkipSet: (setIndex) => onSkipSet(ex.id, setIndex),
+                    onSkipSet: (setIndex) => onSkipSet(item.slot.id, setIndex),
                     skippedSetIndices: locallySkippedSetKeys
-                        .where((k) => k.startsWith('${ex.id}-'))
+                        .where((k) => k.startsWith('${item.slot.id}-'))
                         .map((k) => int.parse(k.split('-').last))
                         .toSet(),
                     onSwapped: () => ref.invalidate(dayPlanProvider(dayKey)),
@@ -373,18 +374,18 @@ class _DayView extends ConsumerWidget {
     );
   }
 
-  static ({String exerciseId, int setIndex})? _computeActiveSet(
+  static ({String slotId, int setIndex})? _computeActiveSet(
     List<ExerciseSlotWithExercise> items,
-    Map<String, List<SetEntry>> entriesByEx,
+    Map<String, List<SetEntry>> entriesBySlot,
     Map<String, WeekTarget> targets,
   ) {
     for (final item in items) {
       final target = targets[item.slot.id];
       if (target == null) continue;
-      final entries = entriesByEx[item.exerciseId] ?? [];
+      final entries = entriesBySlot[item.slot.id] ?? [];
       for (var i = 0; i < target.sets; i++) {
         final done = entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
-        if (done == null) return (exerciseId: item.exerciseId, setIndex: i);
+        if (done == null) return (slotId: item.slot.id, setIndex: i);
       }
     }
     return null;
@@ -618,7 +619,7 @@ class _ExerciseCard extends ConsumerWidget {
   final MuscleGroup group;
   final WeekTarget? target;
   final List<SetEntry> entries;
-  final ({String exerciseId, int setIndex})? activeSet;
+  final ({String slotId, int setIndex})? activeSet;
   final int extraSets;
   final String? sessionId;
   final double? suggestedWeight;
@@ -717,12 +718,12 @@ class _ExerciseCard extends ConsumerWidget {
 
             final entry =
                 entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
-            final isActive = activeSet?.exerciseId == exercise.id &&
+            final isActive = activeSet?.slotId == item.slot.id &&
                 activeSet?.setIndex == i;
 
             if (isActive) {
               return SetRowActive(
-                key: ValueKey('active-${exercise.id}-$i'),
+                key: ValueKey('active-${item.slot.id}-$i'),
                 setIndex: i,
                 exerciseId: exercise.id,
                 slotId: item.slot.id,

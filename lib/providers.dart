@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'db/database.dart';
-import 'db/plan.dart';
 import 'db/queries.dart';
 import 'theme/groups.dart';
 
