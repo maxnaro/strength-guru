@@ -698,3 +698,88 @@ extension SettingsQueries on AppDatabase {
     );
   }
 }
+
+// ── Day mutation queries ──────────────────────────────────────────────────────
+
+extension DayMutationQueries on AppDatabase {
+  Future<void> clearDay(String mesoId, int dayIdx) async {
+    await transaction(() async {
+      await (update(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayIdx)))
+          .write(const ProgramDaysCompanion(label: Value(null)));
+      await (delete(dayOverrides)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayIdx)))
+          .go();
+      await (delete(sessionLogs)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayIdx)))
+          .go();
+    });
+  }
+
+  Future<void> duplicateDay(String mesoId, int fromIdx, int toIdx) async {
+    await transaction(() async {
+      await clearDay(mesoId, toIdx);
+
+      final sourceP = await (select(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(fromIdx)))
+          .getSingleOrNull();
+      if (sourceP != null) {
+        await upsertProgramDay(mesoId, toIdx, sourceP.label);
+      }
+
+      final overrides = await (select(dayOverrides)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(fromIdx)))
+          .get();
+      for (final ov in overrides) {
+        await into(dayOverrides).insertOnConflictUpdate(DayOverridesCompanion.insert(
+          mesocycleId: mesoId,
+          weekIdx: ov.weekIdx,
+          dayIdx: toIdx,
+          exerciseIdsCsv: ov.exerciseIdsCsv,
+        ));
+      }
+    });
+  }
+
+  Future<void> swapDays(String mesoId, int dayA, int dayB) async {
+    if (dayA == dayB) return;
+    await transaction(() async {
+      // 1. Swap ProgramDays labels
+      final pA = await (select(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayA)))
+          .getSingleOrNull();
+      final pB = await (select(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayB)))
+          .getSingleOrNull();
+
+      await (update(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayA)))
+          .write(ProgramDaysCompanion(label: Value(pB?.label)));
+      await (update(programDays)
+            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayB)))
+          .write(ProgramDaysCompanion(label: Value(pA?.label)));
+
+      // 2. Swap DayOverrides (all weeks)
+      await customUpdate(
+          'UPDATE day_overrides SET day_idx = -1 WHERE mesocycle_id = ? AND day_idx = ?',
+          variables: [Variable(mesoId), Variable(dayA)]);
+      await customUpdate(
+          'UPDATE day_overrides SET day_idx = ? WHERE mesocycle_id = ? AND day_idx = ?',
+          variables: [Variable(dayA), Variable(mesoId), Variable(dayB)]);
+      await customUpdate(
+          'UPDATE day_overrides SET day_idx = ? WHERE mesocycle_id = ? AND day_idx = -1',
+          variables: [Variable(dayB), Variable(mesoId)]);
+
+      // 3. Swap SessionLogs (all weeks)
+      await customUpdate(
+          'UPDATE session_logs SET day_idx = -1 WHERE mesocycle_id = ? AND day_idx = ?',
+          variables: [Variable(mesoId), Variable(dayA)]);
+      await customUpdate(
+          'UPDATE session_logs SET day_idx = ? WHERE mesocycle_id = ? AND day_idx = ?',
+          variables: [Variable(dayA), Variable(mesoId), Variable(dayB)]);
+      await customUpdate(
+          'UPDATE session_logs SET day_idx = ? WHERE mesocycle_id = ? AND day_idx = -1',
+          variables: [Variable(dayB), Variable(mesoId)]);
+    });
+  }
+}
