@@ -211,7 +211,12 @@ Future<String?> _showNameDialog(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: SGText.display(20, color: p.text)),
+        Text(
+          title,
+          style: SGText.display(20, color: p.text),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 16),
         TextField(
           controller: controller,
@@ -277,7 +282,13 @@ class _MesoRow extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(meso.name, style: SGText.display(20, color: palette.text)),
+              Text(
+                meso.name,
+                style: SGText.display(20, color: palette.text),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 16),
               SGButton.solid(
                 label: 'Rename',
