@@ -582,6 +582,11 @@ class _TimelineView extends ConsumerWidget {
                           if (group != MuscleGroup.rest) SGGroupDot(group, size: 6),
                           const SizedBox(width: 8),
                           IconButton(
+                            icon: Icon(Icons.swap_horiz, size: 16, color: p.textFaint),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _showSwapPicker(context, ref, meso.id, dayIdx),
+                          ),
+                          IconButton(
                             icon: Icon(Icons.edit, size: 14, color: p.textFaint),
                             visualDensity: VisualDensity.compact,
                             onPressed: () => showSGSheet(
@@ -591,6 +596,7 @@ class _TimelineView extends ConsumerWidget {
                               child: DayProgramEditor(meso: meso, dayIdx: dayIdx),
                             ),
                           ),
+                          _DayActionMenu(meso: meso, dayIdx: dayIdx),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -649,9 +655,82 @@ class _TimelineView extends ConsumerWidget {
     );
   }
 
-  String _dayName(int dayIdx) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days[dayIdx];
+  String _dayName(int dayIdx, {bool full = false}) {
+    const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const fullDays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return full ? fullDays[dayIdx] : shortDays[dayIdx];
+  }
+
+  Future<void> _handleSwap(
+      WidgetRef ref, String mesoId, int dayA, int dayB) async {
+    final db = ref.read(dbProvider);
+    await db.swapDays(mesoId, dayA, dayB);
+    ref.invalidate(programDayExercisesProvider);
+    ref.invalidate(dayPlanProvider);
+    ref.invalidate(dayGroupProvider);
+    ref.invalidate(programDayProvider);
+    ref.invalidate(mesoSessionLogsProvider(mesoId));
+  }
+
+  Future<void> _showSwapPicker(
+      BuildContext context, WidgetRef ref, String mesoId, int sourceIdx) async {
+    final p = pal(context);
+    final targetIdx = await showSGSheet<int>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Swap With', style: SGText.display(18, color: p.text)),
+          const SizedBox(height: 16),
+          ...List.generate(7, (i) {
+            if (i == sourceIdx) return const SizedBox.shrink();
+            return Consumer(builder: (context, ref, _) {
+              final daySettingsAsync =
+                  ref.watch(programDayProvider(ProgramDayKey(mesoId, i)));
+              final label = daySettingsAsync.valueOrNull?.label;
+              final hasLabel = label != null && label.isNotEmpty;
+
+              return ListTile(
+                title: RichText(
+                  text: TextSpan(
+                    style: SGText.body(16, color: p.text),
+                    children: [
+                      TextSpan(text: _dayName(i, full: true)),
+                      if (hasLabel) ...[
+                        const TextSpan(text: ' → '),
+                        TextSpan(
+                          text: label,
+                          style: SGText.mono(14, color: p.textDim),
+                        ),
+                      ],                    ],
+                  ),
+                ),
+                onTap: () => Navigator.pop(context, i),
+              );
+            });
+          }),
+          const SizedBox(height: 12),
+          SGButton.ghost(
+            label: 'Cancel',
+            color: p.textDim,
+            fullWidth: true,
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+
+    if (targetIdx != null) {
+      await _handleSwap(ref, mesoId, sourceIdx, targetIdx);
+    }
   }
 
   void _programSwap(BuildContext context, WidgetRef ref, MuscleGroup group,
@@ -800,6 +879,160 @@ class _TimelineRow extends ConsumerWidget {
   }
 }
 
+// ── Day action menu ────────────────────────────────────────────────────────────
+
+class _DayActionMenu extends ConsumerWidget {
+  final Mesocycle meso;
+  final int dayIdx;
+
+  const _DayActionMenu({required this.meso, required this.dayIdx});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = pal(context);
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.more_vert, size: 18, color: p.textFaint),
+      onSelected: (val) => _handleAction(context, ref, val),
+      color: p.surface,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(SGRadius.btn),
+        side: BorderSide(color: p.borderStrong, width: 0.5),
+      ),
+      offset: const Offset(0, 36),
+      itemBuilder: (ctx) => [
+        PopupMenuItem(
+          value: 'dup',
+          child: Text('Duplicate To...', style: SGText.body(14, color: p.text)),
+        ),
+        PopupMenuItem(
+          value: 'clear',
+          child: Text('Clear Day', style: SGText.body(14, color: p.accent)),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleAction(
+      BuildContext context, WidgetRef ref, String action) async {
+    final db = ref.read(dbProvider);
+    final p = pal(context);
+
+    if (action == 'up' || action == 'down') {
+      final other = action == 'up' ? dayIdx - 1 : dayIdx + 1;
+      await db.swapDays(meso.id, dayIdx, other);
+    } else if (action == 'dup') {
+      final targetIdx = await _showTargetPicker(context, ref);
+      if (targetIdx != null) {
+        await db.duplicateDay(meso.id, dayIdx, targetIdx);
+      }
+    } else if (action == 'clear') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: p.surface,
+          title: Text('Clear Day?', style: SGText.display(20, color: p.text)),
+          content: Text(
+            'Exercises and targets for this day will be removed across all weeks.',
+            style: SGText.body(15, color: p.textDim),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: SGText.body(14, color: p.textDim)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Clear',
+                  style: SGText.body(14, color: p.accent, weight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await db.clearDay(meso.id, dayIdx);
+      }
+    }
+
+    // Refresh everything
+    ref.invalidate(programDayExercisesProvider);
+    ref.invalidate(dayPlanProvider);
+    ref.invalidate(dayGroupProvider);
+    ref.invalidate(programDayProvider);
+    ref.invalidate(mesoSessionLogsProvider(meso.id));
+  }
+
+  Future<int?> _showTargetPicker(BuildContext context, WidgetRef ref) async {
+    final p = pal(context);
+    
+    // Find rest days (days with no exercises in ProgramDayKey(meso.id, dayIdx))
+    final restDays = <int>[];
+    for (int i = 0; i < 7; i++) {
+      if (i == dayIdx) continue;
+      final items = await ref.read(programDayExercisesProvider(ProgramDayKey(meso.id, i)).future);
+      if (items.isEmpty) restDays.add(i);
+    }
+
+    if (restDays.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No rest days available to duplicate into.')),
+        );
+      }
+      return null;
+    }
+
+    return showSGSheet<int>(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Select Rest Day', style: SGText.display(18, color: p.text)),
+          const SizedBox(height: 16),
+          ...restDays.map((idx) => Consumer(builder: (context, ref, _) {
+                final daySettingsAsync = ref.watch(
+                    programDayProvider(ProgramDayKey(meso.id, idx)));
+                final label = daySettingsAsync.valueOrNull?.label;
+                final hasLabel = label != null && label.isNotEmpty;
+
+                return ListTile(
+                  title: RichText(
+                    text: TextSpan(
+                      style: SGText.body(16, color: p.text),
+                      children: [
+                        TextSpan(text: _dayName(idx)),
+                        if (hasLabel) ...[
+                          const TextSpan(text: ' → '),
+                          TextSpan(
+                            text: label,
+                            style: SGText.mono(14, color: p.textDim),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(context, idx),
+                );
+              })),
+          const SizedBox(height: 12),
+          SGButton.ghost(
+            label: 'Cancel',
+            color: p.textDim,
+            fullWidth: true,
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _dayName(int dayIdx) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[dayIdx];
+  }
+}
+
 // ── Settings row ──────────────────────────────────────────────────────────────
 
 class _SettingsRow extends ConsumerWidget {
@@ -835,19 +1068,23 @@ class _SettingsRow extends ConsumerWidget {
   }
 
   Future<void> _reseed(BuildContext context, WidgetRef ref) async {
+    final p = pal(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Re-seed?'),
-        content:
-            const Text('Wipes all data and recreates the starter mesocycle.'),
+        backgroundColor: p.surface,
+        title: Text('Re-seed?', style: SGText.display(20, color: p.text)),
+        content: Text('Wipes all data and recreates the starter mesocycle.',
+            style: SGText.body(15, color: p.textDim)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text('Cancel', style: SGText.body(14, color: p.textDim))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Re-seed')),
+              child: Text('Re-seed',
+                  style: SGText.body(14,
+                      color: p.accent, weight: FontWeight.bold))),
         ],
       ),
     );
@@ -859,18 +1096,23 @@ class _SettingsRow extends ConsumerWidget {
   }
 
   Future<void> _wipe(BuildContext context, WidgetRef ref) async {
+    final p = pal(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Wipe all data?'),
-        content: const Text('Permanently deletes everything. Cannot undo.'),
+        backgroundColor: p.surface,
+        title: Text('Wipe all data?', style: SGText.display(20, color: p.text)),
+        content: Text('Permanently deletes everything. Cannot undo.',
+            style: SGText.body(15, color: p.textDim)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text('Cancel', style: SGText.body(14, color: p.textDim))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Wipe', style: TextStyle(color: Colors.red))),
+              child: Text('Wipe',
+                  style: SGText.body(14,
+                      color: p.accent, weight: FontWeight.bold))),
         ],
       ),
     );
