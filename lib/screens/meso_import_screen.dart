@@ -2,14 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:string_similarity/string_similarity.dart';
 
 import '../db/queries.dart';
 import '../models/meso_import_data.dart';
 import '../providers.dart';
 import '../services/llm_service.dart';
 import '../services/model_service.dart';
+import '../theme/groups.dart';
 import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
+import '../widgets/exercise_picker.dart';
 
 enum _Phase { downloadingModel, loading, error, review, importing }
 
@@ -52,7 +55,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     });
 
     try {
-      if (!await ModelService.isDownloaded()) {
+      if (!LlmService.useLmStudio && !await ModelService.isDownloaded()) {
         setState(() {
           _phase = _Phase.downloadingModel;
           _downloadProgress = 0;
@@ -74,7 +77,13 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
         setState(() => _phase = _Phase.loading);
       }
 
-      final data = await LlmService().interpretPlan(widget.csvContent);
+      final cleanedCsv = widget.csvContent
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty && line.replaceAll(',', '').trim().isNotEmpty)
+          .join('\n');
+
+      final data = await LlmService().interpretPlan(cleanedCsv);
       await _matchExercises(data);
       _nameController.text = data.name;
       setState(() {
@@ -105,11 +114,17 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
   Future<void> _matchExercises(MesoImportData data) async {
     final db = ref.read(dbProvider);
     final existing = await db.allExercises();
-    final names = existing.map((e) => e.name.toLowerCase()).toSet();
+    final existingNames = existing.map((e) => e.name).toList();
 
     for (final day in data.days) {
       for (final ex in day.exercises) {
-        ex.isExistingInDb = names.contains(ex.name.toLowerCase());
+        final match = ex.name.bestMatch(existingNames);
+        if (match.bestMatch.rating! > 0.75) {
+          ex.name = match.bestMatch.target!;
+          ex.isExistingInDb = true;
+        } else {
+          ex.isExistingInDb = false;
+        }
       }
     }
   }
@@ -120,6 +135,11 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     data.name = _nameController.text.trim().isEmpty
         ? 'Imported Block'
         : _nameController.text.trim();
+
+    // Fix up day indices based on current order
+    for (int i = 0; i < data.days.length; i++) {
+      data.days[i].dayIdx = i;
+    }
 
     setState(() => _phase = _Phase.importing);
     try {
@@ -168,6 +188,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
             data: _data!,
             nameController: _nameController,
             palette: p,
+            onChanged: () => setState(() {}),
             onImport: _import,
           ),
       },
@@ -353,12 +374,14 @@ class _ReviewView extends StatelessWidget {
   final MesoImportData data;
   final TextEditingController nameController;
   final SGPalette palette;
+  final VoidCallback onChanged;
   final VoidCallback onImport;
 
   const _ReviewView({
     required this.data,
     required this.nameController,
     required this.palette,
+    required this.onChanged,
     required this.onImport,
   });
 
@@ -373,43 +396,86 @@ class _ReviewView extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView(
+          child: ReorderableListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            children: [
-              TextField(
-                controller: nameController,
-                style: SGText.display(20, color: p.text),
-                decoration: InputDecoration(
-                  hintText: 'Plan name',
-                  hintStyle: SGText.display(20, color: p.textFaint),
-                  border: InputBorder.none,
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: SGText.display(20, color: p.text),
+                  decoration: InputDecoration(
+                    hintText: 'Plan name',
+                    hintStyle: SGText.display(20, color: p.textFaint),
+                    border: InputBorder.none,
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  SGChip('${data.numWeeks} WEEKS', tone: ChipTone.neutral),
-                  const SizedBox(width: 8),
-                  SGChip('${data.days.length} DAYS', tone: ChipTone.neutral),
-                  if (newCount > 0) ...[
+                Row(
+                  children: [
+                    SGChip('${data.numWeeks} WEEKS', tone: ChipTone.neutral),
                     const SizedBox(width: 8),
-                    SGChip('$newCount NEW EX', tone: ChipTone.warn),
+                    SGChip('${data.days.length} DAYS', tone: ChipTone.neutral),
+                    if (newCount > 0) ...[
+                      const SizedBox(width: 8),
+                      SGChip('$newCount NEW EX', tone: ChipTone.warn),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: 20),
-              ...data.days.map((day) => _DayCard(day: day, palette: p)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _LegendDot(color: p.success),
-                  const SizedBox(width: 6),
-                  Text('Existing exercise', style: SGText.mono(10, color: p.textFaint)),
-                  const SizedBox(width: 16),
-                  _LegendDot(color: p.warn),
-                  const SizedBox(width: 6),
-                  Text('Will be created', style: SGText.mono(10, color: p.textFaint)),
-                ],
-              ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+            footer: Column(
+              children: [
+                const SizedBox(height: 8),
+                SGButton.ghost(
+                  label: 'Add Rest Day',
+                  leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
+                  color: p.accent,
+                  onTap: () {
+                    data.days.add(ImportDay(
+                      dayIdx: data.days.length,
+                      label: 'Rest Day',
+                      exercises: [],
+                    ));
+                    onChanged();
+                  },
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    _LegendDot(color: p.success),
+                    const SizedBox(width: 6),
+                    Text('Existing exercise',
+                        style: SGText.mono(10, color: p.textFaint)),
+                    const SizedBox(width: 16),
+                    _LegendDot(color: p.warn),
+                    const SizedBox(width: 6),
+                    Text('Will be created',
+                        style: SGText.mono(10, color: p.textFaint)),
+                  ],
+                ),
+              ],
+            ),
+            onReorder: (oldIndex, newIndex) {
+              if (oldIndex < newIndex) newIndex -= 1;
+              final day = data.days.removeAt(oldIndex);
+              data.days.insert(newIndex, day);
+              onChanged();
+            },
+            buildDefaultDragHandles: false,
+            children: [
+              for (int i = 0; i < data.days.length; i++)
+                _DayCard(
+                  key: ValueKey(data.days[i]),
+                  index: i,
+                  day: data.days[i],
+                  palette: p,
+                  onChanged: onChanged,
+                  onDelete: () {
+                    data.days.removeAt(i);
+                    onChanged();
+                  },
+                ),
             ],
           ),
         ),
@@ -428,15 +494,52 @@ class _ReviewView extends StatelessWidget {
   }
 }
 
-class _DayCard extends StatelessWidget {
+class _DayCard extends StatefulWidget {
+  final int index;
   final ImportDay day;
   final SGPalette palette;
+  final VoidCallback onChanged;
+  final VoidCallback onDelete;
 
-  const _DayCard({required this.day, required this.palette});
+  const _DayCard({
+    super.key,
+    required this.index,
+    required this.day,
+    required this.palette,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  @override
+  State<_DayCard> createState() => _DayCardState();
+}
+
+class _DayCardState extends State<_DayCard> {
+  late TextEditingController _labelController;
+
+  @override
+  void initState() {
+    super.initState();
+    _labelController = TextEditingController(text: widget.day.label);
+  }
+
+  @override
+  void didUpdateWidget(_DayCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.day != widget.day) {
+      _labelController.text = widget.day.label;
+    }
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final p = palette;
+    final p = widget.palette;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -448,14 +551,47 @@ class _DayCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-            child: Text(
-              day.label.isEmpty ? 'Day ${day.dayIdx + 1}' : day.label,
-              style: SGText.display(14, color: p.text, weight: FontWeight.w700),
+            padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _labelController,
+                    onChanged: (val) => widget.day.label = val,
+                    style: SGText.display(14,
+                        color: p.text, weight: FontWeight.w700),
+                    decoration: InputDecoration(
+                      hintText: 'Day Label',
+                      hintStyle: SGText.display(14, color: p.textFaint),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                ReorderableDragStartListener(
+                  index: widget.index,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.drag_indicator, color: p.textFaint, size: 20),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close, color: p.textFaint, size: 18),
+                  onPressed: widget.onDelete,
+                ),
+              ],
             ),
           ),
           const Divider(height: 1, thickness: 0.5),
-          ...day.exercises.map((ex) => _ExerciseRow(ex: ex, palette: p)),
+          ...widget.day.exercises.map((ex) => _ExerciseRow(
+                ex: ex,
+                palette: p,
+                onChanged: widget.onChanged,
+                onDelete: () {
+                  widget.day.exercises.remove(ex);
+                  widget.onChanged();
+                },
+              )),
         ],
       ),
     );
@@ -465,8 +601,15 @@ class _DayCard extends StatelessWidget {
 class _ExerciseRow extends StatelessWidget {
   final ImportExercise ex;
   final SGPalette palette;
+  final VoidCallback onChanged;
+  final VoidCallback onDelete;
 
-  const _ExerciseRow({required this.ex, required this.palette});
+  const _ExerciseRow({
+    required this.ex,
+    required this.palette,
+    required this.onChanged,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -474,24 +617,51 @@ class _ExerciseRow extends StatelessWidget {
     final t = ex.targetForWeek(0);
     final color = ex.isExistingInDb ? p.success : p.warn;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    return InkWell(
+      onTap: () {
+        showSGSheet(
+          context,
+          maxHeightFraction: 0.8,
+          child: ExercisePicker(
+            defaultGroup: MuscleGroupX.fromString(ex.muscleGroup),
+            onSelected: (picked) {
+              ex.name = picked.name;
+              ex.muscleGroup = picked.group;
+              ex.isExistingInDb = true;
+              onChanged();
+              Navigator.pop(context);
+            },
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(ex.name, style: SGText.body(13, color: p.text)),
-          ),
-          Text(
-            '${t.sets}×${t.reps}  @${t.rir}RIR',
-            style: SGText.mono(11, color: p.textDim),
-          ),
-        ],
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(ex.name, style: SGText.body(13, color: p.text)),
+                  Text(
+                    '${t.sets}×${t.reps}  @${t.rir}RIR',
+                    style: SGText.mono(11, color: p.textDim),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: p.textFaint, size: 18),
+              onPressed: onDelete,
+            ),
+          ],
+        ),
       ),
     );
   }

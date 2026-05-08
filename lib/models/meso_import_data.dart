@@ -23,7 +23,7 @@ class MesoImportData {
 }
 
 class ImportDay {
-  final int dayIdx;
+  int dayIdx;
   String label;
   final List<ImportExercise> exercises;
 
