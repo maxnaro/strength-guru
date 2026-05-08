@@ -588,7 +588,7 @@ class _StepBtn extends StatelessWidget {
 Future<T?> showSGSheet<T>(
   BuildContext context, {
   required Widget child,
-  bool isScrollControlled = false,
+  bool isScrollControlled = true,
   double? maxHeightFraction,
 }) {
   return showModalBottomSheet<T>(
@@ -614,33 +614,35 @@ Future<T?> showSGSheet<T>(
         );
       }
 
-      return Material(
-        color: p.surface,
-        shape: shape,
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: p.textFaint.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
+      return Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Material(
+          color: p.surface,
+          shape: shape,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: p.textFaint.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                MediaQuery.of(ctx).viewInsets.bottom + 38,
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 38),
+                    child: child,
+                  ),
+                ),
               ),
-              child: child,
-            ),
-          ],
+            ],
+          ),
         ),
       );
     },
