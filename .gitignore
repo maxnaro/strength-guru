@@ -47,5 +47,10 @@ app.*.map.json
 .agents/rules/personal-*
 .agents/skills/personal-*
 
-.claude
+.claude/*
+.claude/
 .vscode
+
+# Native LLM binaries — fetched at build time
+ios/Frameworks/llama.xcframework/
+android/app/libs/

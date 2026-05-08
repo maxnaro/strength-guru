@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../models/meso_import_data.dart';
 import '../util/ids.dart';
 import 'database.dart';
 
@@ -589,6 +590,84 @@ extension MesoMutationQueries on AppDatabase {
   }
 }
 
+// ── Import ────────────────────────────────────────────────────────────────────
+
+extension MesoImportQueries on AppDatabase {
+  Future<Mesocycle> importMesoFromPlan(MesoImportData data) async {
+    final mesoId = newId();
+
+    await transaction(() async {
+      await (update(mesocycles)..where((t) => t.isActive.equals(true)))
+          .write(const MesocyclesCompanion(isActive: Value(false)));
+
+      await into(mesocycles).insert(MesocyclesCompanion.insert(
+        id: mesoId,
+        name: data.name,
+        startDate: DateTime.now(),
+        isActive: const Value(true),
+        numWeeks: Value(data.numWeeks),
+      ));
+
+      // Resolve / create all exercises and slots up-front
+      final exIdByName = <String, String>{};
+      final slotIdByExName = <String, String>{};
+      for (final day in data.days) {
+        for (final ex in day.exercises) {
+          if (exIdByName.containsKey(ex.name)) continue;
+          final e = await findOrCreateExerciseByName(ex.name, ex.muscleGroup);
+          exIdByName[ex.name] = e.id;
+
+          final slot = await findOrCreateExerciseSlot(mesoId, e.id);
+          slotIdByExName[ex.name] = slot.id;
+        }
+      }
+
+      // ProgramDays
+      for (final day in data.days) {
+        await into(programDays).insert(ProgramDaysCompanion.insert(
+          mesocycleId: mesoId,
+          dayIdx: day.dayIdx,
+          label: Value(day.label.isEmpty ? null : day.label),
+        ));
+      }
+
+      // DayOverrides + WeekTargets per week
+      for (var w = 0; w < data.numWeeks; w++) {
+        for (final day in data.days) {
+          final slotIds = day.exercises
+              .map((e) => slotIdByExName[e.name]!)
+              .toList();
+
+          await into(dayOverrides).insertOnConflictUpdate(
+            DayOverridesCompanion.insert(
+              mesocycleId: mesoId,
+              weekIdx: w,
+              dayIdx: day.dayIdx,
+              exerciseIdsCsv: slotIds.join(','),
+            ),
+          );
+
+          for (final ex in day.exercises) {
+            final t = ex.targetForWeek(w);
+            await into(weekTargets).insertOnConflictUpdate(
+              WeekTargetsCompanion.insert(
+                mesocycleId: mesoId,
+                weekIdx: w,
+                slotId: slotIdByExName[ex.name]!,
+                sets: t.sets,
+                reps: t.reps,
+                rir: t.rir,
+              ),
+            );
+          }
+        }
+      }
+    });
+
+    return (select(mesocycles)..where((t) => t.id.equals(mesoId))).getSingle();
+  }
+}
+
 // ── Wipe ──────────────────────────────────────────────────────────────────────
 
 extension WipeQueries on AppDatabase {
@@ -601,5 +680,21 @@ extension WipeQueries on AppDatabase {
       await delete(mesocycles).go();
       await delete(exercises).go();
     });
+  }
+}
+
+// ── Settings queries ──────────────────────────────────────────────────────────
+
+extension SettingsQueries on AppDatabase {
+  Future<String?> getSetting(String key) async {
+    final row = await (select(settings)..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  Future<void> setSetting(String key, String value) {
+    return into(settings).insertOnConflictUpdate(
+      SettingsCompanion.insert(key: key, value: value),
+    );
   }
 }

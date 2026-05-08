@@ -1,0 +1,116 @@
+class MesoImportData {
+  String name;
+  int numWeeks;
+  final List<ImportDay> days;
+
+  MesoImportData({
+    required this.name,
+    required this.numWeeks,
+    required this.days,
+  });
+
+  factory MesoImportData.fromJson(Map<String, dynamic> json) {
+    return MesoImportData(
+      name: (json['name'] as String?)?.trim().isEmpty == true
+          ? 'Imported Block'
+          : ((json['name'] as String?) ?? 'Imported Block'),
+      numWeeks: (json['numWeeks'] as int?) ?? 4,
+      days: (json['days'] as List<dynamic>? ?? [])
+          .map((d) => ImportDay.fromJson(d as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ImportDay {
+  int dayIdx;
+  String label;
+  final List<ImportExercise> exercises;
+
+  ImportDay({
+    required this.dayIdx,
+    required this.label,
+    required this.exercises,
+  });
+
+  factory ImportDay.fromJson(Map<String, dynamic> json) {
+    return ImportDay(
+      dayIdx: (json['dayIdx'] as int?) ?? 0,
+      label: (json['label'] as String?) ?? '',
+      exercises: (json['exercises'] as List<dynamic>? ?? [])
+          .map((e) => ImportExercise.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ImportExercise {
+  String name;
+  String muscleGroup;
+  final List<ImportWeekTarget> weekTargets;
+  bool isExistingInDb;
+
+  ImportExercise({
+    required this.name,
+    required this.muscleGroup,
+    required this.weekTargets,
+    this.isExistingInDb = false,
+  });
+
+  factory ImportExercise.fromJson(Map<String, dynamic> json) {
+    final rawTargets = json['weekTargets'] as List<dynamic>?;
+    final List<ImportWeekTarget> weekTargets;
+
+    if (rawTargets != null && rawTargets.isNotEmpty) {
+      weekTargets = rawTargets
+          .map((t) => ImportWeekTarget.fromJson(t as Map<String, dynamic>))
+          .toList();
+    } else {
+      weekTargets = [
+        ImportWeekTarget(
+          weekIdx: 0,
+          sets: (json['sets'] as int?) ?? 3,
+          reps: (json['reps'] as int?) ?? 8,
+          rir: (json['rir'] as int?) ?? 2,
+        ),
+      ];
+    }
+
+    return ImportExercise(
+      name: (json['name'] as String?) ?? 'Unknown',
+      muscleGroup: (json['muscleGroup'] as String?) ?? 'other',
+      weekTargets: weekTargets,
+    );
+  }
+
+  ImportWeekTarget targetForWeek(int weekIdx) {
+    if (weekTargets.length == 1) return weekTargets.first;
+    return weekTargets.firstWhere(
+      (t) => t.weekIdx == weekIdx,
+      orElse: () => weekTargets.last,
+    );
+  }
+}
+
+class ImportWeekTarget {
+  final int weekIdx;
+  final int sets;
+  final int reps;
+  final int rir;
+
+  const ImportWeekTarget({
+    required this.weekIdx,
+    required this.sets,
+    required this.reps,
+    required this.rir,
+  });
+
+  factory ImportWeekTarget.fromJson(Map<String, dynamic> json) {
+    return ImportWeekTarget(
+      weekIdx: (json['weekIdx'] as int?) ?? 0,
+      sets: (json['sets'] as int?) ?? 3,
+      reps: (json['reps'] as int?) ?? 8,
+      rir: (json['rir'] as int?) ?? 2,
+    );
+  }
+}
