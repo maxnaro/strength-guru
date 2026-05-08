@@ -175,11 +175,19 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
 
     final file = result.files.single;
     String csvContent;
-    if (file.bytes != null) {
-      csvContent = utf8.decode(file.bytes!);
-    } else if (file.path != null) {
-      csvContent = await File(file.path!).readAsString();
-    } else {
+
+    try {
+      final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
+      if (bytes == null) return;
+      
+      try {
+        csvContent = utf8.decode(bytes);
+      } catch (_) {
+        // Fallback to latin1 for non-UTF8 CSVs (common with Excel "ANSI" exports)
+        csvContent = latin1.decode(bytes);
+      }
+    } catch (e) {
+      debugPrint('Error reading CSV: $e');
       return;
     }
 
