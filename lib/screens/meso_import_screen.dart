@@ -105,7 +105,9 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
       final cleanedCsv = widget.csvContent
           .split('\n')
           .map((line) => line.trim())
-          .where((line) => line.isNotEmpty && line.replaceAll(',', '').trim().isNotEmpty)
+          .where((line) =>
+              line.isNotEmpty && line.replaceAll(',', '').trim().isNotEmpty)
+          .map((line) => line.replaceAll('~', '').replaceAll('approx', ''))
           .join('\n');
 
       final data = await LlmService().interpretPlan(

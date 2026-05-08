@@ -17,8 +17,6 @@ class LlmService {
     }
 
     final path = await ModelService.modelPath();
-    // ...
-
     // Enable wakelock to prevent system sleep during heavy LLM load
     await WakelockPlus.enable();
 
@@ -108,108 +106,98 @@ class LlmService {
   }
 
   String _instructions(String csv) =>
-      '''You are a precision workout parser. Extract every exercise row from the provided CSV and output JSON.
+      '''You are a precision workout parser. Transform the provided CSV into JSON.
 
-STRICT NUMERIC RULES:
-1. RIR & RPE ARE THE SAME: If the CSV provides RPE (e.g., "8"), convert it to RIR using (10 - RPE).
-   - Example: RPE 8 = 2 RIR.
-   - Example: RPE 7.5 = 2 RIR (round to nearest integer).
-   - If RIR is provided directly, use it.
-   - If BOTH are missing, use 0.
-2. INTEGER ONLY: "sets", "reps", and "rir" MUST be integers.
-3. COMPLEX NOTATION: If reps are "8/8/8" or "8, 6, 7", take the FIRST number (8).
-4. RANGES: If reps are "8-10", take the LOWEST number (8).
-5. TEXT FALLBACK: If reps is "AMRAP" or "Failure", use 10.
-6. STRIP UNITS: Use only the number. Never include "kg", "lbs", or "sec".
+### EXTRACTION RULES:
+1. **WEEKS & MERGING**: 
+   - Match exercises across vertical weeks by their **POSITION** within the day.
+   - Produce ONE exercise object per unique slot, with multiple `weekTargets`.
+2. **DAY IDENTIFICATION**:
+   - Days start at: "FULL BODY", "LOWER", "UPPER", "DAY X", or "REST DAY".
+   - **REST DAYS**: Must be included as a day object with `exercises: []`.
+3. **SAME-DAY DUPLICATES**: 
+   - Keep "Top Set", "Back-off", etc., as SEPARATE exercises in the list.
 
-EXTRACTION RULES:
-- Include EVERY day. If a day has no exercises or is labeled "Rest", include it with "exercises": [].
-- DO NOT pad the week. If the input has 4 days, the output must have EXACTLY 4 days.
-- Remove modifiers like "(Heavy)" or "(Back off)" from the exercise name. Only provide the base exercise name.
-- Muscle groups: chest, back, shoulders, arms, legs, core, other.
-- "numWeeks" should be the total number of progression weeks found in the CSV.
-
-OUTPUT: A single JSON object. No markdown. No code blocks. No explanation. Just JSON.
+### MATH & DATA RULES:
+- **PER-EXERCISE RIR TRACKING**: 
+  - Calculate RIR for each individual exercise independently based on the RPE column in its row.
+  - **RIR = (10 - RPE_MAX)**.
+  - **NO AVERAGING**: If RPE is "7-8", use 8. If RPE is "~6-8", use 8.
+  - **LOWEST RIR WINS**: Always choose the most intense (lowest) RIR value for that exercise.
+  - **LOOKUP**: "7-8" -> 2 RIR, "8-9" -> 1 RIR, "9-10" -> 0 RIR.
+  - **INTENSIFICATION BIAS**: If a specific exercise's RPE range stays static for 3+ consecutive weeks, manually decrease its RIR by 1 in the later weeks to reflect intended progressive overload.
+  - **ROUNDING**: Always round RIR **DOWN** (e.g., 10 - 8.5 = 1.5 -> **1 RIR**).
+- **INTEGERS ONLY**: sets, reps, rir, weekIdx, dayIdx MUST be integers.
+  - If a number has a "+" (e.g. "1+"), use the base number (1).
+- **REPS**: Use the LOWEST number in a range (e.g., "8-10" -> 8). "AMRAP" -> 10.
+- **MUSCLE GROUPS**: chest, back, shoulders, arms, legs, core, other.
 
 SCHEMA:
 {
-  "name": "Block Name",
+  "name": "Program Name",
   "numWeeks": integer,
   "days": [
     {
       "dayIdx": integer,
-      "label": "string",
+      "label": "Day Label",
       "exercises": [
         {
-          "name": "string",
+          "name": "Exercise",
           "muscleGroup": "chest|back|shoulders|arms|legs|core|other",
-          "weekTargets": [
-            { "weekIdx": integer, "sets": integer, "reps": integer, "rir": integer }
-          ]
+          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 }]
         }
       ]
     }
   ]
 }
 
-EXAMPLE INPUT (Multi-week progression with Rest Day):
-Day 1: Chest,Exercise,Group,W1 Sets,W1 Reps,W1 RIR,W2 Sets,W2 Reps,W2 RIR
-Bench Press,chest,3,8,2,4,8,1
-Incline DB Press,chest,3,10,2,3,10,1
-Day 2: Rest,,,,,,,,
-Day 3: Legs,Exercise,Group,W1 Sets,W1 Reps,W1 RIR,W2 Sets,W2 Reps,W2 RIR
-Squats,legs,3,5,3,3,5,2
+EXAMPLE INPUT:
+Week 1,Exercise,Sets,Reps,RPE
+Day 1,Bench Press Top,1,1,~8
+,Bench Press,3,8,7-8
+REST DAY,,,,
+Week 2,Exercise,Sets,Reps,RPE
+Day 1,Bench Press Top,1,1,8.5
+,Bench Press,3,8,7-8
+REST DAY,,,,
+Week 3,Exercise,Sets,Reps,RPE
+Day 1,Bench Press Top,1,1,~9
+,Bench Press,3,8,7-8
 
 EXAMPLE OUTPUT:
 {
   "name": "Progressive Meso",
-  "numWeeks": 2,
+  "numWeeks": 3,
   "days": [
     {
       "dayIdx": 0,
-      "label": "Day 1: Chest",
+      "label": "Day 1",
       "exercises": [
+        {
+          "name": "Bench Press Top",
+          "muscleGroup": "chest",
+          "weekTargets": [
+            { "weekIdx": 0, "sets": 1, "reps": 1, "rir": 2 },
+            { "weekIdx": 1, "sets": 1, "reps": 1, "rir": 1 },
+            { "weekIdx": 2, "sets": 1, "reps": 1, "rir": 1 }
+          ]
+        },
         {
           "name": "Bench Press",
           "muscleGroup": "chest",
           "weekTargets": [
             { "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 },
-            { "weekIdx": 1, "sets": 4, "reps": 8, "rir": 1 }
-          ]
-        },
-        {
-          "name": "Incline DB Press",
-          "muscleGroup": "chest",
-          "weekTargets": [
-            { "weekIdx": 0, "sets": 3, "reps": 10, "rir": 2 },
-            { "weekIdx": 1, "sets": 3, "reps": 10, "rir": 1 }
+            { "weekIdx": 1, "sets": 3, "reps": 8, "rir": 2 },
+            { "weekIdx": 2, "sets": 3, "reps": 8, "rir": 1 }
           ]
         }
       ]
     },
-    {
-      "dayIdx": 1,
-      "label": "Day 2: Rest",
-      "exercises": []
-    },
-    {
-      "dayIdx": 2,
-      "label": "Day 3: Legs",
-      "exercises": [
-        {
-          "name": "Squats",
-          "muscleGroup": "legs",
-          "weekTargets": [
-            { "weekIdx": 0, "sets": 3, "reps": 5, "rir": 3 },
-            { "weekIdx": 1, "sets": 3, "reps": 5, "rir": 2 }
-          ]
-        }
-      ]
-    }
+    { "dayIdx": 1, "label": "REST DAY", "exercises": [] }
   ]
 }
 
-ACTUAL CSV TO PARSE:
+ACTUAL CSV:
 $csv''';
 
   MesoImportData _parse(String raw) {
