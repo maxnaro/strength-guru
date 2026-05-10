@@ -394,7 +394,7 @@ class _DayView extends ConsumerWidget {
 
 // ── Day picker strip ──────────────────────────────────────────────────────────
 
-class _DayPickerStrip extends ConsumerWidget {
+class _DayPickerStrip extends ConsumerStatefulWidget {
   final Mesocycle meso;
   final DayKey effective;
   final void Function(int weekIdx, int dayIdx) onDaySelected;
@@ -406,7 +406,59 @@ class _DayPickerStrip extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DayPickerStrip> createState() => _DayPickerStripState();
+}
+
+class _DayPickerStripState extends ConsumerState<_DayPickerStrip> {
+  final List<GlobalKey> _weekKeys = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _updateKeys();
+    _scrollToActive();
+  }
+
+  @override
+  void didUpdateWidget(_DayPickerStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    bool shouldScroll = false;
+    if (widget.meso.numWeeks != oldWidget.meso.numWeeks) {
+      _updateKeys();
+      shouldScroll = true;
+    }
+    if (widget.effective.weekIdx != oldWidget.effective.weekIdx) {
+      shouldScroll = true;
+    }
+    if (shouldScroll) {
+      _scrollToActive();
+    }
+  }
+
+  void _updateKeys() {
+    _weekKeys.clear();
+    for (int i = 0; i < widget.meso.numWeeks; i++) {
+      _weekKeys.add(GlobalKey());
+    }
+  }
+
+  void _scrollToActive() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _weekKeys[widget.effective.weekIdx];
+      if (key.currentContext != null) {
+        Scrollable.ensureVisible(
+          key.currentContext!,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          alignment: 0.5, // Center it if possible
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final p = pal(context);
 
     return Column(
@@ -419,11 +471,12 @@ class _DayPickerStrip extends ConsumerWidget {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                itemCount: meso.numWeeks,
+                itemCount: widget.meso.numWeeks,
                 itemBuilder: (ctx, i) {
-                  final active = effective.weekIdx == i;
+                  final active = widget.effective.weekIdx == i;
                   return GestureDetector(
-                    onTap: () => onDaySelected(i, effective.dayIdx),
+                    key: _weekKeys[i],
+                    onTap: () => widget.onDaySelected(i, widget.effective.dayIdx),
                     child: Container(
                       margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -474,7 +527,7 @@ class _DayPickerStrip extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: AspectRatio(
                       aspectRatio: 1,
-                      child: _dayChip(context, ref, i),
+                      child: _dayChip(context, i),
                     ),
                   ),
                 ),
@@ -485,16 +538,16 @@ class _DayPickerStrip extends ConsumerWidget {
     );
   }
 
-  Widget _dayChip(BuildContext context, WidgetRef ref, int dayIdx) {
+  Widget _dayChip(BuildContext context, int dayIdx) {
     final p = pal(context);
-    final active = effective.dayIdx == dayIdx;
-    final groupAsync = ref
-        .watch(dayGroupProvider(DayKey(meso.id, effective.weekIdx, dayIdx)));
+    final active = widget.effective.dayIdx == dayIdx;
+    final groupAsync = ref.watch(dayGroupProvider(
+        DayKey(widget.meso.id, widget.effective.weekIdx, dayIdx)));
     final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return GestureDetector(
-      onTap: () => onDaySelected(effective.weekIdx, dayIdx),
+      onTap: () => widget.onDaySelected(widget.effective.weekIdx, dayIdx),
       child: Container(
         width: 40,
         height: 40,
@@ -722,6 +775,11 @@ class _ExerciseCard extends ConsumerWidget {
                 activeSet?.setIndex == i;
 
             if (isActive) {
+              final recentSessionEntry = entries
+                  .where((e) => e.done && e.setIndex < i)
+                  .sortedBy<num>((e) => e.setIndex)
+                  .lastOrNull;
+
               return SetRowActive(
                 key: ValueKey('active-${item.slot.id}-$i'),
                 setIndex: i,
@@ -732,6 +790,7 @@ class _ExerciseCard extends ConsumerWidget {
                 targetRir: target?.rir ?? 3,
                 suggestedWeight: suggestedWeight,
                 initialEntry: entry,
+                recentSessionEntry: recentSessionEntry,
                 group: group,
                 onLogSet: (w, r, ri) => onLogSet(i, w, r, ri),
               );

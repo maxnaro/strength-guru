@@ -96,6 +96,8 @@ final tabIndexProvider = StateProvider<int>((ref) => 0);
 
 final selectedLogDayProvider = StateProvider<DayKey?>((ref) => null);
 
+final timelineRequestedWeekProvider = StateProvider<int?>((ref) => null);
+
 // ── Meso providers ────────────────────────────────────────────────────────────
 
 final activeMesoProvider = StreamProvider<Mesocycle?>((ref) {
@@ -147,23 +149,12 @@ DayKey? _computeTodayKey(Mesocycle meso) {
   return DayKey(meso.id, weekIdx, dayIdx);
 }
 
-// ── Hero key (Sticky to last logged session) ─────────────────────────────────
-
-final lastLoggedDayKeyProvider = StreamProvider<DayKey?>((ref) {
-  final mesoAsync = ref.watch(activeMesoProvider);
-  final meso = mesoAsync.valueOrNull;
-  if (meso == null) return Stream.value(null);
-
-  final db = ref.read(dbProvider);
-  return db.watchLatestLoggedSession(meso.id).map((session) {
-    if (session == null) return null;
-    return DayKey(session.mesocycleId, session.weekIdx, session.dayIdx);
-  });
-});
+// ── Hero key (Sticky to today) ───────────────────────────────────────────────
 
 final heroKeyProvider = Provider<DayKey?>((ref) {
-  final lastLogged = ref.watch(lastLoggedDayKeyProvider).valueOrNull;
-  if (lastLogged != null) return lastLogged;
+  final selectedLogDay = ref.watch(selectedLogDayProvider);
+  if (selectedLogDay != null) return selectedLogDay;
+
   return ref.watch(todayKeyProvider);
 });
 

@@ -34,6 +34,13 @@ class _MesoScreenState extends ConsumerState<MesoScreen> {
         MediaQuery.of(context).padding.bottom + SGTabBar.kBaseHeight + 16;
     final mesoAsync = ref.watch(activeMesoProvider);
 
+    // Listen for cross-screen navigation requests
+    ref.listen(timelineRequestedWeekProvider, (prev, next) {
+      if (next != null) {
+        setState(() => _viz = _MesoViz.timeline);
+      }
+    });
+
     return Scaffold(
       backgroundColor: p.bg,
       body: mesoAsync.when(
@@ -498,28 +505,91 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
 
 // ── Timeline view ─────────────────────────────────────────────────────────────
 
-class _TimelineView extends ConsumerWidget {
+class _TimelineView extends ConsumerStatefulWidget {
   final Mesocycle meso;
 
   const _TimelineView({required this.meso});
 
+  @override
+  ConsumerState<_TimelineView> createState() => _TimelineViewState();
+}
+
+class _TimelineViewState extends ConsumerState<_TimelineView>
+    with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  int? _highlightedWeekIdx;
+  late final AnimationController _highlightController;
+  late final Animation<double> _highlightAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _highlightController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _highlightAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _highlightController, curve: Curves.easeInCubic),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final req = ref.read(timelineRequestedWeekProvider);
+      if (req != null) {
+        _scrollToAndHighlight(req);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _highlightController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToAndHighlight(int weekIdx) {
+    setState(() => _highlightedWeekIdx = weekIdx);
+    
+    final offset = weekIdx * 70.0;
+    _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+    );
+
+    _highlightController.forward(from: 0).then((_) {
+      if (mounted) {
+        setState(() => _highlightedWeekIdx = null);
+        ref.read(timelineRequestedWeekProvider.notifier).state = null;
+      }
+    });
+  }
+
   static const _trainingDays = [0, 1, 2, 3, 4, 5, 6]; // Mon-Sun
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final p = pal(context);
     final brightness = Theme.of(context).brightness;
 
+    ref.listen(timelineRequestedWeekProvider, (prev, next) {
+      if (next != null && next != _highlightedWeekIdx) {
+        _scrollToAndHighlight(next);
+      }
+    });
+
     // Load all week targets for all weeks
     final allTargets = <int, Map<String, WeekTarget>>{};
-    for (var w = 0; w < meso.numWeeks; w++) {
-      final t = ref.watch(weekTargetsProvider(WeekKey(meso.id, w)));
+    for (var w = 0; w < widget.meso.numWeeks; w++) {
+      final t = ref.watch(weekTargetsProvider(WeekKey(widget.meso.id, w)));
       allTargets[w] = t.valueOrNull ?? {};
     }
 
     return Stack(
       children: [
         SingleChildScrollView(
+          controller: _scrollController,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
@@ -529,19 +599,35 @@ class _TimelineView extends ConsumerWidget {
               Row(
                 children: [
                   const SizedBox(width: 130),
-                  ...List.generate(meso.numWeeks, (w) {
-                    final isDeload = ref.watch(isDeloadWeekProvider(WeekKey(meso.id, w)));
+                  ...List.generate(widget.meso.numWeeks, (w) {
+                    final isDeload =
+                        ref.watch(isDeloadWeekProvider(WeekKey(widget.meso.id, w)));
+                    final isHighlighted = _highlightedWeekIdx == w;
                     return GestureDetector(
-                      onTap: () => ref.read(dbProvider).toggleDeloadWeek(meso.id, w),
+                      onTap: () =>
+                          ref.read(dbProvider).toggleDeloadWeek(widget.meso.id, w),
                       behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        width: 68,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        alignment: Alignment.center,
+                      child: AnimatedBuilder(
+                        animation: _highlightAnimation,
+                        builder: (context, child) {
+                          return Container(
+                            width: 68,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            alignment: Alignment.center,
+                            decoration: isHighlighted
+                                ? BoxDecoration(
+                                    color: p.accent.withValues(
+                                        alpha: 0.2 * _highlightAnimation.value),
+                                    borderRadius: BorderRadius.circular(4),
+                                  )
+                                : null,
+                            child: child,
+                          );
+                        },
                         child: Text(
                           isDeload ? 'DELOAD' : 'W${w + 1}',
-                          style:
-                              SGText.mono(9, color: isDeload ? p.warn : p.textDim),
+                          style: SGText.mono(9,
+                              color: isDeload ? p.warn : p.textDim),
                         ),
                       ),
                     );
@@ -551,10 +637,13 @@ class _TimelineView extends ConsumerWidget {
               const SizedBox(height: 8),
               // Day sections
               ..._trainingDays.map((dayIdx) {
-                final groupAsync = ref.watch(dayGroupProvider(DayKey(meso.id, 0, dayIdx)));
+                final groupAsync =
+                    ref.watch(dayGroupProvider(DayKey(widget.meso.id, 0, dayIdx)));
                 final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
-                final itemsAsync = ref.watch(programDayExercisesProvider(ProgramDayKey(meso.id, dayIdx)));
-                final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, dayIdx)));
+                final itemsAsync = ref.watch(
+                    programDayExercisesProvider(ProgramDayKey(widget.meso.id, dayIdx)));
+                final daySettingsAsync = ref
+                    .watch(programDayProvider(ProgramDayKey(widget.meso.id, dayIdx)));
                 final customLabel = daySettingsAsync.valueOrNull?.label;
 
                 return Padding(
@@ -582,9 +671,11 @@ class _TimelineView extends ConsumerWidget {
                           if (group != MuscleGroup.rest) SGGroupDot(group, size: 6),
                           const SizedBox(width: 8),
                           IconButton(
-                            icon: Icon(Icons.swap_horiz, size: 16, color: p.textFaint),
+                            icon: Icon(Icons.swap_horiz,
+                                size: 16, color: p.textFaint),
                             visualDensity: VisualDensity.compact,
-                            onPressed: () => _showSwapPicker(context, ref, meso.id, dayIdx),
+                            onPressed: () =>
+                                _showSwapPicker(context, ref, widget.meso.id, dayIdx),
                           ),
                           IconButton(
                             icon: Icon(Icons.edit, size: 14, color: p.textFaint),
@@ -593,10 +684,11 @@ class _TimelineView extends ConsumerWidget {
                               context,
                               isScrollControlled: true,
                               maxHeightFraction: 0.9,
-                              child: DayProgramEditor(meso: meso, dayIdx: dayIdx),
+                              child: DayProgramEditor(
+                                  meso: widget.meso, dayIdx: dayIdx),
                             ),
                           ),
-                          _DayActionMenu(meso: meso, dayIdx: dayIdx),
+                          _DayActionMenu(meso: widget.meso, dayIdx: dayIdx),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -606,13 +698,16 @@ class _TimelineView extends ConsumerWidget {
                           children: items.map((item) {
                             return _TimelineRow(
                               item: item,
-                              mesoId: meso.id,
+                              mesoId: widget.meso.id,
                               group: group,
-                              numWeeks: meso.numWeeks,
+                              numWeeks: widget.meso.numWeeks,
                               allTargets: allTargets,
                               palette: p,
                               brightness: brightness,
-                              onNameTap: () => _programSwap(context, ref, group, item, dayIdx),
+                              highlightedWeekIdx: _highlightedWeekIdx,
+                              highlightAnimation: _highlightAnimation,
+                              onNameTap: () =>
+                                  _programSwap(context, ref, group, item, dayIdx),
                               onCellTap: (weekIdx, target) => _editCell(
                                 context,
                                 ref,
@@ -624,8 +719,10 @@ class _TimelineView extends ConsumerWidget {
                             );
                           }).toList(),
                         ),
-                        loading: () => Text('Loading...', style: SGText.body(12, color: p.textFaint)),
-                        error: (err, _) => Text('Error: $err', style: SGText.body(12, color: p.warn)),
+                        loading: () => Text('Loading...',
+                            style: SGText.body(12, color: p.textFaint)),
+                        error: (err, _) => Text('Error: $err',
+                            style: SGText.body(12, color: p.warn)),
                       ),
                     ],
                   ),
@@ -710,7 +807,8 @@ class _TimelineView extends ConsumerWidget {
                           text: label,
                           style: SGText.mono(14, color: p.textDim),
                         ),
-                      ],                    ],
+                      ],
+                    ],
                   ),
                 ),
                 onTap: () => Navigator.pop(context, i),
@@ -743,27 +841,30 @@ class _TimelineView extends ConsumerWidget {
         excludeIds: const {}, // Allow duplicate exercises in a program swap too
         onSelected: (newEx) async {
           final db = ref.read(dbProvider);
-          final key = ProgramDayKey(meso.id, dayIdx);
-          
+          final key = ProgramDayKey(widget.meso.id, dayIdx);
+
           // Create a NEW slot for the new exercise
-          final newSlot = await db.createExerciseSlot(meso.id, newEx.id);
-          
+          final newSlot = await db.createExerciseSlot(widget.meso.id, newEx.id);
+
           // Fetch current program slots and replace the ID
-          final current = await ref.read(programDayExercisesProvider(key).future);
-          final slotIds = current.map((e) => e.slot.id == item.slot.id ? newSlot.id : e.slot.id).toList();
+          final current =
+              await ref.read(programDayExercisesProvider(key).future);
+          final slotIds = current
+              .map((e) => e.slot.id == item.slot.id ? newSlot.id : e.slot.id)
+              .toList();
 
           await db.setWeekForwardOverride(
-            meso.id,
+            widget.meso.id,
             0,
-            meso.numWeeks,
+            widget.meso.numWeeks,
             dayIdx,
             slotIds,
           );
 
           ref.invalidate(programDayExercisesProvider(key));
-          for (int w = 0; w < meso.numWeeks; w++) {
-            ref.invalidate(dayPlanProvider(DayKey(meso.id, w, dayIdx)));
-            ref.invalidate(weekTargetsProvider(WeekKey(meso.id, w)));
+          for (int w = 0; w < widget.meso.numWeeks; w++) {
+            ref.invalidate(dayPlanProvider(DayKey(widget.meso.id, w, dayIdx)));
+            ref.invalidate(weekTargetsProvider(WeekKey(widget.meso.id, w)));
           }
           if (!context.mounted) return;
           Navigator.pop(context);
@@ -785,9 +886,9 @@ class _TimelineView extends ConsumerWidget {
       isScrollControlled: true,
       maxHeightFraction: 0.9,
       child: MesoEditSheet(
-        mesoId: meso.id,
+        mesoId: widget.meso.id,
         weekIdx: weekIdx,
-        numWeeks: meso.numWeeks,
+        numWeeks: widget.meso.numWeeks,
         slotId: item.slot.id,
         exerciseName: item.name,
         group: group,
@@ -797,7 +898,7 @@ class _TimelineView extends ConsumerWidget {
   }
 }
 
-class _TimelineRow extends ConsumerWidget {
+class _TimelineRow extends StatelessWidget {
   final ExerciseSlotWithExercise item;
   final String mesoId;
   final MuscleGroup group;
@@ -805,6 +906,8 @@ class _TimelineRow extends ConsumerWidget {
   final Map<int, Map<String, WeekTarget>> allTargets;
   final SGPalette palette;
   final Brightness brightness;
+  final int? highlightedWeekIdx;
+  final Animation<double> highlightAnimation;
   final VoidCallback onNameTap;
   final void Function(int weekIdx, WeekTarget? target) onCellTap;
 
@@ -816,12 +919,14 @@ class _TimelineRow extends ConsumerWidget {
     required this.allTargets,
     required this.palette,
     required this.brightness,
+    required this.highlightedWeekIdx,
+    required this.highlightAnimation,
     required this.onNameTap,
     required this.onCellTap,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -833,8 +938,8 @@ class _TimelineRow extends ConsumerWidget {
               width: 130,
               child: Text(
                 item.name,
-                style:
-                    SGText.body(12, weight: FontWeight.w500, color: palette.text),
+                style: SGText.body(12,
+                    weight: FontWeight.w500, color: palette.text),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -842,36 +947,54 @@ class _TimelineRow extends ConsumerWidget {
           // Week cells
           ...List.generate(numWeeks, (w) {
             final target = allTargets[w]?[item.slot.id];
-            final isDeload = ref.watch(isDeloadWeekProvider(WeekKey(mesoId, w)));
-            return GestureDetector(
-              onTap: () => onCellTap(w, target),
-              child: Container(
-                width: 68,
-                height: 44,
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  color: isDeload
-                      ? palette.warn.withValues(alpha: 0.08)
-                      : group.tint(brightness).withValues(alpha: 0.5),                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: palette.border, width: 0.5),
-                ),
-                child: target == null
-                    ? Icon(Icons.add, size: 14, color: palette.textFaint)
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${target.sets}×${target.reps}',
-                            style: SGText.display(11, color: palette.text),
-                          ),
-                          Text(
-                            'RIR${target.rir}',
-                            style: SGText.mono(7, color: palette.textDim),
-                          ),
-                        ],
+            final isHighlighted = highlightedWeekIdx == w;
+            return Consumer(builder: (context, ref, _) {
+              final isDeload =
+                  ref.watch(isDeloadWeekProvider(WeekKey(mesoId, w)));
+              return GestureDetector(
+                onTap: () => onCellTap(w, target),
+                child: AnimatedBuilder(
+                  animation: highlightAnimation,
+                  builder: (context, child) {
+                    return Container(
+                      width: 68,
+                      height: 44,
+                      margin: const EdgeInsets.symmetric(horizontal: 1),
+                      decoration: BoxDecoration(
+                        color: isDeload
+                            ? palette.warn.withValues(alpha: 0.08)
+                            : group.tint(brightness).withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: isHighlighted
+                                ? palette.accent.withValues(
+                                    alpha: 0.8 * highlightAnimation.value)
+                                : palette.border,
+                            width: isHighlighted
+                                ? 1.5 * highlightAnimation.value
+                                : 0.5),
                       ),
-              ),
-            );
+                      child: child,
+                    );
+                  },
+                  child: target == null
+                      ? Icon(Icons.add, size: 14, color: palette.textFaint)
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${target.sets}×${target.reps}',
+                              style: SGText.display(11, color: palette.text),
+                            ),
+                            Text(
+                              'RIR${target.rir}',
+                              style: SGText.mono(7, color: palette.textDim),
+                            ),
+                          ],
+                        ),
+                ),
+              );
+            });
           }),
         ],
       ),

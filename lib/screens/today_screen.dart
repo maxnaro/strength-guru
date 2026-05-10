@@ -23,13 +23,36 @@ class TodayScreen extends ConsumerWidget {
         if (meso == null) return const _EmptyMesoView();
         final heroKey = ref.watch(heroKeyProvider);
         if (heroKey == null) return const _MesoFinishedView();
-        return _DayView(meso: meso, heroKey: heroKey);
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.015),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: _DayView(
+            key: ValueKey(heroKey),
+            meso: meso,
+            heroKey: heroKey,
+          ),
+        );
       },
     );
   }
 }
 
 // ── Sub-views ─────────────────────────────────────────────────────────────────
+
+// ... (LoadingView, ErrorView, EmptyMesoView, MesoFinishedView omitted for brevity in this replace call, but I must ensure I don't break them if I use replace poorly. Actually I should probably use more context)
 
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
@@ -104,7 +127,7 @@ class _DayView extends ConsumerWidget {
   final Mesocycle meso;
   final DayKey heroKey;
 
-  const _DayView({required this.meso, required this.heroKey});
+  const _DayView({super.key, required this.meso, required this.heroKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -217,6 +240,8 @@ class _HeroCard extends ConsumerWidget {
     final customLabel = daySettingsAsync.valueOrNull?.label;
     final isDeloadWeek = ref.watch(isDeloadWeekProvider(WeekKey(meso.id, heroKey.weekIdx)));
 
+    final todayKey = ref.watch(todayKeyProvider);
+
     // Compute progress from set entries if session exists.
     final setsAsync = session != null
         ? ref.watch(setsForLogProvider(session.id))
@@ -313,6 +338,17 @@ class _HeroCard extends ConsumerWidget {
                   ),
                 ]),
               ],
+            ],
+            // Secondary actions
+            if (heroKey != todayKey && todayKey != null) ...[
+              const SizedBox(height: 16),
+              SGButton.soft(
+                label: 'Go to Today',
+                fullWidth: true,
+                onTap: () {
+                  ref.read(selectedLogDayProvider.notifier).state = null;
+                },
+              ),
             ],
           ],
         ),
@@ -541,32 +577,38 @@ class _MesoStrip extends ConsumerWidget {
                   children: List.generate(meso.numWeeks, (w) {
                     final isCurrent = w == currentWeekIdx;
                     final isPast = w < currentWeekIdx;
-                    return Opacity(
-                      opacity: isPast ? 0.55 : 1.0,
-                      child: Container(
-                        width: 64,
-                        margin: EdgeInsets.only(right: w < meso.numWeeks - 1 ? 6 : 0),
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: isCurrent ? group.tint(brightness) : p.chipBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: isCurrent
-                              ? Border.all(color: p.borderStrong, width: 1.5)
-                              : null,
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'W${w + 1}',
-                              style: SGText.mono(9, color: p.textFaint),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isDeload(w) ? 'D' : 'RIR ${[3, 2, 2, 1, 4][w % 5]}',
-                              style: SGText.display(11,
-                                  color: isDeload(w) ? p.warn : p.text),
-                            ),
-                          ],
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(timelineRequestedWeekProvider.notifier).state = w;
+                        ref.read(tabIndexProvider.notifier).state = 2;
+                      },
+                      child: Opacity(
+                        opacity: isPast ? 0.55 : 1.0,
+                        child: Container(
+                          width: 64,
+                          margin: EdgeInsets.only(right: w < meso.numWeeks - 1 ? 6 : 0),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? group.tint(brightness) : p.chipBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: isCurrent
+                                ? Border.all(color: p.borderStrong, width: 1.5)
+                                : null,
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'W${w + 1}',
+                                style: SGText.mono(9, color: p.textFaint),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isDeload(w) ? 'D' : 'RIR ${[3, 2, 2, 1, 4][w % 5]}',
+                                style: SGText.display(11,
+                                    color: isDeload(w) ? p.warn : p.text),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
