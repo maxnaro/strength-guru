@@ -377,14 +377,15 @@ class AppDatabase extends _$AppDatabase {
               final rows = await customSelect(
                       'SELECT mesocycle_id, day_idx, exercise_ids_csv FROM day_overrides_old')
                   .get();
+              final mesos = await select(mesocycles).get();
+              final mesoById = {for (final meso in mesos) meso.id: meso};
               for (final row in rows) {
                 final mesoId = row.read<String>('mesocycle_id');
                 final dayIdx = row.read<int>('day_idx');
                 final csv = row.read<String>('exercise_ids_csv');
-                final meso = await (select(mesocycles)
-                      ..where((t) => t.id.equals(mesoId)))
-                    .getSingleOrNull();
-                final weeks = meso?.numWeeks ?? 1;
+                final meso = mesoById[mesoId];
+                if (meso == null) continue;
+                final weeks = meso.numWeeks;
                 for (var w = 0; w < weeks; w++) {
                   await into(dayOverrides)
                       .insertOnConflictUpdate(DayOverridesCompanion.insert(
