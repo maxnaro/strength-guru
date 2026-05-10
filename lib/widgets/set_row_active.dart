@@ -15,6 +15,7 @@ class SetRowActive extends ConsumerStatefulWidget {
   final int targetRir;
   final double? suggestedWeight;
   final SetEntry? initialEntry;
+  final SetEntry? recentSessionEntry;
   final MuscleGroup group;
   final Future<void> Function(double? weight, int reps, int rir) onLogSet;
 
@@ -28,6 +29,7 @@ class SetRowActive extends ConsumerStatefulWidget {
     required this.targetRir,
     required this.suggestedWeight,
     this.initialEntry,
+    this.recentSessionEntry,
     required this.group,
     required this.onLogSet,
   });
@@ -47,9 +49,9 @@ class _SetRowActiveState extends ConsumerState<SetRowActive> {
   @override
   void initState() {
     super.initState();
-    _weight = widget.initialEntry?.weight ?? widget.suggestedWeight;
-    _reps = widget.initialEntry?.reps ?? widget.targetReps;
-    _selectedRir = widget.initialEntry?.rir ?? widget.targetRir;
+    _weight = widget.initialEntry?.weight ?? widget.recentSessionEntry?.weight ?? widget.suggestedWeight;
+    _reps = widget.initialEntry?.reps ?? widget.recentSessionEntry?.reps ?? widget.targetReps;
+    _selectedRir = widget.initialEntry?.rir ?? widget.recentSessionEntry?.rir ?? widget.targetRir;
   }
 
   @override
@@ -78,15 +80,15 @@ class _SetRowActiveState extends ConsumerState<SetRowActive> {
     final hintRir = sugg?.rir?.toString();
 
     // Auto-initialize if values are null and suggestion becomes available
-    if (_weight == null && sugg?.weight != null) {
+    if (_weight == null && sugg?.weight != null && widget.recentSessionEntry == null) {
       _weight = sugg!.weight;
     }
     // Only default reps if current reps match the target (user hasn't changed it)
-    if (_reps == widget.targetReps && sugg?.reps != null && sugg!.reps != widget.targetReps) {
+    if (_reps == widget.targetReps && sugg?.reps != null && sugg!.reps != widget.targetReps && widget.recentSessionEntry == null) {
        _reps = sugg.reps!;
     }
     // Only default RIR if it hasn't been adjusted
-    if (!_showRirPicker && !_userHasManuallyPickedRir && _selectedRir == widget.targetRir && sugg?.rir != null) {
+    if (!_showRirPicker && !_userHasManuallyPickedRir && _selectedRir == widget.targetRir && sugg?.rir != null && widget.recentSessionEntry == null) {
       _selectedRir = sugg!.rir!;
     }
 

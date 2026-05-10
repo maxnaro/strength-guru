@@ -722,6 +722,11 @@ class _ExerciseCard extends ConsumerWidget {
                 activeSet?.setIndex == i;
 
             if (isActive) {
+              final recentSessionEntry = entries
+                  .where((e) => e.done && e.setIndex < i)
+                  .sortedBy<num>((e) => e.setIndex)
+                  .lastOrNull;
+
               return SetRowActive(
                 key: ValueKey('active-${item.slot.id}-$i'),
                 setIndex: i,
@@ -732,6 +737,7 @@ class _ExerciseCard extends ConsumerWidget {
                 targetRir: target?.rir ?? 3,
                 suggestedWeight: suggestedWeight,
                 initialEntry: entry,
+                recentSessionEntry: recentSessionEntry,
                 group: group,
                 onLogSet: (w, r, ri) => onLogSet(i, w, r, ri),
               );
