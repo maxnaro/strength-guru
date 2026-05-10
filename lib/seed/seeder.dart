@@ -8,6 +8,10 @@ import '../util/ids.dart';
 
 class Seeder {
   static Future<void> seedIfEmpty(AppDatabase db) async {
+    // 1. Always ensure global exercises are present in the DB.
+    await _syncGlobalExercises(db);
+
+    // 2. Only seed the default mesocycle if no mesocycles exist.
     final existing = await db.select(db.mesocycles).get();
     if (existing.isNotEmpty) return;
     await _seed(db);
@@ -15,39 +19,46 @@ class Seeder {
 
   static Future<void> forceReseed(AppDatabase db) async {
     await db.wipeAllData();
+    await _syncGlobalExercises(db);
     await _seed(db);
+  }
+
+  static Future<void> _syncGlobalExercises(AppDatabase db) async {
+    await db.transaction(() async {
+      final existingExercises = await db.select(db.exercises).get();
+      final existingNames = existingExercises.map((e) => e.name).toSet();
+
+      // Seed the comprehensive global exercise database.
+      for (final def in kAllDefaultExercises) {
+        if (!existingNames.contains(def.name)) {
+          await db.into(db.exercises).insert(ExercisesCompanion.insert(
+                id: newId(),
+                name: def.name,
+                group: def.group,
+              ));
+          existingNames.add(def.name);
+        }
+      }
+
+      // Ensure any exercises specific to the default plan are also present.
+      for (final def in kExercises) {
+        if (!existingNames.contains(def.name)) {
+          await db.into(db.exercises).insert(ExercisesCompanion.insert(
+                id: newId(),
+                name: def.name,
+                group: def.group,
+              ));
+          existingNames.add(def.name);
+        }
+      }
+    });
   }
 
   static Future<void> _seed(AppDatabase db) async {
     await db.transaction(() async {
-      // 1. Insert unique exercises by name and group.
-      final nameToExId = <String, String>{};
-
-      // First, seed the comprehensive global exercise database.
-      for (final def in kAllDefaultExercises) {
-        if (!nameToExId.containsKey(def.name)) {
-          final id = newId();
-          await db.into(db.exercises).insert(ExercisesCompanion.insert(
-                id: id,
-                name: def.name,
-                group: def.group,
-              ));
-          nameToExId[def.name] = id;
-        }
-      }
-
-      // Then, ensure any exercises specific to the default plan are also present.
-      for (final def in kExercises) {
-        if (!nameToExId.containsKey(def.name)) {
-          final id = newId();
-          await db.into(db.exercises).insert(ExercisesCompanion.insert(
-                id: id,
-                name: def.name,
-                group: def.group,
-              ));
-          nameToExId[def.name] = id;
-        }
-      }
+      // Re-fetch exercises to get their actual IDs for the mesocycle slots.
+      final existingExercises = await db.select(db.exercises).get();
+      final nameToExId = { for (var e in existingExercises) e.name: e.id };
 
       final startDate = _thisWeekMonday();
       final mesoId = newId();
