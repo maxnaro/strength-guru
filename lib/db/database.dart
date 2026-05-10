@@ -138,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -345,6 +345,59 @@ class AppDatabase extends _$AppDatabase {
 
             // Data heal: Merge exercises with the same name (e.g. Pull-ups Top/Backoff)
             await _healRedundantExercises();
+          }
+
+          if (from < 9) {
+            // v8 -> v9: Rebuild DayOverrides to guarantee (mesocycle_id, week_idx, day_idx)
+            // uniqueness. Legacy databases with an older DayOverrides shape can cause
+            // session-only swaps to behave like mesocycle-wide swaps.
+            final dayOverrideInfo =
+                await customSelect("PRAGMA table_info('day_overrides')").get();
+            final hasWeekIdx =
+                dayOverrideInfo.any((r) => r.read<String>('name') == 'week_idx');
+
+            await customStatement(
+                'ALTER TABLE day_overrides RENAME TO day_overrides_old');
+            await m.createTable(dayOverrides);
+
+            if (hasWeekIdx) {
+              final rows = await customSelect(
+                      'SELECT mesocycle_id, week_idx, day_idx, exercise_ids_csv FROM day_overrides_old')
+                  .get();
+              for (final row in rows) {
+                await into(dayOverrides)
+                    .insertOnConflictUpdate(DayOverridesCompanion.insert(
+                  mesocycleId: row.read<String>('mesocycle_id'),
+                  weekIdx: row.read<int>('week_idx'),
+                  dayIdx: row.read<int>('day_idx'),
+                  exerciseIdsCsv: row.read<String>('exercise_ids_csv'),
+                ));
+              }
+            } else {
+              final rows = await customSelect(
+                      'SELECT mesocycle_id, day_idx, exercise_ids_csv FROM day_overrides_old')
+                  .get();
+              for (final row in rows) {
+                final mesoId = row.read<String>('mesocycle_id');
+                final dayIdx = row.read<int>('day_idx');
+                final csv = row.read<String>('exercise_ids_csv');
+                final meso = await (select(mesocycles)
+                      ..where((t) => t.id.equals(mesoId)))
+                    .getSingleOrNull();
+                final weeks = meso?.numWeeks ?? 1;
+                for (var w = 0; w < weeks; w++) {
+                  await into(dayOverrides)
+                      .insertOnConflictUpdate(DayOverridesCompanion.insert(
+                    mesocycleId: mesoId,
+                    weekIdx: w,
+                    dayIdx: dayIdx,
+                    exerciseIdsCsv: csv,
+                  ));
+                }
+              }
+            }
+
+            await customStatement('DROP TABLE day_overrides_old');
           }
         },
       );
