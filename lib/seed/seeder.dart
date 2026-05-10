@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 
 import '../db/database.dart';
+import '../db/default_exercises.dart';
 import '../db/plan.dart';
 import '../db/queries.dart';
 import '../util/ids.dart';
@@ -21,6 +22,21 @@ class Seeder {
     await db.transaction(() async {
       // 1. Insert unique exercises by name and group.
       final nameToExId = <String, String>{};
+
+      // First, seed the comprehensive global exercise database.
+      for (final def in kAllDefaultExercises) {
+        if (!nameToExId.containsKey(def.name)) {
+          final id = newId();
+          await db.into(db.exercises).insert(ExercisesCompanion.insert(
+                id: id,
+                name: def.name,
+                group: def.group,
+              ));
+          nameToExId[def.name] = id;
+        }
+      }
+
+      // Then, ensure any exercises specific to the default plan are also present.
       for (final def in kExercises) {
         if (!nameToExId.containsKey(def.name)) {
           final id = newId();
