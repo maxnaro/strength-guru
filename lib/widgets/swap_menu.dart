@@ -114,6 +114,7 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
     }
 
     ref.invalidate(dayPlanProvider(key));
+    ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, key.weekIdx)));
 
     if (mounted) {
       Navigator.of(context).pop();
