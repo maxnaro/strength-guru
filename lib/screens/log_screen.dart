@@ -10,6 +10,7 @@ import '../providers.dart';
 import '../theme/groups.dart';
 import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
+import '../widgets/guide_sheet.dart';
 import '../widgets/set_row_active.dart';
 import '../widgets/set_row_done.dart';
 import '../widgets/set_row_inactive.dart';
@@ -745,6 +746,14 @@ class _ExerciseCard extends ConsumerWidget {
                       style: SGText.body(15,
                           weight: FontWeight.w700, color: p.text)),
                 ),
+                IconButton(
+                  icon: Icon(Icons.play_circle_outline, color: p.textFaint, size: 20),
+                  onPressed: () => GuideSheet.show(context, exercise.name),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 8),
                 if (isDone) const SGChip('Done', tone: ChipTone.success),
                 GestureDetector(
                   onTap: () => _showSwapMenu(context, ref),

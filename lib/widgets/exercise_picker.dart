@@ -6,6 +6,7 @@ import '../providers.dart';
 import '../theme/groups.dart';
 import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
+import 'guide_sheet.dart';
 
 class ExercisePicker extends ConsumerStatefulWidget {
   final MuscleGroup defaultGroup;
@@ -210,6 +211,14 @@ class _ExerciseRow extends StatelessWidget {
                 style: SGText.body(16, color: p.text),
               ),
             ),
+            IconButton(
+              icon: Icon(Icons.play_circle_outline, color: p.textFaint, size: 20),
+              onPressed: () => GuideSheet.show(context, exercise.name),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const SizedBox(width: 8),
             Text(
               group.label.toUpperCase(),
               style: SGText.mono(10, color: p.textFaint),
