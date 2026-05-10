@@ -839,17 +839,28 @@ class _ExerciseCard extends ConsumerWidget {
   }
 
   String _formatTarget(WeekTarget t) {
-    final sets = t.reps.length;
-    final allSameReps = t.reps.every((r) => r == t.reps.first);
+    final reps = t.reps;
+    final allSameReps = reps.every((r) => r == reps.first);
     final allSameRir = t.rir.every((r) => r == t.rir.first);
 
     if (allSameReps && allSameRir) {
-      return 'TARGET · $sets×${t.reps.first} · RIR ${t.rir.first}';
+      return 'TARGET · ${reps.length}×${reps.first} · RIR ${t.rir.first}';
     }
 
-    final repsStr = allSameReps ? '${t.reps.first}' : t.reps.join('/');
+    String repStr;
+    if (reps.length > 1) {
+      final backoffs = reps.sublist(1);
+      if (backoffs.every((r) => r == backoffs.first)) {
+        repStr = '${reps.first} + ${backoffs.length}×${backoffs.first}';
+      } else {
+        repStr = reps.join('/');
+      }
+    } else {
+      repStr = reps.first.toString();
+    }
+
     final rirStr = allSameRir ? '${t.rir.first}' : t.rir.join('/');
-    return 'TARGET · $sets SETS · REPS $repsStr · RIR $rirStr';
+    return 'TARGET · ${reps.length} SETS · REPS $repStr · RIR $rirStr';
   }
 
   void _showSwapMenu(BuildContext context, WidgetRef ref) {

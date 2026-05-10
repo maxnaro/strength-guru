@@ -551,14 +551,28 @@ class _PlanList extends ConsumerWidget {
   }
 
   String _formatTargetShort(WeekTarget t) {
-    final sets = t.reps.length;
-    final allSameReps = t.reps.every((r) => r == t.reps.first);
+    final reps = t.reps;
+    final allSameReps = reps.every((r) => r == reps.first);
     final allSameRir = t.rir.every((r) => r == t.rir.first);
 
     if (allSameReps && allSameRir) {
-      return '$sets×${t.reps.first} · RIR ${t.rir.first}';
+      return '${reps.length}×${reps.first} · RIR ${t.rir.first}';
     }
-    return '$sets SETS · MIXED TARGETS';
+
+    String repStr;
+    if (reps.length > 1) {
+      final backoffs = reps.sublist(1);
+      if (backoffs.every((r) => r == backoffs.first)) {
+        repStr = '${reps.first} + ${backoffs.length}×${backoffs.first}';
+      } else {
+        repStr = reps.join(',');
+        if (repStr.length > 10) repStr = '${reps.first}..${reps.last}';
+      }
+    } else {
+      repStr = reps.first.toString();
+    }
+
+    return '$repStr · RIR ${allSameRir ? t.rir.first : "MIXED"}';
   }
 }
 
