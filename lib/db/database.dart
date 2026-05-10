@@ -38,15 +38,23 @@ class ExerciseSlots extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class IntListConverter extends TypeConverter<List<int>, String> {
+  const IntListConverter();
+  @override
+  List<int> fromSql(String fromDb) =>
+      fromDb.split(',').where((s) => s.isNotEmpty).map(int.parse).toList();
+  @override
+  String toSql(List<int> value) => value.join(',');
+}
+
 class WeekTargets extends Table {
   TextColumn get mesocycleId =>
       text().references(Mesocycles, #id, onDelete: KeyAction.cascade)();
   IntColumn get weekIdx => integer()();
   TextColumn get slotId =>
       text().references(ExerciseSlots, #id, onDelete: KeyAction.cascade)();
-  IntColumn get sets => integer()();
-  IntColumn get reps => integer()();
-  IntColumn get rir => integer()();
+  TextColumn get reps => text().map(const IntListConverter())();
+  TextColumn get rir => text().map(const IntListConverter())();
 
   @override
   Set<Column> get primaryKey => {mesocycleId, weekIdx, slotId};
@@ -130,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -305,6 +313,35 @@ class AppDatabase extends _$AppDatabase {
 
           if (from < 7) {
             await m.createTable(settings);
+          }
+
+          if (from < 8) {
+            // v7 -> v8: Migrate WeekTargets to array-based reps/rir and drop sets.
+            await customStatement(
+                'ALTER TABLE week_targets RENAME TO week_targets_old');
+            await m.createTable(weekTargets);
+
+            final rows = await customSelect('SELECT * FROM week_targets_old').get();
+            for (final r in rows) {
+              final meso = r.read<String>('mesocycle_id');
+              final week = r.read<int>('week_idx');
+              final slot = r.read<String>('slot_id');
+              final sets = r.read<int>('sets');
+              final reps = r.read<int>('reps');
+              final rir = r.read<int>('rir');
+
+              final repsList = List.filled(sets, reps);
+              final rirList = List.filled(sets, rir);
+
+              await into(weekTargets).insert(WeekTargetsCompanion.insert(
+                mesocycleId: meso,
+                weekIdx: week,
+                slotId: slot,
+                reps: repsList,
+                rir: rirList,
+              ));
+            }
+            await customStatement('DROP TABLE week_targets_old');
           }
         },
       );

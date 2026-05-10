@@ -847,24 +847,19 @@ class $WeekTargetsTable extends WeekTargets
       requiredDuringInsert: true,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'REFERENCES exercise_slots (id) ON DELETE CASCADE'));
-  static const VerificationMeta _setsMeta = const VerificationMeta('sets');
   @override
-  late final GeneratedColumn<int> sets = GeneratedColumn<int>(
-      'sets', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _repsMeta = const VerificationMeta('reps');
+  late final GeneratedColumnWithTypeConverter<List<int>, String> reps =
+      GeneratedColumn<String>('reps', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<List<int>>($WeekTargetsTable.$converterreps);
   @override
-  late final GeneratedColumn<int> reps = GeneratedColumn<int>(
-      'reps', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _rirMeta = const VerificationMeta('rir');
-  @override
-  late final GeneratedColumn<int> rir = GeneratedColumn<int>(
-      'rir', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
+  late final GeneratedColumnWithTypeConverter<List<int>, String> rir =
+      GeneratedColumn<String>('rir', aliasedName, false,
+              type: DriftSqlType.string, requiredDuringInsert: true)
+          .withConverter<List<int>>($WeekTargetsTable.$converterrir);
   @override
   List<GeneratedColumn> get $columns =>
-      [mesocycleId, weekIdx, slotId, sets, reps, rir];
+      [mesocycleId, weekIdx, slotId, reps, rir];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -895,24 +890,6 @@ class $WeekTargetsTable extends WeekTargets
     } else if (isInserting) {
       context.missing(_slotIdMeta);
     }
-    if (data.containsKey('sets')) {
-      context.handle(
-          _setsMeta, sets.isAcceptableOrUnknown(data['sets']!, _setsMeta));
-    } else if (isInserting) {
-      context.missing(_setsMeta);
-    }
-    if (data.containsKey('reps')) {
-      context.handle(
-          _repsMeta, reps.isAcceptableOrUnknown(data['reps']!, _repsMeta));
-    } else if (isInserting) {
-      context.missing(_repsMeta);
-    }
-    if (data.containsKey('rir')) {
-      context.handle(
-          _rirMeta, rir.isAcceptableOrUnknown(data['rir']!, _rirMeta));
-    } else if (isInserting) {
-      context.missing(_rirMeta);
-    }
     return context;
   }
 
@@ -928,12 +905,11 @@ class $WeekTargetsTable extends WeekTargets
           .read(DriftSqlType.int, data['${effectivePrefix}week_idx'])!,
       slotId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}slot_id'])!,
-      sets: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}sets'])!,
-      reps: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}reps'])!,
-      rir: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}rir'])!,
+      reps: $WeekTargetsTable.$converterreps.fromSql(attachedDatabase
+          .typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}reps'])!),
+      rir: $WeekTargetsTable.$converterrir.fromSql(attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rir'])!),
     );
   }
 
@@ -941,20 +917,23 @@ class $WeekTargetsTable extends WeekTargets
   $WeekTargetsTable createAlias(String alias) {
     return $WeekTargetsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<int>, String> $converterreps =
+      const IntListConverter();
+  static TypeConverter<List<int>, String> $converterrir =
+      const IntListConverter();
 }
 
 class WeekTarget extends DataClass implements Insertable<WeekTarget> {
   final String mesocycleId;
   final int weekIdx;
   final String slotId;
-  final int sets;
-  final int reps;
-  final int rir;
+  final List<int> reps;
+  final List<int> rir;
   const WeekTarget(
       {required this.mesocycleId,
       required this.weekIdx,
       required this.slotId,
-      required this.sets,
       required this.reps,
       required this.rir});
   @override
@@ -963,9 +942,13 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
     map['mesocycle_id'] = Variable<String>(mesocycleId);
     map['week_idx'] = Variable<int>(weekIdx);
     map['slot_id'] = Variable<String>(slotId);
-    map['sets'] = Variable<int>(sets);
-    map['reps'] = Variable<int>(reps);
-    map['rir'] = Variable<int>(rir);
+    {
+      map['reps'] =
+          Variable<String>($WeekTargetsTable.$converterreps.toSql(reps));
+    }
+    {
+      map['rir'] = Variable<String>($WeekTargetsTable.$converterrir.toSql(rir));
+    }
     return map;
   }
 
@@ -974,7 +957,6 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
       mesocycleId: Value(mesocycleId),
       weekIdx: Value(weekIdx),
       slotId: Value(slotId),
-      sets: Value(sets),
       reps: Value(reps),
       rir: Value(rir),
     );
@@ -987,9 +969,8 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
       mesocycleId: serializer.fromJson<String>(json['mesocycleId']),
       weekIdx: serializer.fromJson<int>(json['weekIdx']),
       slotId: serializer.fromJson<String>(json['slotId']),
-      sets: serializer.fromJson<int>(json['sets']),
-      reps: serializer.fromJson<int>(json['reps']),
-      rir: serializer.fromJson<int>(json['rir']),
+      reps: serializer.fromJson<List<int>>(json['reps']),
+      rir: serializer.fromJson<List<int>>(json['rir']),
     );
   }
   @override
@@ -999,9 +980,8 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
       'mesocycleId': serializer.toJson<String>(mesocycleId),
       'weekIdx': serializer.toJson<int>(weekIdx),
       'slotId': serializer.toJson<String>(slotId),
-      'sets': serializer.toJson<int>(sets),
-      'reps': serializer.toJson<int>(reps),
-      'rir': serializer.toJson<int>(rir),
+      'reps': serializer.toJson<List<int>>(reps),
+      'rir': serializer.toJson<List<int>>(rir),
     };
   }
 
@@ -1009,14 +989,12 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
           {String? mesocycleId,
           int? weekIdx,
           String? slotId,
-          int? sets,
-          int? reps,
-          int? rir}) =>
+          List<int>? reps,
+          List<int>? rir}) =>
       WeekTarget(
         mesocycleId: mesocycleId ?? this.mesocycleId,
         weekIdx: weekIdx ?? this.weekIdx,
         slotId: slotId ?? this.slotId,
-        sets: sets ?? this.sets,
         reps: reps ?? this.reps,
         rir: rir ?? this.rir,
       );
@@ -1026,7 +1004,6 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
           data.mesocycleId.present ? data.mesocycleId.value : this.mesocycleId,
       weekIdx: data.weekIdx.present ? data.weekIdx.value : this.weekIdx,
       slotId: data.slotId.present ? data.slotId.value : this.slotId,
-      sets: data.sets.present ? data.sets.value : this.sets,
       reps: data.reps.present ? data.reps.value : this.reps,
       rir: data.rir.present ? data.rir.value : this.rir,
     );
@@ -1038,7 +1015,6 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
           ..write('mesocycleId: $mesocycleId, ')
           ..write('weekIdx: $weekIdx, ')
           ..write('slotId: $slotId, ')
-          ..write('sets: $sets, ')
           ..write('reps: $reps, ')
           ..write('rir: $rir')
           ..write(')'))
@@ -1046,8 +1022,7 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(mesocycleId, weekIdx, slotId, sets, reps, rir);
+  int get hashCode => Object.hash(mesocycleId, weekIdx, slotId, reps, rir);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1055,7 +1030,6 @@ class WeekTarget extends DataClass implements Insertable<WeekTarget> {
           other.mesocycleId == this.mesocycleId &&
           other.weekIdx == this.weekIdx &&
           other.slotId == this.slotId &&
-          other.sets == this.sets &&
           other.reps == this.reps &&
           other.rir == this.rir);
 }
@@ -1064,15 +1038,13 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
   final Value<String> mesocycleId;
   final Value<int> weekIdx;
   final Value<String> slotId;
-  final Value<int> sets;
-  final Value<int> reps;
-  final Value<int> rir;
+  final Value<List<int>> reps;
+  final Value<List<int>> rir;
   final Value<int> rowid;
   const WeekTargetsCompanion({
     this.mesocycleId = const Value.absent(),
     this.weekIdx = const Value.absent(),
     this.slotId = const Value.absent(),
-    this.sets = const Value.absent(),
     this.reps = const Value.absent(),
     this.rir = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1081,30 +1053,26 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     required String mesocycleId,
     required int weekIdx,
     required String slotId,
-    required int sets,
-    required int reps,
-    required int rir,
+    required List<int> reps,
+    required List<int> rir,
     this.rowid = const Value.absent(),
   })  : mesocycleId = Value(mesocycleId),
         weekIdx = Value(weekIdx),
         slotId = Value(slotId),
-        sets = Value(sets),
         reps = Value(reps),
         rir = Value(rir);
   static Insertable<WeekTarget> custom({
     Expression<String>? mesocycleId,
     Expression<int>? weekIdx,
     Expression<String>? slotId,
-    Expression<int>? sets,
-    Expression<int>? reps,
-    Expression<int>? rir,
+    Expression<String>? reps,
+    Expression<String>? rir,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (mesocycleId != null) 'mesocycle_id': mesocycleId,
       if (weekIdx != null) 'week_idx': weekIdx,
       if (slotId != null) 'slot_id': slotId,
-      if (sets != null) 'sets': sets,
       if (reps != null) 'reps': reps,
       if (rir != null) 'rir': rir,
       if (rowid != null) 'rowid': rowid,
@@ -1115,15 +1083,13 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
       {Value<String>? mesocycleId,
       Value<int>? weekIdx,
       Value<String>? slotId,
-      Value<int>? sets,
-      Value<int>? reps,
-      Value<int>? rir,
+      Value<List<int>>? reps,
+      Value<List<int>>? rir,
       Value<int>? rowid}) {
     return WeekTargetsCompanion(
       mesocycleId: mesocycleId ?? this.mesocycleId,
       weekIdx: weekIdx ?? this.weekIdx,
       slotId: slotId ?? this.slotId,
-      sets: sets ?? this.sets,
       reps: reps ?? this.reps,
       rir: rir ?? this.rir,
       rowid: rowid ?? this.rowid,
@@ -1142,14 +1108,13 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
     if (slotId.present) {
       map['slot_id'] = Variable<String>(slotId.value);
     }
-    if (sets.present) {
-      map['sets'] = Variable<int>(sets.value);
-    }
     if (reps.present) {
-      map['reps'] = Variable<int>(reps.value);
+      map['reps'] =
+          Variable<String>($WeekTargetsTable.$converterreps.toSql(reps.value));
     }
     if (rir.present) {
-      map['rir'] = Variable<int>(rir.value);
+      map['rir'] =
+          Variable<String>($WeekTargetsTable.$converterrir.toSql(rir.value));
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -1163,7 +1128,6 @@ class WeekTargetsCompanion extends UpdateCompanion<WeekTarget> {
           ..write('mesocycleId: $mesocycleId, ')
           ..write('weekIdx: $weekIdx, ')
           ..write('slotId: $slotId, ')
-          ..write('sets: $sets, ')
           ..write('reps: $reps, ')
           ..write('rir: $rir, ')
           ..write('rowid: $rowid')
@@ -4160,9 +4124,8 @@ typedef $$WeekTargetsTableCreateCompanionBuilder = WeekTargetsCompanion
   required String mesocycleId,
   required int weekIdx,
   required String slotId,
-  required int sets,
-  required int reps,
-  required int rir,
+  required List<int> reps,
+  required List<int> rir,
   Value<int> rowid,
 });
 typedef $$WeekTargetsTableUpdateCompanionBuilder = WeekTargetsCompanion
@@ -4170,9 +4133,8 @@ typedef $$WeekTargetsTableUpdateCompanionBuilder = WeekTargetsCompanion
   Value<String> mesocycleId,
   Value<int> weekIdx,
   Value<String> slotId,
-  Value<int> sets,
-  Value<int> reps,
-  Value<int> rir,
+  Value<List<int>> reps,
+  Value<List<int>> rir,
   Value<int> rowid,
 });
 
@@ -4223,14 +4185,15 @@ class $$WeekTargetsTableFilterComposer
   ColumnFilters<int> get weekIdx => $composableBuilder(
       column: $table.weekIdx, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<int> get sets => $composableBuilder(
-      column: $table.sets, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<List<int>, List<int>, String> get reps =>
+      $composableBuilder(
+          column: $table.reps,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
-  ColumnFilters<int> get reps => $composableBuilder(
-      column: $table.reps, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get rir => $composableBuilder(
-      column: $table.rir, builder: (column) => ColumnFilters(column));
+  ColumnWithTypeConverterFilters<List<int>, List<int>, String> get rir =>
+      $composableBuilder(
+          column: $table.rir,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   $$MesocyclesTableFilterComposer get mesocycleId {
     final $$MesocyclesTableFilterComposer composer = $composerBuilder(
@@ -4285,13 +4248,10 @@ class $$WeekTargetsTableOrderingComposer
   ColumnOrderings<int> get weekIdx => $composableBuilder(
       column: $table.weekIdx, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get sets => $composableBuilder(
-      column: $table.sets, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get reps => $composableBuilder(
+  ColumnOrderings<String> get reps => $composableBuilder(
       column: $table.reps, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<int> get rir => $composableBuilder(
+  ColumnOrderings<String> get rir => $composableBuilder(
       column: $table.rir, builder: (column) => ColumnOrderings(column));
 
   $$MesocyclesTableOrderingComposer get mesocycleId {
@@ -4347,13 +4307,10 @@ class $$WeekTargetsTableAnnotationComposer
   GeneratedColumn<int> get weekIdx =>
       $composableBuilder(column: $table.weekIdx, builder: (column) => column);
 
-  GeneratedColumn<int> get sets =>
-      $composableBuilder(column: $table.sets, builder: (column) => column);
-
-  GeneratedColumn<int> get reps =>
+  GeneratedColumnWithTypeConverter<List<int>, String> get reps =>
       $composableBuilder(column: $table.reps, builder: (column) => column);
 
-  GeneratedColumn<int> get rir =>
+  GeneratedColumnWithTypeConverter<List<int>, String> get rir =>
       $composableBuilder(column: $table.rir, builder: (column) => column);
 
   $$MesocyclesTableAnnotationComposer get mesocycleId {
@@ -4423,16 +4380,14 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
             Value<String> mesocycleId = const Value.absent(),
             Value<int> weekIdx = const Value.absent(),
             Value<String> slotId = const Value.absent(),
-            Value<int> sets = const Value.absent(),
-            Value<int> reps = const Value.absent(),
-            Value<int> rir = const Value.absent(),
+            Value<List<int>> reps = const Value.absent(),
+            Value<List<int>> rir = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               WeekTargetsCompanion(
             mesocycleId: mesocycleId,
             weekIdx: weekIdx,
             slotId: slotId,
-            sets: sets,
             reps: reps,
             rir: rir,
             rowid: rowid,
@@ -4441,16 +4396,14 @@ class $$WeekTargetsTableTableManager extends RootTableManager<
             required String mesocycleId,
             required int weekIdx,
             required String slotId,
-            required int sets,
-            required int reps,
-            required int rir,
+            required List<int> reps,
+            required List<int> rir,
             Value<int> rowid = const Value.absent(),
           }) =>
               WeekTargetsCompanion.insert(
             mesocycleId: mesocycleId,
             weekIdx: weekIdx,
             slotId: slotId,
-            sets: sets,
             reps: reps,
             rir: rir,
             rowid: rowid,
