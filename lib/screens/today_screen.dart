@@ -217,6 +217,8 @@ class _HeroCard extends ConsumerWidget {
     final customLabel = daySettingsAsync.valueOrNull?.label;
     final isDeloadWeek = ref.watch(isDeloadWeekProvider(WeekKey(meso.id, heroKey.weekIdx)));
 
+    final todayKey = ref.watch(todayKeyProvider);
+
     // Compute progress from set entries if session exists.
     final setsAsync = session != null
         ? ref.watch(setsForLogProvider(session.id))
@@ -313,6 +315,17 @@ class _HeroCard extends ConsumerWidget {
                   ),
                 ]),
               ],
+            ],
+            // Secondary actions
+            if (heroKey != todayKey && todayKey != null) ...[
+              const SizedBox(height: 16),
+              SGButton.soft(
+                label: 'Go to Today',
+                fullWidth: true,
+                onTap: () {
+                  ref.read(selectedLogDayProvider.notifier).state = todayKey;
+                },
+              ),
             ],
           ],
         ),

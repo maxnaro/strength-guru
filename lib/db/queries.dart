@@ -352,14 +352,6 @@ extension SessionLogQueries on AppDatabase {
     ));
     return (select(sessionLogs)..where((t) => t.id.equals(id))).getSingle();
   }
-
-  Stream<SessionLog?> watchLatestLoggedSession(String mesoId) {
-    return (select(sessionLogs)
-          ..where((t) => t.mesocycleId.equals(mesoId))
-          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)])
-          ..limit(1))
-        .watchSingleOrNull();
-  }
 }
 
 // ── SetEntry queries ──────────────────────────────────────────────────────────
