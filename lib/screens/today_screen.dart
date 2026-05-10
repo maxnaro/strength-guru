@@ -23,13 +23,36 @@ class TodayScreen extends ConsumerWidget {
         if (meso == null) return const _EmptyMesoView();
         final heroKey = ref.watch(heroKeyProvider);
         if (heroKey == null) return const _MesoFinishedView();
-        return _DayView(meso: meso, heroKey: heroKey);
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.015),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: _DayView(
+            key: ValueKey(heroKey),
+            meso: meso,
+            heroKey: heroKey,
+          ),
+        );
       },
     );
   }
 }
 
 // ── Sub-views ─────────────────────────────────────────────────────────────────
+
+// ... (LoadingView, ErrorView, EmptyMesoView, MesoFinishedView omitted for brevity in this replace call, but I must ensure I don't break them if I use replace poorly. Actually I should probably use more context)
 
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
@@ -104,7 +127,7 @@ class _DayView extends ConsumerWidget {
   final Mesocycle meso;
   final DayKey heroKey;
 
-  const _DayView({required this.meso, required this.heroKey});
+  const _DayView({super.key, required this.meso, required this.heroKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -323,7 +346,7 @@ class _HeroCard extends ConsumerWidget {
                 label: 'Go to Today',
                 fullWidth: true,
                 onTap: () {
-                  ref.read(selectedLogDayProvider.notifier).state = todayKey;
+                  ref.read(selectedLogDayProvider.notifier).state = null;
                 },
               ),
             ],
