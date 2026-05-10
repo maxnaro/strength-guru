@@ -840,7 +840,7 @@ class _ExerciseRow extends StatelessWidget {
                 children: [
                   Text(ex.name, style: SGText.body(13, color: p.text)),
                   Text(
-                    '${t.sets}×${t.reps}  @${t.rir}RIR',
+                    _formatTarget(t),
                     style: SGText.mono(11, color: p.textDim),
                   ),
                 ],
@@ -854,6 +854,31 @@ class _ExerciseRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTarget(ImportWeekTarget t) {
+    final reps = t.reps;
+    final allSameReps = reps.every((r) => r == reps.first);
+    final allSameRir = t.rir.every((r) => r == t.rir.first);
+
+    if (allSameReps && allSameRir) {
+      return '${reps.length}×${reps.first}  @${t.rir.first}RIR';
+    }
+
+    String repStr;
+    if (reps.length > 1) {
+      final backoffs = reps.sublist(1);
+      if (backoffs.every((r) => r == backoffs.first)) {
+        repStr = '${reps.first}+${backoffs.length}x${backoffs.first}';
+      } else {
+        repStr = reps.join(',');
+        if (repStr.length > 8) repStr = '${reps.first}..${reps.last}';
+      }
+    } else {
+      repStr = reps.first.toString();
+    }
+
+    return '$repStr  @${allSameRir ? t.rir.first : "MIX"}RIR';
   }
 }
 

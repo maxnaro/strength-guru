@@ -194,7 +194,6 @@ extension MesoQueries on AppDatabase {
           mesocycleId: newId_,
           weekIdx: r.weekIdx,
           slotId: slotMap[r.slotId]!,
-          sets: r.sets,
           reps: r.reps,
           rir: r.rir,
         ));
@@ -252,15 +251,13 @@ extension WeekTargetQueries on AppDatabase {
     required String mesoId,
     required int weekIdx,
     required String slotId,
-    required int sets,
-    required int reps,
-    required int rir,
+    required List<int> reps,
+    required List<int> rir,
   }) {
     return into(weekTargets).insertOnConflictUpdate(WeekTargetsCompanion.insert(
       mesocycleId: mesoId,
       weekIdx: weekIdx,
       slotId: slotId,
-      sets: sets,
       reps: reps,
       rir: rir,
     ));
@@ -271,16 +268,14 @@ extension WeekTargetQueries on AppDatabase {
     required int fromWeekIdx,
     required int numWeeks,
     required String slotId,
-    required int sets,
-    required int reps,
-    required int rir,
+    required List<int> reps,
+    required List<int> rir,
   }) async {
     for (var w = fromWeekIdx; w < numWeeks; w++) {
       await upsertWeekTarget(
         mesoId: mesoId,
         weekIdx: w,
         slotId: slotId,
-        sets: sets,
         reps: reps,
         rir: rir,
       );
@@ -646,7 +641,6 @@ extension MesoImportQueries on AppDatabase {
                 mesocycleId: mesoId,
                 weekIdx: w,
                 slotId: slotIdByExName[ex.name]!,
-                sets: t.sets,
                 reps: t.reps,
                 rir: t.rir,
               ),

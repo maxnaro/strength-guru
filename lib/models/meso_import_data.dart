@@ -66,12 +66,12 @@ class ImportExercise {
           .map((t) => ImportWeekTarget.fromJson(t as Map<String, dynamic>))
           .toList();
     } else {
+      final sets = (json['sets'] as int?) ?? 3;
       weekTargets = [
         ImportWeekTarget(
           weekIdx: 0,
-          sets: (json['sets'] as int?) ?? 3,
-          reps: (json['reps'] as int?) ?? 8,
-          rir: (json['rir'] as int?) ?? 2,
+          reps: List.filled(sets, (json['reps'] as int?) ?? 8),
+          rir: List.filled(sets, (json['rir'] as int?) ?? 2),
         ),
       ];
     }
@@ -94,23 +94,30 @@ class ImportExercise {
 
 class ImportWeekTarget {
   final int weekIdx;
-  final int sets;
-  final int reps;
-  final int rir;
+  final List<int> reps;
+  final List<int> rir;
 
   const ImportWeekTarget({
     required this.weekIdx,
-    required this.sets,
     required this.reps,
     required this.rir,
   });
 
   factory ImportWeekTarget.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('sets')) {
+      final sets = json['sets'] as int;
+      return ImportWeekTarget(
+        weekIdx: (json['weekIdx'] as int?) ?? 0,
+        reps: List.filled(sets, (json['reps'] as int?) ?? 8),
+        rir: List.filled(sets, (json['rir'] as int?) ?? 2),
+      );
+    }
     return ImportWeekTarget(
       weekIdx: (json['weekIdx'] as int?) ?? 0,
-      sets: (json['sets'] as int?) ?? 3,
-      reps: (json['reps'] as int?) ?? 8,
-      rir: (json['rir'] as int?) ?? 2,
+      reps: (json['reps'] as List<dynamic>?)?.map((e) => e as int).toList() ??
+          [8, 8, 8],
+      rir: (json['rir'] as List<dynamic>?)?.map((e) => e as int).toList() ??
+          [2, 2, 2],
     );
   }
 }

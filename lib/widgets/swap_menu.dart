@@ -85,7 +85,6 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
           mesoId: widget.meso.id,
           weekIdx: key.weekIdx,
           slotId: newSlot.id,
-          sets: oldTarget.sets,
           reps: oldTarget.reps,
           rir: oldTarget.rir,
         );
@@ -95,7 +94,6 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
           fromWeekIdx: key.weekIdx,
           numWeeks: widget.meso.numWeeks,
           slotId: newSlot.id,
-          sets: oldTarget.sets,
           reps: oldTarget.reps,
           rir: oldTarget.rir,
         );

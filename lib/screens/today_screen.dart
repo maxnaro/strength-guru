@@ -251,7 +251,7 @@ class _HeroCard extends ConsumerWidget {
     final doneCount = allEntries.where((e) => e.done).length;
 
     final totalSets = items.fold<int>(
-        0, (sum, item) => sum + (targets[item.slot.id]?.sets ?? 0));
+        0, (sum, item) => sum + (targets[item.slot.id]?.reps.length ?? 0));
 
     final dayLabel = _dayLabel(heroKey.dayIdx);
     final splitName = customLabel ?? group.title;
@@ -464,7 +464,7 @@ class _PlanList extends ConsumerWidget {
             final target = targets[item.slot.id];
             final exEntries = allEntries.where((e) => e.slotId == item.slot.id);
             final doneCount = exEntries.where((e) => e.done).length;
-            final totalSets = target?.sets ?? 0;
+            final totalSets = target?.reps.length ?? 0;
             final isDone = totalSets > 0 && doneCount >= totalSets;
             final exGroup = MuscleGroupX.fromString(item.group);
 
@@ -522,7 +522,7 @@ class _PlanList extends ConsumerWidget {
                               ),
                               if (target != null)
                                 Text(
-                                  '${target.sets}×${target.reps} · RIR ${target.rir}',
+                                  _formatTargetShort(target),
                                   style: SGText.mono(11, color: p.textDim),
                                 ),
                             ],
@@ -548,6 +548,31 @@ class _PlanList extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatTargetShort(WeekTarget t) {
+    final reps = t.reps;
+    final allSameReps = reps.every((r) => r == reps.first);
+    final allSameRir = t.rir.every((r) => r == t.rir.first);
+
+    if (allSameReps && allSameRir) {
+      return '${reps.length}×${reps.first} · RIR ${t.rir.first}';
+    }
+
+    String repStr;
+    if (reps.length > 1) {
+      final backoffs = reps.sublist(1);
+      if (backoffs.every((r) => r == backoffs.first)) {
+        repStr = '${reps.first} + ${backoffs.length}×${backoffs.first}';
+      } else {
+        repStr = reps.join(',');
+        if (repStr.length > 10) repStr = '${reps.first}..${reps.last}';
+      }
+    } else {
+      repStr = reps.first.toString();
+    }
+
+    return '$repStr · RIR ${allSameRir ? t.rir.first : "MIXED"}';
   }
 }
 

@@ -45,10 +45,9 @@ class ExerciseDef {
 
 const kExercises = [
   // Day 1 — Chest & Shoulders
-  ExerciseDef('dips_top', 'Dips', 'chest', 1, 6),
-  ExerciseDef('dips_backoff', 'Dips', 'chest', 3, 12),
-  ExerciseDef('barbell_shoulder_press', 'Barbell Shoulder Press', 'shoulders', 2, 15),
+  ExerciseDef('dips', 'Dips', 'chest', 4, 12),
   ExerciseDef('machine_shoulder_press', 'Machine Shoulder Press', 'shoulders', 2, 15),
+  ExerciseDef('barbell_shoulder_press', 'Barbell Shoulder Press', 'shoulders', 2, 15),
   ExerciseDef('cable_chest_flyes', 'Cable Chest Flyes', 'chest', 3, 15),
   ExerciseDef('dumbbell_chest_flyes', 'Dumbbell Chest Flyes', 'chest', 3, 15),
   ExerciseDef('dumbbell_lateral_raises', 'Dumbbell Lateral Raises', 'shoulders', 3, 12),
@@ -56,24 +55,21 @@ const kExercises = [
   ExerciseDef('cable_rear_delt_flyes', 'Cable Rear Delt Flyes', 'shoulders', 3, 20),
   ExerciseDef('dumbbell_rear_delt_flyes', 'Dumbbell Rear Delt Flyes', 'shoulders', 3, 20),
   // Day 2 — Quads & Calves
-  ExerciseDef('zercher_squat_top', 'Zercher Squat', 'quads', 1, 6),
-  ExerciseDef('zercher_squat_backoff', 'Zercher Squat', 'quads', 2, 12),
+  ExerciseDef('zercher_squat', 'Zercher Squat', 'quads', 3, 12),
   ExerciseDef('smith_machine_squat', 'Smith Machine Squat', 'quads', 3, 15),
   ExerciseDef('hack_squat', 'Hack Squat', 'quads', 3, 15),
   ExerciseDef('quad_extensions', 'Quad Extensions', 'quads', 2, 15),
   ExerciseDef('standing_calf_raises', 'Standing Calf Raises', 'calves', 4, 20),
   ExerciseDef('sissy_squats', 'Sissy Squats', 'quads', 3, 99),
   // Day 3 — Back
-  ExerciseDef('pull_ups_top', 'Pull-ups', 'back', 1, 6),
-  ExerciseDef('pull_ups_backoff', 'Pull-ups', 'back', 2, 12),
+  ExerciseDef('pull_ups', 'Pull-ups', 'back', 3, 12),
   ExerciseDef('pendlay_rows', 'Pendlay Rows', 'back', 3, 15),
   ExerciseDef('uni_lateral_lat_pulldowns', 'Uni-lateral Lat Pulldowns', 'back', 2, 15),
   ExerciseDef('machine_rows', 'Machine Rows', 'back', 2, 12),
   ExerciseDef('cable_rows', 'Cable Rows', 'back', 2, 12),
   ExerciseDef('lat_pullovers', 'Lat Pullovers', 'back', 2, 15),
   // Day 4 — Glutes & Hamstrings
-  ExerciseDef('zercher_deadlifts_top', 'Zercher Deadlifts', 'hamstrings', 1, 6),
-  ExerciseDef('zercher_deadlifts_backoff', 'Zercher Deadlifts', 'hamstrings', 2, 12),
+  ExerciseDef('zercher_deadlifts', 'Zercher Deadlifts', 'hamstrings', 3, 12),
   ExerciseDef('rdls', 'RDLs', 'hamstrings', 2, 12),
   ExerciseDef('machine_hip_thrust', 'Machine Hip Thrust', 'glutes', 3, 16),
   ExerciseDef('seated_hamstring_curls', 'Seated Hamstring Curls', 'hamstrings', 2, 16),

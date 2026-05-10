@@ -38,15 +38,23 @@ class ExerciseSlots extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class IntListConverter extends TypeConverter<List<int>, String> {
+  const IntListConverter();
+  @override
+  List<int> fromSql(String fromDb) =>
+      fromDb.split(',').where((s) => s.isNotEmpty).map(int.parse).toList();
+  @override
+  String toSql(List<int> value) => value.join(',');
+}
+
 class WeekTargets extends Table {
   TextColumn get mesocycleId =>
       text().references(Mesocycles, #id, onDelete: KeyAction.cascade)();
   IntColumn get weekIdx => integer()();
   TextColumn get slotId =>
       text().references(ExerciseSlots, #id, onDelete: KeyAction.cascade)();
-  IntColumn get sets => integer()();
-  IntColumn get reps => integer()();
-  IntColumn get rir => integer()();
+  TextColumn get reps => text().map(const IntListConverter())();
+  TextColumn get rir => text().map(const IntListConverter())();
 
   @override
   Set<Column> get primaryKey => {mesocycleId, weekIdx, slotId};
@@ -130,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -306,8 +314,171 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             await m.createTable(settings);
           }
+
+          if (from < 8) {
+            // v7 -> v8: Migrate WeekTargets to array-based reps/rir and drop sets.
+            await customStatement(
+                'ALTER TABLE week_targets RENAME TO week_targets_old');
+            await m.createTable(weekTargets);
+
+            final rows = await customSelect('SELECT * FROM week_targets_old').get();
+            for (final r in rows) {
+              final meso = r.read<String>('mesocycle_id');
+              final week = r.read<int>('week_idx');
+              final slot = r.read<String>('slot_id');
+              final sets = r.read<int>('sets');
+              final reps = r.read<int>('reps');
+              final rir = r.read<int>('rir');
+
+              final repsList = List.filled(sets, reps);
+              final rirList = List.filled(sets, rir);
+
+              await into(weekTargets).insert(WeekTargetsCompanion.insert(
+                mesocycleId: meso,
+                weekIdx: week,
+                slotId: slot,
+                reps: repsList,
+                rir: rirList,
+              ));
+            }
+            await customStatement('DROP TABLE week_targets_old');
+
+            // Data heal: Merge exercises with the same name (e.g. Pull-ups Top/Backoff)
+            await _healRedundantExercises();
+          }
         },
       );
+
+  Future<void> _healRedundantExercises() async {
+    final allMesos = await select(mesocycles).get();
+    for (final meso in allMesos) {
+      // 1. Get all slots for this meso with their exercise names
+      final slots = await (select(exerciseSlots).join([
+        innerJoin(exercises, exercises.id.equalsExp(exerciseSlots.exerciseId)),
+      ])
+            ..where(exerciseSlots.mesocycleId.equals(meso.id)))
+          .get();
+
+      // Map from name -> list of slot IDs
+      final nameToSlots = <String, List<String>>{};
+      for (final row in slots) {
+        final name = row.readTable(exercises).name;
+        final slotId = row.readTable(exerciseSlots).id;
+        (nameToSlots[name] ??= []).add(slotId);
+      }
+
+      // 2. Process groups with > 1 slot (the duplicates)
+      for (final entry in nameToSlots.entries) {
+        final dupIds = entry.value;
+        if (dupIds.length <= 1) continue;
+
+        final primaryId = dupIds.first;
+        final secondaryIds = dupIds.sublist(1);
+
+        // Merge targets week by week
+        for (var w = 0; w < meso.numWeeks; w++) {
+          final primaryTarget = await (select(weekTargets)
+                ..where((t) =>
+                    t.mesocycleId.equals(meso.id) &
+                    t.weekIdx.equals(w) &
+                    t.slotId.equals(primaryId)))
+              .getSingleOrNull();
+
+          if (primaryTarget == null) continue;
+
+          var mergedReps = List<int>.from(primaryTarget.reps);
+          var mergedRir = List<int>.from(primaryTarget.rir);
+          final offsets = <String, int>{}; // secondaryId -> offset
+
+          for (final secId in secondaryIds) {
+            final secTarget = await (select(weekTargets)
+                  ..where((t) =>
+                      t.mesocycleId.equals(meso.id) &
+                      t.weekIdx.equals(w) &
+                      t.slotId.equals(secId)))
+                .getSingleOrNull();
+
+            if (secTarget != null) {
+              offsets[secId] = mergedReps.length;
+              mergedReps.addAll(secTarget.reps);
+              mergedRir.addAll(secTarget.rir);
+            }
+          }
+
+          // Update primary target
+          await (update(weekTargets)
+                ..where((t) =>
+                    t.mesocycleId.equals(meso.id) &
+                    t.weekIdx.equals(w) &
+                    t.slotId.equals(primaryId)))
+              .write(WeekTargetsCompanion(
+            reps: Value(mergedReps),
+            rir: Value(mergedRir),
+          ));
+
+          // 3. Move Session Logs / Set Entries
+          // We need to find set entries for each week/day that used the secondary slots.
+          for (final secId in secondaryIds) {
+            final offset = offsets[secId] ?? 0;
+            // Update set entries to point to primary slot and offset their index
+            await customUpdate(
+              'UPDATE set_entries SET slot_id = ?, set_index = set_index + ? '
+              'WHERE slot_id = ? AND session_id IN '
+              '(SELECT id FROM session_logs WHERE mesocycle_id = ? AND week_idx = ?)',
+              variables: [
+                Variable.withString(primaryId),
+                Variable.withInt(offset),
+                Variable.withString(secId),
+                Variable.withString(meso.id),
+                Variable.withInt(w),
+              ],
+            );
+          }
+        }
+
+        // 4. Update DayOverrides (Schedules)
+        // Remove the secondary IDs from the CSV strings and ensure primary is there only once.
+        final overrides = await (select(dayOverrides)
+              ..where((t) => t.mesocycleId.equals(meso.id)))
+            .get();
+
+        for (final o in overrides) {
+          final ids = o.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
+          if (ids.any((id) => secondaryIds.contains(id))) {
+            final newIds = <String>[];
+            bool primarySeen = false;
+            for (final id in ids) {
+              if (id == primaryId) {
+                if (!primarySeen) {
+                  newIds.add(id);
+                  primarySeen = true;
+                }
+              } else if (secondaryIds.contains(id)) {
+                if (!primarySeen) {
+                  newIds.add(primaryId);
+                  primarySeen = true;
+                }
+              } else {
+                newIds.add(id);
+              }
+            }
+            await (update(dayOverrides)
+                  ..where((t) =>
+                      t.mesocycleId.equals(o.mesocycleId) &
+                      t.weekIdx.equals(o.weekIdx) &
+                      t.dayIdx.equals(o.dayIdx)))
+                .write(DayOverridesCompanion(
+                    exerciseIdsCsv: Value(newIds.join(','))));
+          }
+        }
+
+        // 5. Delete secondary slots
+        for (final secId in secondaryIds) {
+          await (delete(exerciseSlots)..where((t) => t.id.equals(secId))).go();
+        }
+      }
+    }
+  }
 
   Future<void> _createIndexes() async {
     await customStatement(

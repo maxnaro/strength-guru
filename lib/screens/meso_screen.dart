@@ -983,11 +983,11 @@ class _TimelineRow extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '${target.sets}×${target.reps}',
-                              style: SGText.display(11, color: palette.text),
+                              _formatReps(target),
+                              style: SGText.display(10, color: palette.text),
                             ),
                             Text(
-                              'RIR${target.rir}',
+                              _formatRir(target),
                               style: SGText.mono(7, color: palette.textDim),
                             ),
                           ],
@@ -999,6 +999,38 @@ class _TimelineRow extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatReps(WeekTarget t) {
+    final reps = t.reps;
+    if (reps.isEmpty) return '—';
+
+    final allSame = reps.every((r) => r == reps.first);
+    if (allSame) return '${reps.length}×${reps.first}';
+
+    // Check for "Top Set + Backoffs" pattern (e.g., 6, 12, 12)
+    if (reps.length > 1) {
+      final top = reps.first;
+      final backoffs = reps.sublist(1);
+      final allBackoffsSame = backoffs.every((r) => r == backoffs.first);
+      if (allBackoffsSame) {
+        return '$top + ${backoffs.length}×${backoffs.first}';
+      }
+    }
+
+    // Otherwise, show as comma-separated list
+    final list = reps.join(',');
+    if (list.length > 10) {
+      // If too long, show first and last with ellipsis
+      return '${reps.first}..${reps.last}';
+    }
+    return list;
+  }
+
+  String _formatRir(WeekTarget t) {
+    final allSame = t.rir.every((r) => r == t.rir.first);
+    if (allSame) return 'RIR ${t.rir.first}';
+    return 'RIR ${t.rir.join(',')}';
   }
 }
 

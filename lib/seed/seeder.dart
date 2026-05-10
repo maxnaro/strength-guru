@@ -104,26 +104,37 @@ class Seeder {
       final weeklyRir = [2, 2, 1, 4, 1, 1, 2, 0, 4];
       final topSetReps = [6, 5, 4, 4, 3, 2, 1, 1, 5];
 
+      // Exercises that have a top set (first set is heavy/low rep)
+      final exercisesWithTopSet = {
+        'dips', 'zercher_squat', 'pull_ups', 'zercher_deadlifts'
+      };
+
       for (var w = 0; w < 9; w++) {
         final rir = weeklyRir[w];
         for (final def in kExercises) {
           final slotId = keyToSlotId[def.key]!;
-          var reps = def.baseReps;
-          var targetRir = rir;
+          
+          final targetReps = List.filled(def.baseSets, def.baseReps);
+          final targetRir = List.filled(def.baseSets, rir);
 
-          if (def.key.endsWith('_top')) {
-            reps = topSetReps[w];
+          if (exercisesWithTopSet.contains(def.key)) {
+            targetReps[0] = topSetReps[w];
+            // Backoff sets for these are 12 reps (hardcoded from previous ExerciseDef backoff)
+            for (var i = 1; i < targetReps.length; i++) {
+              targetReps[i] = 12;
+            }
           } else if (def.key == 'sissy_squats') {
-            reps = 99; // AMRAP
-            targetRir = 0; // n/a
+            for (var i = 0; i < targetReps.length; i++) {
+              targetReps[i] = 99; // AMRAP
+              targetRir[i] = 0; // n/a
+            }
           }
 
           await db.into(db.weekTargets).insert(WeekTargetsCompanion.insert(
                 mesocycleId: mesoId,
                 weekIdx: w,
                 slotId: slotId,
-                sets: def.baseSets,
-                reps: reps,
+                reps: targetReps,
                 rir: targetRir,
               ));
         }
@@ -131,8 +142,7 @@ class Seeder {
         // Day Overrides to handle exercise variations and specific ordering.
         final dayExercises = <int, List<String>>{
           0: [
-            'dips_top',
-            'dips_backoff',
+            'dips',
             (w == 0 || w == 4 || w == 5)
                 ? 'barbell_shoulder_press'
                 : 'machine_shoulder_press',
@@ -142,8 +152,7 @@ class Seeder {
             (w == 4) ? 'dumbbell_rear_delt_flyes' : 'cable_rear_delt_flyes',
           ],
           1: [
-            'zercher_squat_top',
-            'zercher_squat_backoff',
+            'zercher_squat',
             (w == 0 || w == 1) ? 'smith_machine_squat' : 'hack_squat',
             'quad_extensions',
             'standing_calf_raises',
@@ -151,16 +160,14 @@ class Seeder {
           ],
           2: [],
           3: [
-            'pull_ups_top',
-            'pull_ups_backoff',
+            'pull_ups',
             'pendlay_rows',
             'uni_lateral_lat_pulldowns',
             (w == 1) ? 'cable_rows' : 'machine_rows',
             'lat_pullovers',
           ],
           4: [
-            'zercher_deadlifts_top',
-            'zercher_deadlifts_backoff',
+            'zercher_deadlifts',
             'rdls',
             'machine_hip_thrust',
             'seated_hamstring_curls',

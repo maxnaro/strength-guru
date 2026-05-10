@@ -384,7 +384,8 @@ class _DayView extends ConsumerWidget {
       final target = targets[item.slot.id];
       if (target == null) continue;
       final entries = entriesBySlot[item.slot.id] ?? [];
-      for (var i = 0; i < target.sets; i++) {
+      final setsCount = target.reps.length;
+      for (var i = 0; i < setsCount; i++) {
         final done = entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
         if (done == null) return (slotId: item.slot.id, setIndex: i);
       }
@@ -713,7 +714,7 @@ class _ExerciseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = pal(context);
-    final baseNumSets = target?.sets ?? 3;
+    final baseNumSets = target?.reps.length ?? 3;
     final exercise = item.exercise;
     final entriesMaxIdx = entries.isEmpty
         ? -1
@@ -770,7 +771,7 @@ class _ExerciseCard extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'TARGET · ${target!.sets}×${target!.reps} · RIR ${target!.rir}',
+                _formatTarget(target!),
                 style: SGText.mono(10, color: p.textDim),
               ),
             ),
@@ -782,6 +783,9 @@ class _ExerciseCard extends ConsumerWidget {
                 entries.firstWhereOrNull((e) => e.setIndex == i && e.done);
             final isActive = activeSet?.slotId == item.slot.id &&
                 activeSet?.setIndex == i;
+
+            final targetReps = i < target!.reps.length ? target!.reps[i] : target!.reps.last;
+            final targetRir = i < target!.rir.length ? target!.rir[i] : target!.rir.last;
 
             if (isActive) {
               final recentSessionEntry = entries
@@ -795,8 +799,8 @@ class _ExerciseCard extends ConsumerWidget {
                 exerciseId: exercise.id,
                 slotId: item.slot.id,
                 sessionId: sessionId,
-                targetReps: target?.reps ?? 8,
-                targetRir: target?.rir ?? 3,
+                targetReps: targetReps,
+                targetRir: targetRir,
                 suggestedWeight: suggestedWeight,
                 initialEntry: entry,
                 recentSessionEntry: recentSessionEntry,
@@ -807,15 +811,15 @@ class _ExerciseCard extends ConsumerWidget {
               return SetRowDone(
                 setIndex: i,
                 entry: entry,
-                targetRir: target?.rir ?? 3,
+                targetRir: targetRir,
                 groupColor: group.color,
                 onTap: () => onActivate(i),
               );
             } else {
               return SetRowInactive(
                 setIndex: i,
-                targetReps: target?.reps ?? 8,
-                targetRir: target?.rir ?? 3,
+                targetReps: targetReps,
+                targetRir: targetRir,
                 onTap: () => onActivate(i),
               );
             }
@@ -832,6 +836,31 @@ class _ExerciseCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _formatTarget(WeekTarget t) {
+    final reps = t.reps;
+    final allSameReps = reps.every((r) => r == reps.first);
+    final allSameRir = t.rir.every((r) => r == t.rir.first);
+
+    if (allSameReps && allSameRir) {
+      return 'TARGET · ${reps.length}×${reps.first} · RIR ${t.rir.first}';
+    }
+
+    String repStr;
+    if (reps.length > 1) {
+      final backoffs = reps.sublist(1);
+      if (backoffs.every((r) => r == backoffs.first)) {
+        repStr = '${reps.first} + ${backoffs.length}×${backoffs.first}';
+      } else {
+        repStr = reps.join('/');
+      }
+    } else {
+      repStr = reps.first.toString();
+    }
+
+    final rirStr = allSameRir ? '${t.rir.first}' : t.rir.join('/');
+    return 'TARGET · ${reps.length} SETS · REPS $repStr · RIR $rirStr';
   }
 
   void _showSwapMenu(BuildContext context, WidgetRef ref) {
