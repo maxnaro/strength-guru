@@ -68,6 +68,14 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>LSStatusBarHorizontalSelectionMethod</key>
+		<string>none</string>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>https</string>
+			<string>http</string>
+			<string>youtube</string>
+		</array>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<key>NSAllowsArbitraryLoads</key>

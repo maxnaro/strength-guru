@@ -36,6 +36,9 @@ dependencies:
   llama_cpp_dart: 0.9.0-dev.6
   background_downloader: ^8.5.0
   wakelock_plus: ^1.2.1
+  youtube_explode_dart: ^2.2.2
+  youtube_player_iframe: ^5.2.1
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_lints: ^4.0.0

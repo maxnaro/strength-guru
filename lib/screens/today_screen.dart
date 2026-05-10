@@ -8,6 +8,7 @@ import '../providers.dart';
 import '../theme/groups.dart';
 import '../theme/tokens.dart';
 import '../theme/sg_atoms.dart';
+import '../widgets/guide_sheet.dart';
 
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
@@ -498,10 +499,27 @@ class _PlanList extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(item.name,
-                                  style: SGText.body(15,
-                                      weight: FontWeight.w600,
-                                      color: p.text)),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(item.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: SGText.body(15,
+                                            weight: FontWeight.w600,
+                                            color: p.text)),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(Icons.play_circle_outline, color: p.textFaint, size: 18),
+                                    onPressed: () => GuideSheet.show(context, item.name),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                              ),
                               if (target != null)
                                 Text(
                                   '${target.sets}×${target.reps} · RIR ${target.rir}',
