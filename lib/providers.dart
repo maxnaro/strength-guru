@@ -96,6 +96,8 @@ final tabIndexProvider = StateProvider<int>((ref) => 0);
 
 final selectedLogDayProvider = StateProvider<DayKey?>((ref) => null);
 
+final timelineRequestedWeekProvider = StateProvider<int?>((ref) => null);
+
 // ── Meso providers ────────────────────────────────────────────────────────────
 
 final activeMesoProvider = StreamProvider<Mesocycle?>((ref) {

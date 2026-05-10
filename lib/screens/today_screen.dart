@@ -577,32 +577,38 @@ class _MesoStrip extends ConsumerWidget {
                   children: List.generate(meso.numWeeks, (w) {
                     final isCurrent = w == currentWeekIdx;
                     final isPast = w < currentWeekIdx;
-                    return Opacity(
-                      opacity: isPast ? 0.55 : 1.0,
-                      child: Container(
-                        width: 64,
-                        margin: EdgeInsets.only(right: w < meso.numWeeks - 1 ? 6 : 0),
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: isCurrent ? group.tint(brightness) : p.chipBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: isCurrent
-                              ? Border.all(color: p.borderStrong, width: 1.5)
-                              : null,
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'W${w + 1}',
-                              style: SGText.mono(9, color: p.textFaint),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isDeload(w) ? 'D' : 'RIR ${[3, 2, 2, 1, 4][w % 5]}',
-                              style: SGText.display(11,
-                                  color: isDeload(w) ? p.warn : p.text),
-                            ),
-                          ],
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(timelineRequestedWeekProvider.notifier).state = w;
+                        ref.read(tabIndexProvider.notifier).state = 2;
+                      },
+                      child: Opacity(
+                        opacity: isPast ? 0.55 : 1.0,
+                        child: Container(
+                          width: 64,
+                          margin: EdgeInsets.only(right: w < meso.numWeeks - 1 ? 6 : 0),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? group.tint(brightness) : p.chipBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: isCurrent
+                                ? Border.all(color: p.borderStrong, width: 1.5)
+                                : null,
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'W${w + 1}',
+                                style: SGText.mono(9, color: p.textFaint),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isDeload(w) ? 'D' : 'RIR ${[3, 2, 2, 1, 4][w % 5]}',
+                                style: SGText.display(11,
+                                    color: isDeload(w) ? p.warn : p.text),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
