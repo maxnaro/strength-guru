@@ -784,8 +784,12 @@ class _ExerciseCard extends ConsumerWidget {
             final isActive = activeSet?.slotId == item.slot.id &&
                 activeSet?.setIndex == i;
 
-            final targetReps = i < target!.reps.length ? target!.reps[i] : target!.reps.last;
-            final targetRir = i < target!.rir.length ? target!.rir[i] : target!.rir.last;
+            final targetReps = (target != null && target!.reps.isNotEmpty)
+                ? (i < target!.reps.length ? target!.reps[i] : target!.reps.last)
+                : 10;
+            final targetRir = (target != null && target!.rir.isNotEmpty)
+                ? (i < target!.rir.length ? target!.rir[i] : target!.rir.last)
+                : 2;
 
             if (isActive) {
               final recentSessionEntry = entries
@@ -840,11 +844,15 @@ class _ExerciseCard extends ConsumerWidget {
 
   String _formatTarget(WeekTarget t) {
     final reps = t.reps;
+    if (reps.isEmpty) return 'TARGET · No reps';
+    final rir = t.rir;
+    if (rir.isEmpty) return 'TARGET · No RIR';
+
     final allSameReps = reps.every((r) => r == reps.first);
-    final allSameRir = t.rir.every((r) => r == t.rir.first);
+    final allSameRir = rir.every((r) => r == rir.first);
 
     if (allSameReps && allSameRir) {
-      return 'TARGET · ${reps.length}×${reps.first} · RIR ${t.rir.first}';
+      return 'TARGET · ${reps.length}×${reps.first} · RIR ${rir.first}';
     }
 
     String repStr;
@@ -859,7 +867,7 @@ class _ExerciseCard extends ConsumerWidget {
       repStr = reps.first.toString();
     }
 
-    final rirStr = allSameRir ? '${t.rir.first}' : t.rir.join('/');
+    final rirStr = allSameRir ? '${rir.first}' : rir.join('/');
     return 'TARGET · ${reps.length} SETS · REPS $repStr · RIR $rirStr';
   }
 
