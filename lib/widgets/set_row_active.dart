@@ -119,11 +119,12 @@ class _SetRowActiveState extends ConsumerState<SetRowActive> {
             const SizedBox(width: 8),
             Text('Set ${widget.setIndex + 1}',
                 style: SGText.body(13, weight: FontWeight.w600, color: p.text)),
-            const Spacer(),
-            Flexible(
+            const SizedBox(width: 8),
+            Expanded(
               child: Text(
                 'TARGET ${widget.targetReps} reps · RIR ${widget.targetRir}',
                 style: SGText.mono(10, color: p.textDim),
+                textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
