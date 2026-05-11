@@ -39,8 +39,6 @@ dependencies:
   youtube_explode_dart: ^2.2.2
   youtube_player_iframe: ^5.2.1
   url_launcher: ^6.3.0
-  shake: ^3.0.0
-  sensors_plus: ^6.1.1
   package_info_plus: ^9.0.0
 
 dev_dependencies:

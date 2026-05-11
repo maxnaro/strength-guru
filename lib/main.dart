@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shake/shake.dart';
 
 import 'providers.dart';
 import 'seed/seeder.dart';
@@ -9,7 +8,6 @@ import 'theme/sg_atoms.dart';
 import 'screens/today_screen.dart';
 import 'screens/log_screen.dart';
 import 'screens/meso_screen.dart';
-import 'widgets/about_sheet.dart';
 
 void main() {
   runApp(const ProviderScope(child: StrengthGuruApp()));
@@ -49,7 +47,7 @@ class _StrengthGuruAppState extends ConsumerState<StrengthGuruApp> {
               body: Center(child: Text('Seed error: ${snap.error}')),
             );
           }
-          return const _ShakeAboutWrapper(child: RootScaffold());
+          return const RootScaffold();
         },
       ),
     );
@@ -68,54 +66,6 @@ class _SplashScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ShakeAboutWrapper extends StatefulWidget {
-  final Widget child;
-  const _ShakeAboutWrapper({required this.child});
-
-  @override
-  State<_ShakeAboutWrapper> createState() => _ShakeAboutWrapperState();
-}
-
-class _ShakeAboutWrapperState extends State<_ShakeAboutWrapper> {
-  ShakeDetector? _detector;
-  bool _isShowing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _detector = ShakeDetector.autoStart(
-      onPhoneShake: (_) {
-        debugPrint('Shake detected!');
-        if (_isShowing) {
-          Navigator.of(context).pop();
-        } else {
-          _show();
-        }
-      },
-      shakeThresholdGravity: 1.5,
-    );
-  }
-
-  Future<void> _show() async {
-    if (!mounted || _isShowing) return;
-    _isShowing = true;
-    await showSGSheet(
-      context,
-      child: const AboutSheet(),
-    );
-    _isShowing = false;
-  }
-
-  @override
-  void dispose() {
-    _detector?.stopListening();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 class RootScaffold extends ConsumerWidget {
