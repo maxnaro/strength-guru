@@ -1,0 +1,70 @@
+name: Version Bump
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Check version change
+        id: check
+        run: |
+          git fetch origin ${{ github.base_ref }}:base
+          BASE_VERSION=$(git show base:pubspec.yaml | grep '^version:' | awk '{print $2}')
+          HEAD_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          
+          if [ "$BASE_VERSION" != "$HEAD_VERSION" ]; then
+            echo "Version already changed from $BASE_VERSION to $HEAD_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version is unchanged ($BASE_VERSION)"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version
+        if: steps.check.outputs.changed == 'false'
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          
+          # Separate version and build number
+          V_PART=$(echo $VERSION | cut -d'+' -f1)
+          B_PART=$(echo $VERSION | cut -d'+' -f2)
+          
+          # Increment Build Number (always)
+          NEW_BUILD=$((B_PART + 1))
+          
+          # Increment the last numeric group in the version part
+          # This works for 0.1.0 -> 0.1.1, 0.1.0-alpha.1 -> 0.1.0-alpha.2, 1.0.0-beta -> 1.0.0-beta.1 etc.
+          if [[ $V_PART =~ ([0-9]+)$ ]]; then
+            LAST_NUM=${BASH_REMATCH[1]}
+            NEW_NUM=$((LAST_NUM + 1))
+            # Replace only the last occurrence of the number
+            NEW_V_PART=$(echo $V_PART | sed "s/\(.*\)$LAST_NUM/\1$NEW_NUM/")
+          else
+            # If no trailing number (e.g. 1.0.0-beta), append .1
+            NEW_V_PART="${V_PART}.1"
+          fi
+          
+          NEW_VERSION="${NEW_V_PART}+${NEW_BUILD}"
+          echo "Bumping version from $VERSION to $NEW_VERSION"
+          
+          sed -i "s/^version: .*/version: $NEW_VERSION/" pubspec.yaml
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "chore: auto-increment version to $NEW_VERSION [skip ci]"
+          git push
