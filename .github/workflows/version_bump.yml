@@ -47,15 +47,19 @@ jobs:
           NEW_BUILD=$((B_PART + 1))
           
           # Increment the last numeric group in the version part
-          # This works for 0.1.0 -> 0.1.1, 0.1.0-alpha.1 -> 0.1.0-alpha.2, 1.0.0-beta -> 1.0.0-beta.1 etc.
+          # This works for 0.1.0 -> 0.1.1, 0.1.0-alpha.1 -> 0.1.0-alpha.2
           if [[ $V_PART =~ ([0-9]+)$ ]]; then
             LAST_NUM=${BASH_REMATCH[1]}
             NEW_NUM=$((LAST_NUM + 1))
             # Replace only the last occurrence of the number
             NEW_V_PART=$(echo $V_PART | sed "s/\(.*\)$LAST_NUM/\1$NEW_NUM/")
           else
-            # If no trailing number (e.g. 1.0.0-beta), append .1
-            NEW_V_PART="${V_PART}.1"
+            # If no trailing number (e.g. 0.1.0-alpha), append .1
+            if [[ $V_PART == *"-alpha" ]]; then
+              NEW_V_PART="${V_PART}.1"
+            else
+              NEW_V_PART="${V_PART}.1"
+            fi
           fi
           
           NEW_VERSION="${NEW_V_PART}+${NEW_BUILD}"

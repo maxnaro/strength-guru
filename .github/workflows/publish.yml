@@ -28,7 +28,8 @@ jobs:
       - name: Extract version from pubspec
         id: version
         run: |
-          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          # Extract version, strip build number, and normalize alpha suffix for iOS (e.g., 0.1.0-alpha.1 -> 0.1.0.1)
+          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1 | sed 's/-alpha\././g')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - uses: subosito/flutter-action@v2
