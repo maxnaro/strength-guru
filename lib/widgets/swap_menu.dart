@@ -113,8 +113,18 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
           key.mesoId, key.weekIdx, widget.meso.numWeeks, key.dayIdx, newSlotIds);
     }
 
-    ref.invalidate(dayPlanProvider(key));
-    ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, key.weekIdx)));
+    ref.invalidate(dayOverridesForDayProvider(ProgramDayKey(key.mesoId, key.dayIdx)));
+    ref.invalidate(programDayExercisesProvider(ProgramDayKey(key.mesoId, key.dayIdx)));
+
+    if (_scope == SwapScope.sessionOnly) {
+      ref.invalidate(dayPlanProvider(key));
+      ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, key.weekIdx)));
+    } else {
+      for (int w = key.weekIdx; w < widget.meso.numWeeks; w++) {
+        ref.invalidate(dayPlanProvider(DayKey(key.mesoId, w, key.dayIdx)));
+        ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, w)));
+      }
+    }
 
     if (mounted) {
       Navigator.of(context).pop();

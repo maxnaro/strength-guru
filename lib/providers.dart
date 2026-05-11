@@ -189,26 +189,43 @@ final dayGroupProvider =
       items.map((e) => e.group).toList());
 });
 
+final dayOverridesForDayProvider =
+    FutureProvider.family<List<DayOverride>, ProgramDayKey>((ref, k) async {
+  final db = ref.read(dbProvider);
+  return (db.select(db.dayOverrides)
+        ..where((t) => t.mesocycleId.equals(k.mesoId) & t.dayIdx.equals(k.dayIdx)))
+      .get();
+});
+
 final programDayExercisesProvider =
     FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((ref, k) async {
   final db = ref.read(dbProvider);
-  final ov = await db.getDayOverride(k.mesoId, 0, k.dayIdx);
-  if (ov != null) {
-    final slotIds = ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
-    final slots = await db.getSlotsByIds(slotIds);
-    final exIds = slots.map((s) => s.exerciseId).toList();
-    final exs = await db.exercisesByIds(exIds);
+  final overrides = await ref.watch(dayOverridesForDayProvider(k).future);
 
-    final slotMap = {for (final s in slots) s.id: s};
-    final exMap = {for (final e in exs) e.id: e};
-
-    return [
-      for (final sId in slotIds)
-        if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
-          ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
-    ];
+  final orderedSlotIds = <String>[];
+  final seen = <String>{};
+  for (final ov in overrides) {
+    for (final sId in ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty)) {
+      if (seen.add(sId)) {
+        orderedSlotIds.add(sId);
+      }
+    }
   }
-  return [];
+
+  if (orderedSlotIds.isEmpty) return [];
+
+  final slots = await db.getSlotsByIds(orderedSlotIds);
+  final exIds = slots.map((s) => s.exerciseId).toList();
+  final exs = await db.exercisesByIds(exIds);
+
+  final slotMap = {for (final s in slots) s.id: s};
+  final exMap = {for (final e in exs) e.id: e};
+
+  return [
+    for (final sId in orderedSlotIds)
+      if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
+        ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
+  ];
 });
 
 // ── Session log provider ──────────────────────────────────────────────────────

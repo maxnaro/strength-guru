@@ -694,31 +694,41 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
                       const SizedBox(height: 2),
                       // Exercise rows
                       itemsAsync.when(
-                        data: (items) => Column(
-                          children: items.map((item) {
-                            return _TimelineRow(
-                              item: item,
-                              mesoId: widget.meso.id,
-                              group: group,
-                              numWeeks: widget.meso.numWeeks,
-                              allTargets: allTargets,
-                              palette: p,
-                              brightness: brightness,
-                              highlightedWeekIdx: _highlightedWeekIdx,
-                              highlightAnimation: _highlightAnimation,
-                              onNameTap: () =>
-                                  _programSwap(context, ref, group, item, dayIdx),
-                              onCellTap: (weekIdx, target) => _editCell(
-                                context,
-                                ref,
-                                weekIdx: weekIdx,
+                        data: (items) {
+                          final overridesAsync = ref.watch(dayOverridesForDayProvider(ProgramDayKey(widget.meso.id, dayIdx)));
+                          final overrides = overridesAsync.valueOrNull ?? [];
+                          final activeSlotsPerWeek = {
+                            for (final ov in overrides)
+                              ov.weekIdx: ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toSet()
+                          };
+
+                          return Column(
+                            children: items.map((item) {
+                              return _TimelineRow(
                                 item: item,
+                                mesoId: widget.meso.id,
                                 group: group,
-                                target: target,
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                                numWeeks: widget.meso.numWeeks,
+                                allTargets: allTargets,
+                                activeSlotsPerWeek: activeSlotsPerWeek,
+                                palette: p,
+                                brightness: brightness,
+                                highlightedWeekIdx: _highlightedWeekIdx,
+                                highlightAnimation: _highlightAnimation,
+                                onNameTap: () =>
+                                    _programSwap(context, ref, group, item, dayIdx),
+                                onCellTap: (weekIdx, target) => _editCell(
+                                  context,
+                                  ref,
+                                  weekIdx: weekIdx,
+                                  item: item,
+                                  group: group,
+                                  target: target,
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
                         loading: () => Text('Loading...',
                             style: SGText.body(12, color: p.textFaint)),
                         error: (err, _) => Text('Error: $err',
@@ -861,6 +871,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
             slotIds,
           );
 
+          ref.invalidate(dayOverridesForDayProvider(key));
           ref.invalidate(programDayExercisesProvider(key));
           for (int w = 0; w < widget.meso.numWeeks; w++) {
             ref.invalidate(dayPlanProvider(DayKey(widget.meso.id, w, dayIdx)));
@@ -904,6 +915,7 @@ class _TimelineRow extends StatelessWidget {
   final MuscleGroup group;
   final int numWeeks;
   final Map<int, Map<String, WeekTarget>> allTargets;
+  final Map<int, Set<String>> activeSlotsPerWeek;
   final SGPalette palette;
   final Brightness brightness;
   final int? highlightedWeekIdx;
@@ -917,6 +929,7 @@ class _TimelineRow extends StatelessWidget {
     required this.group,
     required this.numWeeks,
     required this.allTargets,
+    required this.activeSlotsPerWeek,
     required this.palette,
     required this.brightness,
     required this.highlightedWeekIdx,
@@ -947,12 +960,13 @@ class _TimelineRow extends StatelessWidget {
           // Week cells
           ...List.generate(numWeeks, (w) {
             final target = allTargets[w]?[item.slot.id];
+            final isActive = activeSlotsPerWeek[w]?.contains(item.slot.id) ?? false;
             final isHighlighted = highlightedWeekIdx == w;
             return Consumer(builder: (context, ref, _) {
               final isDeload =
                   ref.watch(isDeloadWeekProvider(WeekKey(mesoId, w)));
               return GestureDetector(
-                onTap: () => onCellTap(w, target),
+                onTap: isActive ? () => onCellTap(w, target) : null,
                 child: AnimatedBuilder(
                   animation: highlightAnimation,
                   builder: (context, child) {
@@ -961,15 +975,17 @@ class _TimelineRow extends StatelessWidget {
                       height: 44,
                       margin: const EdgeInsets.symmetric(horizontal: 1),
                       decoration: BoxDecoration(
-                        color: isDeload
-                            ? palette.warn.withValues(alpha: 0.08)
-                            : group.tint(brightness).withValues(alpha: 0.5),
+                        color: !isActive
+                            ? Colors.transparent
+                            : isDeload
+                                ? palette.warn.withValues(alpha: 0.08)
+                                : group.tint(brightness).withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                             color: isHighlighted
                                 ? palette.accent.withValues(
                                     alpha: 0.8 * highlightAnimation.value)
-                                : palette.border,
+                                : isActive ? palette.border : palette.border.withValues(alpha: 0.1),
                             width: isHighlighted
                                 ? 1.5 * highlightAnimation.value
                                 : 0.5),
@@ -977,21 +993,23 @@ class _TimelineRow extends StatelessWidget {
                       child: child,
                     );
                   },
-                  child: target == null
-                      ? Icon(Icons.add, size: 14, color: palette.textFaint)
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _formatReps(target),
-                              style: SGText.display(10, color: palette.text),
+                  child: !isActive
+                      ? const SizedBox.shrink()
+                      : target == null
+                          ? Icon(Icons.add, size: 14, color: palette.textFaint)
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _formatReps(target),
+                                  style: SGText.display(10, color: palette.text),
+                                ),
+                                Text(
+                                  _formatRir(target),
+                                  style: SGText.mono(7, color: palette.textDim),
+                                ),
+                              ],
                             ),
-                            Text(
-                              _formatRir(target),
-                              style: SGText.mono(7, color: palette.textDim),
-                            ),
-                          ],
-                        ),
                 ),
               );
             });
