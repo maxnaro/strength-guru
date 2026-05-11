@@ -80,6 +80,7 @@ class _ShakeAboutWrapper extends StatefulWidget {
 
 class _ShakeAboutWrapperState extends State<_ShakeAboutWrapper> {
   ShakeDetector? _detector;
+  bool _isShowing = false;
 
   @override
   void initState() {
@@ -87,18 +88,24 @@ class _ShakeAboutWrapperState extends State<_ShakeAboutWrapper> {
     _detector = ShakeDetector.autoStart(
       onPhoneShake: (_) {
         debugPrint('Shake detected!');
-        _show();
+        if (_isShowing) {
+          Navigator.of(context).pop();
+        } else {
+          _show();
+        }
       },
       shakeThresholdGravity: 1.5,
     );
   }
 
-  void _show() {
-    if (!mounted) return;
-    showSGSheet(
+  Future<void> _show() async {
+    if (!mounted || _isShowing) return;
+    _isShowing = true;
+    await showSGSheet(
       context,
       child: const AboutSheet(),
     );
+    _isShowing = false;
   }
 
   @override
