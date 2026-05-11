@@ -295,6 +295,12 @@ extension DayOverrideQueries on AppDatabase {
         .getSingleOrNull();
   }
 
+  Future<List<DayOverride>> getOverridesForDay(String mesoId, int dayIdx) {
+    return (select(dayOverrides)
+          ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayIdx)))
+        .get();
+  }
+
   Future<void> setDayOverride(
       String mesoId, int weekIdx, int dayIdx, List<String> slotIds) {
     return into(dayOverrides).insertOnConflictUpdate(

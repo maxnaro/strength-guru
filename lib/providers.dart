@@ -163,7 +163,8 @@ final heroKeyProvider = Provider<DayKey?>((ref) {
 final dayPlanProvider =
     FutureProvider.family<List<ExerciseSlotWithExercise>, DayKey>((ref, key) async {
   final db = ref.read(dbProvider);
-  final override = await db.getDayOverride(key.mesoId, key.weekIdx, key.dayIdx);
+  var override = await db.getDayOverride(key.mesoId, key.weekIdx, key.dayIdx);
+  override ??= await db.getDayOverride(key.mesoId, -1, key.dayIdx);
   if (override != null) {
     final slotIds = override.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
     final slots = await db.getSlotsByIds(slotIds);
@@ -192,7 +193,22 @@ final dayGroupProvider =
 final programDayExercisesProvider =
     FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((ref, k) async {
   final db = ref.read(dbProvider);
-  final ov = await db.getDayOverride(k.mesoId, 0, k.dayIdx);
+  var ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
+  if (ov == null) {
+    final allOvs = await db.getOverridesForDay(k.mesoId, k.dayIdx);
+    if (allOvs.isEmpty) return [];
+    final counts = <String, int>{};
+    for (final o in allOvs) {
+      if (o.weekIdx >= 0) {
+        counts[o.exerciseIdsCsv] = (counts[o.exerciseIdsCsv] ?? 0) + 1;
+      }
+    }
+    if (counts.isNotEmpty) {
+      final bestCsv = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      await db.setDayOverride(k.mesoId, -1, k.dayIdx, bestCsv.split(','));
+      ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
+    }
+  }
   if (ov != null) {
     final slotIds = ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
     final slots = await db.getSlotsByIds(slotIds);

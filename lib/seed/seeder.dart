@@ -109,8 +109,10 @@ class Seeder {
         'dips', 'zercher_squat', 'pull_ups', 'zercher_deadlifts'
       };
 
-      for (var w = 0; w < 9; w++) {
-        final rir = weeklyRir[w];
+      for (var w = -1; w < 9; w++) {
+        final rir = w == -1 ? weeklyRir[0] : weeklyRir[w];
+        final effectiveW = w == -1 ? 0 : w;
+
         for (final def in kExercises) {
           final slotId = keyToSlotId[def.key]!;
           
@@ -118,7 +120,7 @@ class Seeder {
           final targetRir = List.filled(def.baseSets, rir);
 
           if (exercisesWithTopSet.contains(def.key)) {
-            targetReps[0] = topSetReps[w];
+            targetReps[0] = topSetReps[effectiveW];
             // Backoff sets for these are 12 reps (hardcoded from previous ExerciseDef backoff)
             for (var i = 1; i < targetReps.length; i++) {
               targetReps[i] = 12;
@@ -143,17 +145,17 @@ class Seeder {
         final dayExercises = <int, List<String>>{
           0: [
             'dips',
-            (w == 0 || w == 4 || w == 5)
+            (effectiveW == 0 || effectiveW == 4 || effectiveW == 5)
                 ? 'barbell_shoulder_press'
                 : 'machine_shoulder_press',
-            (w == 2 || w == 4) ? 'dumbbell_chest_flyes' : 'cable_chest_flyes',
+            (effectiveW == 2 || effectiveW == 4) ? 'dumbbell_chest_flyes' : 'cable_chest_flyes',
             'dumbbell_lateral_raises',
             'cable_lateral_raises',
-            (w == 4) ? 'dumbbell_rear_delt_flyes' : 'cable_rear_delt_flyes',
+            (effectiveW == 4) ? 'dumbbell_rear_delt_flyes' : 'cable_rear_delt_flyes',
           ],
           1: [
             'zercher_squat',
-            (w == 0 || w == 1) ? 'smith_machine_squat' : 'hack_squat',
+            (effectiveW == 0 || effectiveW == 1) ? 'smith_machine_squat' : 'hack_squat',
             'quad_extensions',
             'standing_calf_raises',
             'sissy_squats',
@@ -163,7 +165,7 @@ class Seeder {
             'pull_ups',
             'pendlay_rows',
             'uni_lateral_lat_pulldowns',
-            (w == 1) ? 'cable_rows' : 'machine_rows',
+            (effectiveW == 1) ? 'cable_rows' : 'machine_rows',
             'lat_pullovers',
           ],
           4: [
