@@ -48,7 +48,9 @@ jobs:
         run: cd ios && pod install
 
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=GIT_SHA=${{ github.sha }}
 
       - name: Verify llama symbols in Runner binary
         run: |
