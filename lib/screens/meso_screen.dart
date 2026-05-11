@@ -846,6 +846,19 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
           // Create a NEW slot for the new exercise
           final newSlot = await db.createExerciseSlot(widget.meso.id, newEx.id);
 
+          // Baseline targets from the old slot (Week 1 usually has them in a program swap)
+          final oldTarget = await db.getWeekTarget(widget.meso.id, 0, item.slot.id);
+          if (oldTarget != null) {
+            await db.applyWeekTargetForward(
+              mesoId: widget.meso.id,
+              fromWeekIdx: 0,
+              numWeeks: widget.meso.numWeeks,
+              slotId: newSlot.id,
+              reps: oldTarget.reps,
+              rir: oldTarget.rir,
+            );
+          }
+
           // Fetch current program slots and replace the ID
           final current =
               await ref.read(programDayExercisesProvider(key).future);
