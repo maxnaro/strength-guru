@@ -37,15 +37,6 @@ class _AboutSheetState extends State<AboutSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'STRENGTHGURU',
-          style: SGText.display(24, color: p.text, ls: -0.5),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'A workout logger with placeholders.',
-          style: SGText.body(14, color: p.textDim),
-        ),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -68,7 +59,7 @@ class _AboutSheetState extends State<AboutSheet> {
         ),
         const SizedBox(height: 24),
         SGButton.soft(
-          label: 'GITHUB',
+          label: 'GitHub Repository',
           leadingIcon: Icon(Icons.code, size: 18, color: p.accent),
           color: p.accent,
           fullWidth: true,
