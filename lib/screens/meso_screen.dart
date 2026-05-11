@@ -13,6 +13,7 @@ import '../widgets/meso_edit_sheet.dart';
 import '../widgets/meso_switcher.dart';
 import '../widgets/day_program_editor.dart';
 import '../widgets/exercise_picker.dart';
+import '../widgets/about_sheet.dart';
 
 enum _MesoViz { calendar, timeline }
 
@@ -84,8 +85,22 @@ class _MesoScreenState extends ConsumerState<MesoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CURRENT MESOCYCLE',
-                    style: SGText.mono(11, color: p.textFaint, ls: 1.2)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('CURRENT MESOCYCLE',
+                          style: SGText.mono(11, color: p.textFaint, ls: 1.2)),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.info_outline, size: 18, color: p.textFaint),
+                      onPressed: () => showSGSheet(
+                        context,
+                        child: const AboutSheet(),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: () => _showSwitcher(context),
