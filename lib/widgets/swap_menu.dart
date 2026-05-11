@@ -111,6 +111,9 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
     } else {
       await db.setWeekForwardOverride(
           key.mesoId, key.weekIdx, widget.meso.numWeeks, key.dayIdx, newSlotIds);
+      if (key.weekIdx == 0) {
+        await db.setDayOverride(key.mesoId, -1, key.dayIdx, newSlotIds);
+      }
     }
 
     if (_scope == SwapScope.sessionOnly) {

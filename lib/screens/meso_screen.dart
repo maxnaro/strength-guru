@@ -873,6 +873,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
             dayIdx,
             slotIds,
           );
+          await db.setDayOverride(widget.meso.id, -1, dayIdx, slotIds);
 
           ref.invalidate(programDayExercisesProvider(key));
           for (int w = 0; w < widget.meso.numWeeks; w++) {
