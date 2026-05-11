@@ -111,10 +111,25 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
     } else {
       await db.setWeekForwardOverride(
           key.mesoId, key.weekIdx, widget.meso.numWeeks, key.dayIdx, newSlotIds);
+      if (key.weekIdx == 0) {
+        await db.setDayOverride(key.mesoId, -1, key.dayIdx, newSlotIds);
+      }
     }
 
-    ref.invalidate(dayPlanProvider(key));
-    ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, key.weekIdx)));
+    if (_scope == SwapScope.sessionOnly) {
+      ref.invalidate(dayPlanProvider(key));
+      ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, key.weekIdx)));
+    } else {
+      // Invalidate the timeline program view
+      ref.invalidate(programDayExercisesProvider(
+          ProgramDayKey(key.mesoId, key.dayIdx)));
+
+      // Invalidate all forward weeks
+      for (int w = key.weekIdx; w < widget.meso.numWeeks; w++) {
+        ref.invalidate(dayPlanProvider(DayKey(key.mesoId, w, key.dayIdx)));
+        ref.invalidate(weekTargetsProvider(WeekKey(key.mesoId, w)));
+      }
+    }
 
     if (mounted) {
       Navigator.of(context).pop();

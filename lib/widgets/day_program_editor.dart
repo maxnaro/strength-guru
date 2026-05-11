@@ -209,6 +209,7 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
       widget.dayIdx,
       slotIds,
     );
+    await db.setDayOverride(widget.meso.id, -1, widget.dayIdx, slotIds);
 
     await db.upsertProgramDay(
       widget.meso.id,
