@@ -42,9 +42,13 @@ class SetRowInactive extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '$targetReps reps · RIR $targetRir',
-                style: SGText.mono(12, color: p.textDim),
+              Expanded(
+                child: Text(
+                  '$targetReps reps · RIR $targetRir',
+                  style: SGText.mono(12, color: p.textDim),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
             ],
           ),
