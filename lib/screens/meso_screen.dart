@@ -180,6 +180,111 @@ class _MesoScreenState extends ConsumerState<MesoScreen> {
   }
 }
 
+Future<void> handleSwapDays(
+    BuildContext context, WidgetRef ref, String mesoId, int dayA, int dayB) async {
+  final db = ref.read(dbProvider);
+  await db.swapDays(mesoId, dayA, dayB);
+  ref.invalidate(programDayExercisesProvider);
+  ref.invalidate(dayPlanProvider);
+  ref.invalidate(dayGroupProvider);
+  ref.invalidate(programDayProvider);
+  ref.invalidate(mesoSessionLogsProvider(mesoId));
+
+  if (context.mounted) {
+    ref.read(undoProvider.notifier).push(SwapDaysAction(
+          mesoId: mesoId,
+          dayA: dayA,
+          dayB: dayB,
+        ));
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Days swapped'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await ref.read(undoProvider.notifier).undo(ref);
+            ref.invalidate(programDayExercisesProvider);
+            ref.invalidate(dayPlanProvider);
+            ref.invalidate(dayGroupProvider);
+            ref.invalidate(programDayProvider);
+            ref.invalidate(mesoSessionLogsProvider(mesoId));
+          },
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showSwapPicker(
+    BuildContext context, WidgetRef ref, String mesoId, int sourceIdx) async {
+  final p = pal(context);
+  final targetIdx = await showSGSheet<int>(
+    context,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Swap With', style: SGText.display(18, color: p.text)),
+        const SizedBox(height: 16),
+        ...List.generate(7, (i) {
+          if (i == sourceIdx) return const SizedBox.shrink();
+          return Consumer(builder: (context, ref, _) {
+            final daySettingsAsync =
+                ref.watch(programDayProvider(ProgramDayKey(mesoId, i)));
+            final label = daySettingsAsync.valueOrNull?.label;
+            final hasLabel = label != null && label.isNotEmpty;
+
+            return ListTile(
+              title: RichText(
+                text: TextSpan(
+                  style: SGText.body(16, color: p.text),
+                  children: [
+                    TextSpan(text: _dayName(i, full: true)),
+                    if (hasLabel) ...[
+                      const TextSpan(text: ' → '),
+                      TextSpan(
+                        text: label,
+                        style: SGText.mono(14, color: p.textDim),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              onTap: () => Navigator.pop(context, i),
+            );
+          });
+        }),
+        const SizedBox(height: 12),
+        SGButton.ghost(
+          label: 'Cancel',
+          color: p.textDim,
+          fullWidth: true,
+          onTap: () => Navigator.pop(context),
+        ),
+      ],
+    ),
+  );
+
+  if (targetIdx != null && context.mounted) {
+    await handleSwapDays(context, ref, mesoId, sourceIdx, targetIdx);
+  }
+}
+
+String _dayName(int dayIdx, {bool full = false}) {
+  const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const fullDays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
+  return full ? fullDays[dayIdx] : shortDays[dayIdx];
+}
+
 // ── Viz toggle ────────────────────────────────────────────────────────────────
 
 class _VizToggle extends StatelessWidget {
@@ -381,6 +486,8 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                                 DayKey(widget.meso.id, weekIdx, dayIdx);
                             ref.read(tabIndexProvider.notifier).state = 1;
                           },
+                          onLongPress: () => _showSwapPicker(
+                              context, ref, widget.meso.id, dayIdx),
                           child: AspectRatio(
                             aspectRatio: 1 / 1.1,
                             child: Container(
@@ -752,85 +859,6 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
     );
   }
 
-  String _dayName(int dayIdx, {bool full = false}) {
-    const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const fullDays = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    return full ? fullDays[dayIdx] : shortDays[dayIdx];
-  }
-
-  Future<void> _handleSwap(
-      WidgetRef ref, String mesoId, int dayA, int dayB) async {
-    final db = ref.read(dbProvider);
-    await db.swapDays(mesoId, dayA, dayB);
-    ref.invalidate(programDayExercisesProvider);
-    ref.invalidate(dayPlanProvider);
-    ref.invalidate(dayGroupProvider);
-    ref.invalidate(programDayProvider);
-    ref.invalidate(mesoSessionLogsProvider(mesoId));
-  }
-
-  Future<void> _showSwapPicker(
-      BuildContext context, WidgetRef ref, String mesoId, int sourceIdx) async {
-    final p = pal(context);
-    final targetIdx = await showSGSheet<int>(
-      context,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Swap With', style: SGText.display(18, color: p.text)),
-          const SizedBox(height: 16),
-          ...List.generate(7, (i) {
-            if (i == sourceIdx) return const SizedBox.shrink();
-            return Consumer(builder: (context, ref, _) {
-              final daySettingsAsync =
-                  ref.watch(programDayProvider(ProgramDayKey(mesoId, i)));
-              final label = daySettingsAsync.valueOrNull?.label;
-              final hasLabel = label != null && label.isNotEmpty;
-
-              return ListTile(
-                title: RichText(
-                  text: TextSpan(
-                    style: SGText.body(16, color: p.text),
-                    children: [
-                      TextSpan(text: _dayName(i, full: true)),
-                      if (hasLabel) ...[
-                        const TextSpan(text: ' → '),
-                        TextSpan(
-                          text: label,
-                          style: SGText.mono(14, color: p.textDim),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                onTap: () => Navigator.pop(context, i),
-              );
-            });
-          }),
-          const SizedBox(height: 12),
-          SGButton.ghost(
-            label: 'Cancel',
-            color: p.textDim,
-            fullWidth: true,
-            onTap: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-
-    if (targetIdx != null) {
-      await _handleSwap(ref, mesoId, sourceIdx, targetIdx);
-    }
-  }
-
   void _programSwap(BuildContext context, WidgetRef ref, MuscleGroup group,
       ExerciseSlotWithExercise item, int dayIdx) {
     showSGSheet(
@@ -1076,7 +1104,7 @@ class _DayActionMenu extends ConsumerWidget {
 
     if (action == 'up' || action == 'down') {
       final other = action == 'up' ? dayIdx - 1 : dayIdx + 1;
-      await db.swapDays(meso.id, dayIdx, other);
+      await handleSwapDays(context, ref, meso.id, dayIdx, other);
     } else if (action == 'dup') {
       final targetIdx = await _showTargetPicker(context, ref);
       if (targetIdx != null) {

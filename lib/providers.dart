@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'db/database.dart';
 import 'db/queries.dart';
 import 'theme/groups.dart';
+import 'services/undo_service.dart';
+
+export 'services/undo_service.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -97,6 +100,10 @@ final tabIndexProvider = StateProvider<int>((ref) => 0);
 final selectedLogDayProvider = StateProvider<DayKey?>((ref) => null);
 
 final timelineRequestedWeekProvider = StateProvider<int?>((ref) => null);
+
+final undoProvider = StateNotifierProvider<UndoNotifier, UndoAction?>((ref) {
+  return UndoNotifier();
+});
 
 // ── Meso providers ────────────────────────────────────────────────────────────
 
