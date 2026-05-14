@@ -74,6 +74,37 @@ LOWER,Exercise,Sets,Reps,RPE
       expect(segs[1].label, 'LOWER');
     });
 
+    test('segments flat-format CSVs correctly', () {
+      const csv = '''
+Week,Workout,Exercise,Notes
+Week 1,Upper,Bench Press,"Focus on strength, keep form consistent"
+Week 1,Upper,Rows,
+Week 1,Lower,Squat,
+Week 2,Upper,Bench Press,
+''';
+      final segs = CsvSegmenter.segment(csv.trim());
+      expect(segs.length, 3);
+
+      // Segment 0: Week 1, Upper
+      expect(segs[0].weekIdx, 0);
+      expect(segs[0].dayIdx, 0);
+      expect(segs[0].label, 'Upper');
+      expect(segs[0].csvLines, contains('Week,Workout,Exercise,Notes'));
+      expect(segs[0].csvLines, contains('Bench Press'));
+      expect(segs[0].csvLines, contains('Rows'));
+
+      // Segment 1: Week 1, Lower
+      expect(segs[1].weekIdx, 0);
+      expect(segs[1].dayIdx, 1);
+      expect(segs[1].label, 'Lower');
+      expect(segs[1].csvLines, contains('Squat'));
+
+      // Segment 2: Week 2, Upper
+      expect(segs[2].weekIdx, 1);
+      expect(segs[2].dayIdx, 0);
+      expect(segs[2].label, 'Upper');
+    });
+
     test('handles day markers without preceding week marker', () {
       const csv = '''DAY 1,,,
 ,Bench Press,3,8,7-8
