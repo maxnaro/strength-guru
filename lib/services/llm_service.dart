@@ -296,9 +296,8 @@ $csvLines''';
       } else if (c == '}') {
         depth--;
         if (depth == 0 && start != -1) {
-          final chunk = text
-              .substring(start, i + 1)
-              .replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+        final chunk = text.substring(start, i + 1).replaceAllMapped(
+            RegExp(r',\s*([\]}])'), (m) => m.group(1)!);
           try {
             results.add(jsonDecode(chunk) as Map<String, dynamic>);
           } on FormatException {
