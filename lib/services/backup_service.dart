@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
-import '../db/database.dart';
 import '../providers.dart';
 
 class BackupService {
@@ -23,11 +22,10 @@ class BackupService {
     }
 
     // Use share_plus to export the file.
-    // XFile is part of cross_file, which share_plus re-exports or depends on.
+    // ignore: deprecated_member_use
     await Share.shareXFiles(
       [XFile(file.path)],
       subject: 'StrengthGuru Backup',
-      text: 'My StrengthGuru workout data backup.',
     );
   }
 
@@ -48,7 +46,7 @@ class BackupService {
       try {
         // 1. Basic integrity check
         final integrity = testDb.select('PRAGMA integrity_check');
-        if (integrity.first[0] != 'ok') {
+        if (integrity.first.columnAt(0) != 'ok') {
           throw Exception('Database integrity check failed.');
         }
 

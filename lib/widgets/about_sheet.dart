@@ -106,11 +106,10 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
     try {
       await BackupService.backup();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
@@ -146,18 +145,18 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
     setState(() => _isWorking = true);
     try {
       final success = await BackupService.restore(ref);
-      if (success && mounted) {
+      if (!mounted) return;
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Data restored successfully')),
         );
         Navigator.pop(context); // Close the sheet
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore failed: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
