@@ -677,19 +677,20 @@ class _ReviewView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SGButton.ghost(
-                        label: 'Add Rest Day',
-                        leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
-                        color: p.accent,
-                        onTap: () {
-                          data.days.add(ImportDay(
-                            dayIdx: data.days.length,
-                            label: 'Rest Day',
-                            exercises: [],
-                          ));
-                          onChanged();
-                        },
-                      ),
+                      if (data.days.length < 7)
+                        SGButton.ghost(
+                          label: 'Add Rest Day',
+                          leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
+                          color: p.accent,
+                          onTap: () {
+                            data.days.add(ImportDay(
+                              dayIdx: data.days.length,
+                              label: 'Rest Day',
+                              exercises: [],
+                            ));
+                            onChanged();
+                          },
+                        ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
