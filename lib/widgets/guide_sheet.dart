@@ -61,7 +61,7 @@ class _GuideSheetState extends State<GuideSheet> {
           origin: 'https://www.youtube-nocookie.com',
           // Lightweight User Agent: Mobile Safari is generally more efficient than a full Chrome Desktop UA
           userAgent:
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         ),
       );
 
@@ -84,7 +84,7 @@ class _GuideSheetState extends State<GuideSheet> {
       urlString = 'https://www.youtube.com/watch?v=$_videoId';
     } else {
       urlString =
-          'https://www.youtube.com/results?search_query=${Uri.encodeComponent(widget.exerciseName + " exercise form tutorial")}';
+          'https://www.youtube.com/results?search_query=${Uri.encodeComponent("${widget.exerciseName} exercise form tutorial")}';
     }
 
     final url = Uri.parse(urlString);
