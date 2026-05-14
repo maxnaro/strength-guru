@@ -105,6 +105,16 @@ class ImportExercise {
     );
   }
 
+  void setWeekTarget(ImportWeekTarget t) {
+    final idx = weekTargets.indexWhere((e) => e.weekIdx == t.weekIdx);
+    if (idx >= 0) {
+      weekTargets[idx] = t;
+    } else {
+      weekTargets.add(t);
+      weekTargets.sort((a, b) => a.weekIdx.compareTo(b.weekIdx));
+    }
+  }
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'muscleGroup': muscleGroup,

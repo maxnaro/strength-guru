@@ -13,8 +13,17 @@ import '../theme/groups.dart';
 import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
 import '../widgets/exercise_picker.dart';
+import '../widgets/import_week_edit_sheet.dart';
+import '../widgets/timeline_cell.dart';
 
-enum _Phase { configuration, downloadingModel, loading, error, review, importing }
+enum _Phase {
+  configuration,
+  downloadingModel,
+  loading,
+  error,
+  review,
+  importing
+}
 
 class MesoImportScreen extends ConsumerStatefulWidget {
   final String csvContent;
@@ -389,7 +398,8 @@ class _ConfigOption extends StatelessWidget {
                   Text(title,
                       style: SGText.body(15,
                           color: selected ? p.text : p.textDim,
-                          weight: selected ? FontWeight.w700 : FontWeight.w500)),
+                          weight:
+                              selected ? FontWeight.w700 : FontWeight.w500)),
                   Text(subtitle, style: SGText.body(12, color: p.textFaint)),
                 ],
               ),
@@ -472,7 +482,8 @@ class _LoadingView extends StatelessWidget {
   final SGPalette palette;
   final String label;
 
-  const _LoadingView({required this.palette, this.label = 'Interpreting plan…'});
+  const _LoadingView(
+      {required this.palette, this.label = 'Interpreting plan…'});
 
   @override
   Widget build(BuildContext context) {
@@ -525,7 +536,8 @@ class _ErrorView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Import failed', style: SGText.display(20, color: palette.text)),
+                  Text('Import failed',
+                      style: SGText.display(20, color: palette.text)),
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
@@ -534,14 +546,16 @@ class _ErrorView extends StatelessWidget {
                       color: palette.warn.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: palette.warn.withValues(alpha: 0.3), width: 0.5),
+                          color: palette.warn.withValues(alpha: 0.3),
+                          width: 0.5),
                     ),
                     child: Text(message,
                         style: SGText.mono(13, color: palette.warn)),
                   ),
                   if (rawResponse != null) ...[
                     const SizedBox(height: 12),
-                    Text('Model output', style: SGText.mono(10, color: palette.textFaint)),
+                    Text('Model output',
+                        style: SGText.mono(10, color: palette.textFaint)),
                     const SizedBox(height: 4),
                     Container(
                       width: double.infinity,
@@ -602,100 +616,106 @@ class _ReviewView extends StatelessWidget {
 
     return Column(
       children: [
-        Expanded(
-          child: ReorderableListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            header: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
+        // Plan name + stats header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.inputBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
                   controller: nameController,
                   style: SGText.display(20, color: p.text),
                   decoration: InputDecoration(
                     hintText: 'Plan name',
                     hintStyle: SGText.display(20, color: p.textFaint),
                     border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    fillColor: Colors.transparent,
                   ),
                 ),
-                Row(
-                  children: [
-                    SGChip('${data.numWeeks} WEEKS', tone: ChipTone.neutral),
-                    const SizedBox(width: 8),
-                    SGChip('${data.days.length} DAYS', tone: ChipTone.neutral),
-                    if (newCount > 0) ...[
-                      const SizedBox(width: 8),
-                      SGChip('$newCount NEW EX', tone: ChipTone.warn),
-                    ],
-                    if (data.skippedDayLabels.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      SGChip(
-                        '${data.skippedDayLabels.length} DAYS SKIPPED',
-                        tone: ChipTone.warn,
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-            footer: Column(
-              children: [
-                const SizedBox(height: 8),
-                SGButton.ghost(
-                  label: 'Add Rest Day',
-                  leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
-                  color: p.accent,
-                  onTap: () {
-                    data.days.add(ImportDay(
-                      dayIdx: data.days.length,
-                      label: 'Rest Day',
-                      exercises: [],
-                    ));
-                    onChanged();
-                  },
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    _LegendDot(color: p.success),
-                    const SizedBox(width: 6),
-                    Text('Existing exercise',
-                        style: SGText.mono(10, color: p.textFaint)),
-                    const SizedBox(width: 16),
-                    _LegendDot(color: p.warn),
-                    const SizedBox(width: 6),
-                    Text('Will be created',
-                        style: SGText.mono(10, color: p.textFaint)),
-                  ],
-                ),
-              ],
-            ),
-            onReorder: (oldIndex, newIndex) {
-              if (oldIndex < newIndex) newIndex -= 1;
-              final day = data.days.removeAt(oldIndex);
-              data.days.insert(newIndex, day);
-              onChanged();
-            },
-            buildDefaultDragHandles: false,
-            children: [
-              for (int i = 0; i < data.days.length; i++)
-                _DayCard(
-                  key: ValueKey(data.days[i]),
-                  index: i,
-                  day: data.days[i],
-                  palette: p,
-                  onChanged: onChanged,
-                  onDelete: () {
-                    data.days.removeAt(i);
-                    onChanged();
-                  },
-                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SGChip('${data.numWeeks} WEEKS', tone: ChipTone.neutral),
+                  SGChip('${data.days.length} DAYS', tone: ChipTone.neutral),
+                  if (newCount > 0)
+                    SGChip('$newCount NEW EX', tone: ChipTone.warn),
+                  if (data.skippedDayLabels.isNotEmpty)
+                    SGChip(
+                      '${data.skippedDayLabels.length} DAYS SKIPPED',
+                      tone: ChipTone.warn,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
+        // Timeline grid + footer
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ImportTimelineView(
+                  data: data,
+                  palette: p,
+                  onChanged: onChanged,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SGButton.ghost(
+                        label: 'Add Rest Day',
+                        leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
+                        color: p.accent,
+                        onTap: () {
+                          data.days.add(ImportDay(
+                            dayIdx: data.days.length,
+                            label: 'Rest Day',
+                            exercises: [],
+                          ));
+                          onChanged();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _LegendDot(color: p.success),
+                          const SizedBox(width: 6),
+                          Text('Existing exercise',
+                              style: SGText.mono(10, color: p.textFaint)),
+                          const SizedBox(width: 16),
+                          _LegendDot(color: p.warn),
+                          const SizedBox(width: 6),
+                          Text('Will be created',
+                              style: SGText.mono(10, color: p.textFaint)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Import button
         Padding(
           padding: EdgeInsets.fromLTRB(
-              20, 12, 20, MediaQuery.of(context).padding.bottom + 20),
+              16, 12, 16, MediaQuery.of(context).padding.bottom + 20),
           child: SGButton.solid(
             label: 'Import Block',
             color: palette.accent,
@@ -708,28 +728,110 @@ class _ReviewView extends StatelessWidget {
   }
 }
 
-class _DayCard extends StatefulWidget {
-  final int index;
-  final ImportDay day;
+class _ImportTimelineView extends StatelessWidget {
+  final MesoImportData data;
   final SGPalette palette;
+  final VoidCallback onChanged;
+
+  const _ImportTimelineView({
+    required this.data,
+    required this.palette,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    final brightness = Theme.of(context).brightness;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SizedBox(
+        width: kTimelineNameColW + data.numWeeks * (kTimelineCellW + 2) + 60,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Week header row
+            Row(
+              children: [
+                const SizedBox(width: kTimelineNameColW),
+                ...List.generate(
+                  data.numWeeks,
+                  (w) => Container(
+                    width: kTimelineCellW,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    alignment: Alignment.center,
+                    child: Text('W${w + 1}',
+                        style: SGText.mono(9, color: p.textDim)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Day sections — drag-reorderable
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              padding: EdgeInsets.zero,
+              onReorder: (oldIdx, newIdx) {
+                if (newIdx > oldIdx) newIdx -= 1;
+                final d = data.days.removeAt(oldIdx);
+                data.days.insert(newIdx, d);
+                onChanged();
+              },
+              children: [
+                for (int i = 0; i < data.days.length; i++)
+                  _ImportDaySection(
+                    key: ValueKey(data.days[i]),
+                    day: data.days[i],
+                    dayIndex: i,
+                    numWeeks: data.numWeeks,
+                    palette: p,
+                    brightness: brightness,
+                    onChanged: onChanged,
+                    onDelete: () {
+                      data.days.removeAt(i);
+                      onChanged();
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportDaySection extends StatefulWidget {
+  final ImportDay day;
+  final int dayIndex;
+  final int numWeeks;
+  final SGPalette palette;
+  final Brightness brightness;
   final VoidCallback onChanged;
   final VoidCallback onDelete;
 
-  const _DayCard({
+  const _ImportDaySection({
     super.key,
-    required this.index,
     required this.day,
+    required this.dayIndex,
+    required this.numWeeks,
     required this.palette,
+    required this.brightness,
     required this.onChanged,
     required this.onDelete,
   });
 
   @override
-  State<_DayCard> createState() => _DayCardState();
+  State<_ImportDaySection> createState() => _ImportDaySectionState();
 }
 
-class _DayCardState extends State<_DayCard> {
+class _ImportDaySectionState extends State<_ImportDaySection> {
   late TextEditingController _labelController;
+  bool _collapsed = false;
 
   @override
   void initState() {
@@ -738,7 +840,7 @@ class _DayCardState extends State<_DayCard> {
   }
 
   @override
-  void didUpdateWidget(_DayCard oldWidget) {
+  void didUpdateWidget(_ImportDaySection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.day != widget.day) {
       _labelController.text = widget.day.label;
@@ -754,73 +856,117 @@ class _DayCardState extends State<_DayCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.palette;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: p.border, width: 0.5),
-      ),
+    final group = widget.day.exercises.isEmpty
+        ? MuscleGroup.rest
+        : MuscleGroupX.fromString(widget.day.exercises.first.muscleGroup);
+    final exCount = widget.day.exercises.length;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
+          // Day header
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ReorderableDragStartListener(
+                index: widget.dayIndex,
+                child: Icon(Icons.drag_indicator, size: 16, color: p.textFaint),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 4,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: group.color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.inputBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SizedBox(
+                  width: 110,
                   child: TextField(
                     controller: _labelController,
                     onChanged: (val) => widget.day.label = val,
-                    style: SGText.display(14,
-                        color: p.text, weight: FontWeight.w700),
-                    decoration: InputDecoration(
-                      hintText: 'Day Label',
-                      hintStyle: SGText.display(14, color: p.textFaint),
+                    style: SGText.display(13, color: p.text),
+                    decoration: const InputDecoration(
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                      fillColor: Colors.transparent,
                     ),
                   ),
                 ),
-                ReorderableDragStartListener(
-                  index: widget.index,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Icon(Icons.drag_indicator, color: p.textFaint, size: 20),
-                  ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _collapsed ? Icons.expand_more : Icons.expand_less,
+                  size: 16,
+                  color: p.textFaint,
                 ),
-                IconButton(
-                  icon: Icon(Icons.close, color: p.textFaint, size: 18),
-                  onPressed: widget.onDelete,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _collapsed = !_collapsed),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, size: 14, color: p.textFaint),
+                visualDensity: VisualDensity.compact,
+                onPressed: widget.onDelete,
+              ),
+              if (_collapsed) ...[
+                const SizedBox(width: 8),
+                Text(
+                  exCount == 0 ? 'Rest day' : '$exCount exercises',
+                  style: SGText.mono(10, color: p.textFaint),
                 ),
               ],
-            ),
+            ],
           ),
-          const Divider(height: 1, thickness: 0.5),
-          ...widget.day.exercises.map((ex) => _ExerciseRow(
+          if (!_collapsed) ...[
+            const SizedBox(height: 2),
+            // Exercise rows
+            ...widget.day.exercises.map(
+              (ex) => _ImportTimelineRow(
                 ex: ex,
+                group: MuscleGroupX.fromString(ex.muscleGroup),
+                numWeeks: widget.numWeeks,
                 palette: p,
+                brightness: widget.brightness,
                 onChanged: widget.onChanged,
                 onDelete: () {
                   widget.day.exercises.remove(ex);
                   widget.onChanged();
                 },
-              )),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ExerciseRow extends StatelessWidget {
+class _ImportTimelineRow extends StatelessWidget {
   final ImportExercise ex;
+  final MuscleGroup group;
+  final int numWeeks;
   final SGPalette palette;
+  final Brightness brightness;
   final VoidCallback onChanged;
   final VoidCallback onDelete;
 
-  const _ExerciseRow({
+  const _ImportTimelineRow({
     required this.ex,
+    required this.group,
+    required this.numWeeks,
     required this.palette,
+    required this.brightness,
     required this.onChanged,
     required this.onDelete,
   });
@@ -828,81 +974,86 @@ class _ExerciseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = palette;
-    final t = ex.targetForWeek(0);
-    final color = ex.isExistingInDb ? p.success : p.warn;
-
-    return InkWell(
-      onTap: () {
-        showSGSheet(
-          context,
-          maxHeightFraction: 0.8,
-          child: ExercisePicker(
-            defaultGroup: MuscleGroupX.fromString(ex.muscleGroup),
-            onSelected: (picked) {
-              ex.name = picked.name;
-              ex.muscleGroup = picked.group;
-              ex.isExistingInDb = true;
-              onChanged();
-              Navigator.pop(context);
-            },
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          // Name cell — tap to swap exercise
+          GestureDetector(
+            onTap: () => showSGSheet(
+              context,
+              maxHeightFraction: 0.8,
+              child: ExercisePicker(
+                defaultGroup: group,
+                onSelected: (picked) {
+                  ex.name = picked.name;
+                  ex.muscleGroup = picked.group;
+                  ex.isExistingInDb = true;
+                  onChanged();
+                  Navigator.pop(context);
+                },
+              ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: SizedBox(
+              width: kTimelineNameColW,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(ex.name, style: SGText.body(13, color: p.text)),
-                  Text(
-                    _formatTarget(t),
-                    style: SGText.mono(11, color: p.textDim),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ex.isExistingInDb ? p.success : p.warn,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 112,
+                    child: Text(
+                      ex.name,
+                      style: SGText.body(12,
+                          weight: FontWeight.w500, color: p.text),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: p.textFaint, size: 18),
-              onPressed: onDelete,
-            ),
-          ],
-        ),
+          ),
+          // Week cells
+          ...List.generate(numWeeks, (w) {
+            final t = ex.targetForWeek(w);
+            return TimelineCell(
+              reps: t.reps,
+              rir: t.rir,
+              bgColor: group.tint(brightness).withValues(alpha: 0.5),
+              borderColor: p.border,
+              borderWidth: 0.5,
+              palette: p,
+              onTap: () => showSGSheet(
+                context,
+                isScrollControlled: true,
+                maxHeightFraction: 0.9,
+                child: ImportWeekEditSheet(
+                  ex: ex,
+                  weekIdx: w,
+                  numWeeks: numWeeks,
+                  group: group,
+                  onChanged: onChanged,
+                ),
+              ),
+            );
+          }),
+          // Delete
+          IconButton(
+            icon: Icon(Icons.delete_outline, size: 16, color: p.textFaint),
+            visualDensity: VisualDensity.compact,
+            onPressed: onDelete,
+          ),
+        ],
       ),
     );
-  }
-
-  String _formatTarget(ImportWeekTarget t) {
-    final reps = t.reps;
-    final allSameReps = reps.every((r) => r == reps.first);
-    final allSameRir = t.rir.every((r) => r == t.rir.first);
-
-    if (allSameReps && allSameRir) {
-      return '${reps.length}×${reps.first}  @${t.rir.first}RIR';
-    }
-
-    String repStr;
-    if (reps.length > 1) {
-      final backoffs = reps.sublist(1);
-      if (backoffs.every((r) => r == backoffs.first)) {
-        repStr = '${reps.first}+${backoffs.length}x${backoffs.first}';
-      } else {
-        repStr = reps.join(',');
-        if (repStr.length > 8) repStr = '${reps.first}..${reps.last}';
-      }
-    } else {
-      repStr = reps.first.toString();
-    }
-
-    return '$repStr  @${allSameRir ? t.rir.first : "MIX"}RIR';
   }
 }
 

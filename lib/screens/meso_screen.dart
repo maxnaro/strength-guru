@@ -14,6 +14,7 @@ import '../widgets/meso_switcher.dart';
 import '../widgets/day_program_editor.dart';
 import '../widgets/exercise_picker.dart';
 import '../widgets/about_sheet.dart';
+import '../widgets/timeline_cell.dart';
 
 enum _MesoViz { calendar, timeline }
 
@@ -613,7 +614,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
               // Week header row
               Row(
                 children: [
-                  const SizedBox(width: 130),
+                  const SizedBox(width: kTimelineNameColW),
                   ...List.generate(widget.meso.numWeeks, (w) {
                     final isDeload =
                         ref.watch(isDeloadWeekProvider(WeekKey(widget.meso.id, w)));
@@ -626,7 +627,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
                         animation: _highlightAnimation,
                         builder: (context, child) {
                           return Container(
-                            width: 68,
+                            width: kTimelineCellW,
                             margin: const EdgeInsets.symmetric(horizontal: 1),
                             alignment: Alignment.center,
                             decoration: isHighlighted
@@ -964,7 +965,7 @@ class _TimelineRow extends StatelessWidget {
           GestureDetector(
             onTap: onNameTap,
             child: SizedBox(
-              width: 130,
+              width: kTimelineNameColW,
               child: Text(
                 item.name,
                 style: SGText.body(12,
@@ -980,48 +981,25 @@ class _TimelineRow extends StatelessWidget {
             return Consumer(builder: (context, ref, _) {
               final isDeload =
                   ref.watch(isDeloadWeekProvider(WeekKey(mesoId, w)));
-              return GestureDetector(
-                onTap: () => onCellTap(w, target),
-                child: AnimatedBuilder(
-                  animation: highlightAnimation,
-                  builder: (context, child) {
-                    return Container(
-                      width: 68,
-                      height: 44,
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                      decoration: BoxDecoration(
-                        color: isDeload
-                            ? palette.warn.withValues(alpha: 0.08)
-                            : group.tint(brightness).withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: isHighlighted
-                                ? palette.accent.withValues(
-                                    alpha: 0.8 * highlightAnimation.value)
-                                : palette.border,
-                            width: isHighlighted
-                                ? 1.5 * highlightAnimation.value
-                                : 0.5),
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: target == null
-                      ? Icon(Icons.add, size: 14, color: palette.textFaint)
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _formatReps(target),
-                              style: SGText.display(10, color: palette.text),
-                            ),
-                            Text(
-                              _formatRir(target),
-                              style: SGText.mono(7, color: palette.textDim),
-                            ),
-                          ],
-                        ),
-                ),
+              return AnimatedBuilder(
+                animation: highlightAnimation,
+                builder: (context, _) {
+                  return TimelineCell(
+                    reps: target?.reps,
+                    rir: target?.rir,
+                    bgColor: isDeload
+                        ? palette.warn.withValues(alpha: 0.08)
+                        : group.tint(brightness).withValues(alpha: 0.5),
+                    borderColor: isHighlighted
+                        ? palette.accent
+                            .withValues(alpha: 0.8 * highlightAnimation.value)
+                        : palette.border,
+                    borderWidth:
+                        isHighlighted ? 1.5 * highlightAnimation.value : 0.5,
+                    palette: palette,
+                    onTap: () => onCellTap(w, target),
+                  );
+                },
               );
             });
           }),
@@ -1030,38 +1008,6 @@ class _TimelineRow extends StatelessWidget {
     );
   }
 
-  String _formatReps(WeekTarget t) {
-    final reps = t.reps;
-    if (reps.isEmpty) return '—';
-
-    final allSame = reps.every((r) => r == reps.first);
-    if (allSame) return '${reps.length}×${reps.first}';
-
-    // Check for "Top Set + Backoffs" pattern (e.g., 6, 12, 12)
-    if (reps.length > 1) {
-      final top = reps.first;
-      final backoffs = reps.sublist(1);
-      final allBackoffsSame = backoffs.every((r) => r == backoffs.first);
-      if (allBackoffsSame) {
-        return '$top + ${backoffs.length}×${backoffs.first}';
-      }
-    }
-
-    // Otherwise, show as comma-separated list
-    final list = reps.join(',');
-    if (list.length > 10) {
-      // If too long, show first and last with ellipsis
-      return '${reps.first}..${reps.last}';
-    }
-    return list;
-  }
-
-  String _formatRir(WeekTarget t) {
-    if (t.rir.isEmpty) return '—';
-    final allSame = t.rir.every((r) => r == t.rir.first);
-    if (allSame) return 'RIR ${t.rir.first}';
-    return 'RIR ${t.rir.join(',')}';
-  }
 }
 
 // ── Day action menu ────────────────────────────────────────────────────────────
