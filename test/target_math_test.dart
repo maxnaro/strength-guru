@@ -20,11 +20,19 @@ void main() {
     test('"8.5-9" takes max (9) → 1', () => expect(TargetMath.parseRir('8.5-9'), 1));
     test('empty defaults to 2', () => expect(TargetMath.parseRir(''), 2));
     test('clamps to 0 minimum', () => expect(TargetMath.parseRir('10'), 0));
+    test('rest time "1-2 min" ignored → 2', () => expect(TargetMath.parseRir('1-2 min'), 2));
+    test('rest time "3-5 min" ignored → 2', () => expect(TargetMath.parseRir('3-5 min'), 2));
+    test('rest time "3 min" ignored → 2', () => expect(TargetMath.parseRir('3 min'), 2));
+    test('rep range "10-12" ignored → 2', () => expect(TargetMath.parseRir('10-12'), 2));
+    test('rep range "15-20" ignored → 2', () => expect(TargetMath.parseRir('15-20'), 2));
+    test('plain value > 10 ignored → 2', () => expect(TargetMath.parseRir('12'), 2));
   });
 
   group('TargetMath.parseSets', () {
     test('plain integer', () => expect(TargetMath.parseSets('3'), 3));
     test('empty defaults to 3', () => expect(TargetMath.parseSets(''), 3));
+    test('zero clamps to 3', () => expect(TargetMath.parseSets('0'), 3));
+    test('range takes first digit', () => expect(TargetMath.parseSets('3-4'), 3));
   });
 
   group('TargetMath.buildWeekTargets', () {

@@ -18,18 +18,23 @@ class TargetMath {
 
   static int parseRir(String rpe) {
     if (rpe.trim().isEmpty) return 2;
+    // Rest-time strings ("1-2 min", "3 min") — not RPE
+    if (rpe.toLowerCase().contains('min')) return 2;
     final clean = rpe.trim().replaceAll('~', '').replaceAll('approx', '').trim();
     // Parse range "7-8" or "8.5-9" → take the max
     final rangeMatch =
         RegExp(r'(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)').firstMatch(clean);
     if (rangeMatch != null) {
       final max = double.parse(rangeMatch.group(2)!);
+      // Max > 10 means it's a rep range (e.g. "10-12"), not RPE
+      if (max > 10) return 2;
       return (10 - max).floor().clamp(0, 10);
     }
     // Plain number "9" or "8.5"
     final numMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(clean);
     if (numMatch != null) {
       final val = double.parse(numMatch.group(1)!);
+      if (val > 10) return 2;
       return (10 - val).floor().clamp(0, 10);
     }
     return 2;
@@ -37,7 +42,10 @@ class TargetMath {
 
   static int parseSets(String s) {
     final match = RegExp(r'(\d+)').firstMatch(s.trim());
-    if (match != null) return int.parse(match.group(1)!);
+    if (match != null) {
+      final n = int.parse(match.group(1)!);
+      return n < 1 ? 3 : n;
+    }
     return 3;
   }
 

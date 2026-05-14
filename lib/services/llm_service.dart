@@ -268,21 +268,47 @@ $csvLines''';
     final fenceMatch = RegExp(r'```(?:json)?\s*([\s\S]*?)```').firstMatch(text);
     if (fenceMatch != null) text = fenceMatch.group(1)!.trim();
 
-    final start = text.indexOf('{');
-    final end = text.lastIndexOf('}');
-    if (start == -1 || end == -1 || end <= start) {
+    final objects = splitJsonObjects(text);
+    if (objects.isEmpty) {
       throw LlmException('No JSON object in response', rawResponse: raw);
     }
-    text = text.substring(start, end + 1);
 
-    text = text.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
-
-    try {
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return RawExtractedDay.fromJson(json);
-    } on FormatException catch (e) {
-      throw LlmException('JSON parse failed: ${e.message}', rawResponse: raw);
+    // Merge all objects into one day (model may emit one object per CSV row).
+    String label = '';
+    final exercises = <RawExtractedExercise>[];
+    for (final obj in objects) {
+      final day = RawExtractedDay.fromJson(obj);
+      if (label.isEmpty && day.label.isNotEmpty) label = day.label;
+      exercises.addAll(day.exercises);
     }
+    return RawExtractedDay(label: label, exercises: exercises);
+  }
+
+  static List<Map<String, dynamic>> splitJsonObjects(String text) {
+    final results = <Map<String, dynamic>>[];
+    int depth = 0;
+    int start = -1;
+    for (int i = 0; i < text.length; i++) {
+      final c = text[i];
+      if (c == '{') {
+        if (depth == 0) start = i;
+        depth++;
+      } else if (c == '}') {
+        depth--;
+        if (depth == 0 && start != -1) {
+          final chunk = text
+              .substring(start, i + 1)
+              .replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+          try {
+            results.add(jsonDecode(chunk) as Map<String, dynamic>);
+          } on FormatException {
+            // skip malformed object
+          }
+          start = -1;
+        }
+      }
+    }
+    return results;
   }
 }
 

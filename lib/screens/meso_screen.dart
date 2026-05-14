@@ -1057,6 +1057,7 @@ class _TimelineRow extends StatelessWidget {
   }
 
   String _formatRir(WeekTarget t) {
+    if (t.rir.isEmpty) return '—';
     final allSame = t.rir.every((r) => r == t.rir.first);
     if (allSame) return 'RIR ${t.rir.first}';
     return 'RIR ${t.rir.join(',')}';

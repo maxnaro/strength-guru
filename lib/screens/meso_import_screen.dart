@@ -121,6 +121,14 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
           }
         },
       );
+      if (data.days.isEmpty) {
+        setState(() {
+          _errorMessage =
+              'No training days could be parsed from the CSV. Check the format and try again.';
+          _phase = _Phase.error;
+        });
+        return;
+      }
       await _matchExercises(data);
       _nameController.text = data.name;
       setState(() {
@@ -153,10 +161,12 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     final existing = await db.allExercises();
     final existingNames = existing.map((e) => e.name).toList();
 
+    if (existingNames.isEmpty) return;
+
     for (final day in data.days) {
       for (final ex in day.exercises) {
         final match = ex.name.bestMatch(existingNames);
-        if (match.bestMatch.rating! > 0.75) {
+        if ((match.bestMatch.rating ?? 0) > 0.75) {
           ex.name = match.bestMatch.target!;
           ex.isExistingInDb = true;
         } else {
