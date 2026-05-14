@@ -38,13 +38,22 @@ class RawExtractedExercise {
 
 class RawExtractedDay {
   final String label;
+  final String phase;
+  final String week;
   final List<RawExtractedExercise> exercises;
 
-  const RawExtractedDay({required this.label, required this.exercises});
+  const RawExtractedDay({
+    required this.label,
+    required this.phase,
+    required this.week,
+    required this.exercises,
+  });
 
   factory RawExtractedDay.fromJson(Map<String, dynamic> json) {
     return RawExtractedDay(
       label: (json['label'] as String?) ?? '',
+      phase: (json['phase'] as String?) ?? '',
+      week: (json['week'] as String?) ?? '',
       exercises: (json['exercises'] as List<dynamic>? ?? [])
           .map((e) => RawExtractedExercise.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -446,6 +455,47 @@ class LlmService {
       if (weekIdx > maxWeek) maxWeek = weekIdx;
     }
 
+    // Extract Phases
+    final phases = <ImportPhase>[];
+    final weekPhaseNames = <int, String>{}; // weekIdx -> phase name
+    for (final (weekIdx, _, day) in results) {
+      if (day.phase.isNotEmpty && !weekPhaseNames.containsKey(weekIdx)) {
+        weekPhaseNames[weekIdx] = day.phase;
+      }
+    }
+
+    if (weekPhaseNames.isEmpty) {
+      phases.add(ImportPhase(
+        name: 'Phase 1',
+        startWeekIdx: 0,
+        endWeekIdx: maxWeek,
+      ));
+    } else {
+      String? currentPhaseName;
+      int? start;
+      for (int w = 0; w <= maxWeek; w++) {
+        final pName = weekPhaseNames[w] ?? currentPhaseName ?? 'Phase 1';
+        if (pName != currentPhaseName) {
+          if (currentPhaseName != null) {
+            phases.add(ImportPhase(
+              name: currentPhaseName,
+              startWeekIdx: start!,
+              endWeekIdx: w - 1,
+            ));
+          }
+          currentPhaseName = pName;
+          start = w;
+        }
+      }
+      if (currentPhaseName != null) {
+        phases.add(ImportPhase(
+          name: currentPhaseName,
+          startWeekIdx: start!,
+          endWeekIdx: maxWeek,
+        ));
+      }
+    }
+
     final days = <ImportDay>[];
     for (final dayIdx in byDay.keys.toList()..sort()) {
       final weekMap = byDay[dayIdx]!;
@@ -512,6 +562,7 @@ class LlmService {
     return MesoImportData(
       name: 'Imported Block',
       numWeeks: maxWeek + 1,
+      phases: phases,
       days: days,
       skippedDayLabels: skipped,
     );
@@ -523,10 +574,11 @@ class LlmService {
   String _chunkInstructions(String csvLines) =>
       '''You are a workout parser. Extract the exercises from this single training day CSV.
 Copy reps, sets, and RPE cell values verbatim as strings. Do not do math.
+Include any Phase (e.g. "Phase 1") or Week (e.g. "Week 1") context found in the CSV.
 Respond with JSON only, no markdown.
 
 SCHEMA:
-{"label":"<day label>","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|arms|legs|core|other","sets":"<raw>","reps":"<raw>","rpe":"<raw>"}]}
+{"phase":"<phase name>","week":"<week name>","label":"<day label>","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|arms|legs|core|other","sets":"<raw>","reps":"<raw>","rpe":"<raw>"}]}
 
 CSV:
 $csvLines''';
@@ -757,13 +809,22 @@ SCHEMA:
 
     // Merge all objects into one day (model may emit one object per CSV row).
     String label = '';
+    String phase = '';
+    String week = '';
     final exercises = <RawExtractedExercise>[];
     for (final obj in objects) {
       final day = RawExtractedDay.fromJson(obj);
       if (label.isEmpty && day.label.isNotEmpty) label = day.label;
+      if (phase.isEmpty && day.phase.isNotEmpty) phase = day.phase;
+      if (week.isEmpty && day.week.isNotEmpty) week = day.week;
       exercises.addAll(day.exercises);
     }
-    return RawExtractedDay(label: label, exercises: exercises);
+    return RawExtractedDay(
+      label: label,
+      phase: phase,
+      week: week,
+      exercises: exercises,
+    );
   }
 
   static List<Map<String, dynamic>> splitJsonObjects(String text) {

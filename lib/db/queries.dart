@@ -663,14 +663,16 @@ extension MesoImportQueries on AppDatabase {
         numWeeks: Value(data.numWeeks),
       ));
 
-      // Create default phase
-      await into(mesoPhases).insert(MesoPhasesCompanion.insert(
-        id: newId(),
-        mesocycleId: mesoId,
-        name: 'Phase 1',
-        startWeekIdx: 0,
-        endWeekIdx: data.numWeeks - 1,
-      ));
+      // Create phases
+      for (final phase in data.phases) {
+        await into(mesoPhases).insert(MesoPhasesCompanion.insert(
+          id: newId(),
+          mesocycleId: mesoId,
+          name: phase.name,
+          startWeekIdx: phase.startWeekIdx,
+          endWeekIdx: phase.endWeekIdx,
+        ));
+      }
 
       // Resolve / create all exercises and slots up-front
       final exIdByName = <String, String>{};

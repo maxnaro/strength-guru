@@ -45,9 +45,19 @@ void main() {
     });
 
     test('malformed object skipped, valid ones returned', () {
-      const input = '{"label":"ok","exercises":[]}\n{bad json}\n{"label":"also ok","exercises":[]}';
+      const input =
+          '{"label":"ok","exercises":[]}\n{bad json}\n{"label":"also ok","exercises":[]}';
       final result = LlmService.splitJsonObjects(input);
       expect(result.length, 2);
+    });
+
+    test('phase and week fields included in objects', () {
+      const input =
+          '{"phase":"Phase 1","week":"Week 1","label":"Push","exercises":[]}';
+      final result = LlmService.splitJsonObjects(input);
+      expect(result.length, 1);
+      expect(result[0]['phase'], 'Phase 1');
+      expect(result[0]['week'], 'Week 1');
     });
 
     test('recovers truncated JSON object', () {

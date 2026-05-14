@@ -1,12 +1,14 @@
 class MesoImportData {
   String name;
   int numWeeks;
+  final List<ImportPhase> phases;
   final List<ImportDay> days;
   final List<String> skippedDayLabels;
 
   MesoImportData({
     required this.name,
     required this.numWeeks,
+    required this.phases,
     required this.days,
     this.skippedDayLabels = const [],
   });
@@ -17,6 +19,9 @@ class MesoImportData {
           ? 'Imported Block'
           : ((json['name'] as String?) ?? 'Imported Block'),
       numWeeks: (json['numWeeks'] as int?) ?? 4,
+      phases: (json['phases'] as List<dynamic>? ?? [])
+          .map((p) => ImportPhase.fromJson(p as Map<String, dynamic>))
+          .toList(),
       days: (json['days'] as List<dynamic>? ?? [])
           .map((d) => ImportDay.fromJson(d as Map<String, dynamic>))
           .toList(),
@@ -26,7 +31,34 @@ class MesoImportData {
   Map<String, dynamic> toJson() => {
         'name': name,
         'numWeeks': numWeeks,
+        'phases': phases.map((p) => p.toJson()).toList(),
         'days': days.map((d) => d.toJson()).toList(),
+      };
+}
+
+class ImportPhase {
+  final String name;
+  final int startWeekIdx;
+  final int endWeekIdx;
+
+  const ImportPhase({
+    required this.name,
+    required this.startWeekIdx,
+    required this.endWeekIdx,
+  });
+
+  factory ImportPhase.fromJson(Map<String, dynamic> json) {
+    return ImportPhase(
+      name: (json['name'] as String?) ?? 'Phase',
+      startWeekIdx: (json['startWeekIdx'] as int?) ?? 0,
+      endWeekIdx: (json['endWeekIdx'] as int?) ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'startWeekIdx': startWeekIdx,
+        'endWeekIdx': endWeekIdx,
       };
 }
 
