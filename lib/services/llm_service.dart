@@ -6,27 +6,77 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/meso_import_data.dart';
+import 'csv_segmenter.dart';
 import 'model_service.dart';
+import 'target_math.dart';
+
+class RawExtractedExercise {
+  final String name;
+  final String group;
+  final String sets;
+  final String reps;
+  final String rpe;
+
+  const RawExtractedExercise({
+    required this.name,
+    required this.group,
+    required this.sets,
+    required this.reps,
+    required this.rpe,
+  });
+
+  factory RawExtractedExercise.fromJson(Map<String, dynamic> json) {
+    return RawExtractedExercise(
+      name: (json['name'] as String?) ?? 'Unknown',
+      group: (json['group'] as String?) ?? 'other',
+      sets: (json['sets'] as String?) ?? '3',
+      reps: (json['reps'] as String?) ?? '8',
+      rpe: (json['rpe'] as String?) ?? '',
+    );
+  }
+}
+
+class RawExtractedDay {
+  final String label;
+  final List<RawExtractedExercise> exercises;
+
+  const RawExtractedDay({required this.label, required this.exercises});
+
+  factory RawExtractedDay.fromJson(Map<String, dynamic> json) {
+    return RawExtractedDay(
+      label: (json['label'] as String?) ?? '',
+      exercises: (json['exercises'] as List<dynamic>? ?? [])
+          .map((e) => RawExtractedExercise.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
 
 class LlmService {
   static const String defaultUrl = 'http://10.0.2.2:1234/v1/chat/completions';
 
-  Future<MesoImportData> interpretPlan(String csvContent, {String? apiUrl}) async {
+  Future<MesoImportData> interpretPlan(
+    String csvContent, {
+    String? apiUrl,
+    void Function(int done, int total)? onProgress,
+  }) async {
     await WakelockPlus.enable();
     try {
       if (apiUrl != null) {
-        return await _runExternalApi(csvContent, apiUrl);
+        return await _runExternalApi(csvContent, apiUrl, onProgress);
       }
-      return await _runLocalInterpretation(csvContent);
+      return await _runLocalInterpretation(csvContent, onProgress);
     } finally {
       await WakelockPlus.disable();
     }
   }
 
-  Future<MesoImportData> _runLocalInterpretation(String csvContent) async {
+  Future<MesoImportData> _runLocalInterpretation(
+    String csvContent,
+    void Function(int done, int total)? onProgress,
+  ) async {
     final path = await ModelService.modelPath();
 
-    // Using Q3_K_M model (~2.3GB) allows for some gpuLayers.
     final modelParams = ModelParams(path: path, gpuLayers: 15);
     const ctxParams = ContextParams(nCtx: 16384, nBatch: 256, nUbatch: 256);
 
@@ -58,175 +108,206 @@ class LlmService {
         rethrow;
       }
 
-      final session = await engine.createSession();
-      final buffer = StringBuffer();
+      final segments = CsvSegmenter.segment(csvContent);
+      final results = <(int, int, RawExtractedDay)>[];
+      final skipped = <String>[];
 
-      await for (final ev in session.generate(
-        prompt: _buildPrompt(csvContent),
-        addSpecial: true,
-        parseSpecial: true,
-        sampler: const SamplerParams(temperature: 0.0),
-        maxTokens: 8192,
-      )) {
-        switch (ev) {
-          case TokenEvent():
-            buffer.write(ev.text);
-          case DoneEvent():
-            if (ev.trailingText.isNotEmpty) buffer.write(ev.trailingText);
-          case ShiftEvent():
-            break;
+      for (int i = 0; i < segments.length; i++) {
+        final seg = segments[i];
+        onProgress?.call(i + 1, segments.length);
+        try {
+          final session = await engine.createSession();
+          final buffer = StringBuffer();
+
+          await for (final ev in session.generate(
+            prompt: _buildChunkPrompt(seg.csvLines),
+            addSpecial: true,
+            parseSpecial: true,
+            sampler: const SamplerParams(temperature: 0.0),
+            maxTokens: 1024,
+          )) {
+            switch (ev) {
+              case TokenEvent():
+                buffer.write(ev.text);
+              case DoneEvent():
+                if (ev.trailingText.isNotEmpty) buffer.write(ev.trailingText);
+              case ShiftEvent():
+                break;
+            }
+          }
+
+          await session.dispose();
+          results.add((seg.weekIdx, seg.dayIdx, _parseDay(buffer.toString())));
+        } on LlmException {
+          skipped.add(seg.label.isEmpty ? 'Day ${seg.dayIdx + 1}' : seg.label);
         }
       }
 
-      await session.dispose();
-      return _parse(buffer.toString());
+      return _merge(results, skipped);
     } finally {
       await engine?.dispose();
     }
   }
 
-  String _buildPrompt(String csv) =>
-      '<bos><|turn>user\n${_instructions(csv)}<turn|>\n<|turn>model\n';
+  Future<MesoImportData> _runExternalApi(
+    String csvContent,
+    String url,
+    void Function(int done, int total)? onProgress,
+  ) async {
+    final segments = CsvSegmenter.segment(csvContent);
+    final results = <(int, int, RawExtractedDay)>[];
+    final skipped = <String>[];
 
-  Future<MesoImportData> _runExternalApi(String csvContent, String url) async {
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'model': 'local-model',
-        'messages': [
-          {'role': 'user', 'content': _instructions(csvContent)},
-        ],
-        'temperature': 0.0,
-      }),
-    );
+    for (int i = 0; i < segments.length; i++) {
+      final seg = segments[i];
+      onProgress?.call(i + 1, segments.length);
+      try {
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': 'local-model',
+            'messages': [
+              {'role': 'user', 'content': _chunkInstructions(seg.csvLines)},
+            ],
+            'temperature': 0.0,
+          }),
+        );
 
-    if (response.statusCode != 200) {
-      throw LlmException('API failed: ${response.body}');
+        if (response.statusCode != 200) {
+          throw LlmException('API failed: ${response.body}');
+        }
+
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final text = json['choices'][0]['message']['content'] as String;
+        results.add((seg.weekIdx, seg.dayIdx, _parseDay(text)));
+      } on LlmException {
+        skipped.add(seg.label.isEmpty ? 'Day ${seg.dayIdx + 1}' : seg.label);
+      }
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final text = json['choices'][0]['message']['content'] as String;
-    return _parse(text);
+    return _merge(results, skipped);
   }
 
-  String _instructions(String csv) =>
-      '''You are a precision workout parser. Transform the provided CSV into JSON.
+  MesoImportData _merge(
+    List<(int, int, RawExtractedDay)> results,
+    List<String> skipped,
+  ) {
+    // Group by dayIdx → weekIdx → RawExtractedDay
+    final byDay = <int, Map<int, RawExtractedDay>>{};
+    int maxWeek = 0;
+    for (final (weekIdx, dayIdx, day) in results) {
+      byDay.putIfAbsent(dayIdx, () => {})[weekIdx] = day;
+      if (weekIdx > maxWeek) maxWeek = weekIdx;
+    }
 
-### EXTRACTION RULES:
-1. **WEEKS & MERGING**: 
-   - Match exercises across vertical weeks by their **POSITION** within the day.
-   - Produce ONE exercise object per unique slot, with multiple `weekTargets`.
-2. **DAY IDENTIFICATION**:
-   - Days start at: "FULL BODY", "LOWER", "UPPER", "DAY X", or "REST DAY".
-   - **REST DAYS**: Must be included as a day object with `exercises: []`.
-3. **SAME-DAY DUPLICATES**: 
-   - Keep "Top Set", "Back-off", etc., as SEPARATE exercises in the list.
+    final days = <ImportDay>[];
+    for (final dayIdx in byDay.keys.toList()..sort()) {
+      final weekMap = byDay[dayIdx]!;
+      final firstDay = weekMap.values.first;
+      final label = firstDay.label.isEmpty ? 'Day ${dayIdx + 1}' : firstDay.label;
 
-### MATH & DATA RULES:
-- **PER-EXERCISE RIR TRACKING**: 
-  - Calculate RIR for each individual exercise independently based on the RPE column in its row.
-  - **RIR = (10 - RPE_MAX)**.
-  - **NO AVERAGING**: If RPE is "7-8", use 8. If RPE is "~6-8", use 8.
-  - **LOWEST RIR WINS**: Always choose the most intense (lowest) RIR value for that exercise.
-  - **LOOKUP**: "7-8" -> 2 RIR, "8-9" -> 1 RIR, "9-10" -> 0 RIR.
-  - **INTENSIFICATION BIAS**: If a specific exercise's RPE range stays static for 3+ consecutive weeks, manually decrease its RIR by 1 in the later weeks to reflect intended progressive overload.
-  - **ROUNDING**: Always round RIR **DOWN** (e.g., 10 - 8.5 = 1.5 -> **1 RIR**).
-- **INTEGERS ONLY**: sets, reps, rir, weekIdx, dayIdx MUST be integers.
-  - If a number has a "+" (e.g. "1+"), use the base number (1).
-- **REPS**: Use the LOWEST number in a range (e.g., "8-10" -> 8). "AMRAP" -> 10.
-- **MUSCLE GROUPS**: chest, back, shoulders, arms, legs, core, other.
+      final nExercises =
+          weekMap.values.map((d) => d.exercises.length).fold(0, (a, b) => a > b ? a : b);
+
+      final exercises = <ImportExercise>[];
+      for (int pos = 0; pos < nExercises; pos++) {
+        final weekRaw = <({int weekIdx, String sets, String reps, String rpe})>[];
+        String exName = 'Unknown';
+        String exGroup = 'other';
+
+        for (final weekIdx in weekMap.keys.toList()..sort()) {
+          final exList = weekMap[weekIdx]!.exercises;
+          if (pos < exList.length) {
+            final ex = exList[pos];
+            if (exName == 'Unknown') {
+              exName = ex.name;
+              exGroup = ex.group;
+            }
+            weekRaw.add((weekIdx: weekIdx, sets: ex.sets, reps: ex.reps, rpe: ex.rpe));
+          }
+        }
+
+        if (weekRaw.isEmpty) continue;
+
+        exercises.add(ImportExercise(
+          name: exName,
+          muscleGroup: exGroup,
+          weekTargets: TargetMath.buildWeekTargets(weekRaw),
+        ));
+      }
+
+      days.add(ImportDay(dayIdx: dayIdx, label: label, exercises: exercises));
+    }
+
+    return MesoImportData(
+      name: 'Imported Block',
+      numWeeks: maxWeek + 1,
+      days: days,
+      skippedDayLabels: skipped,
+    );
+  }
+
+  String _buildChunkPrompt(String csvLines) =>
+      '<bos><|turn>user\n${_chunkInstructions(csvLines)}<turn|>\n<|turn>model\n';
+
+  String _chunkInstructions(String csvLines) =>
+      '''You are a workout parser. Extract the exercises from this single training day CSV.
+Copy reps, sets, and RPE cell values verbatim as strings. Do not do math.
+Respond with JSON only, no markdown.
 
 SCHEMA:
-{
-  "name": "Program Name",
-  "numWeeks": integer,
-  "days": [
-    {
-      "dayIdx": integer,
-      "label": "Day Label",
-      "exercises": [
-        {
-          "name": "Exercise",
-          "muscleGroup": "chest|back|shoulders|arms|legs|core|other",
-          "weekTargets": [{ "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 }]
-        }
-      ]
-    }
-  ]
-}
+{"label":"<day label>","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|arms|legs|core|other","sets":"<raw>","reps":"<raw>","rpe":"<raw>"}]}
 
-EXAMPLE INPUT:
-Week 1,Exercise,Sets,Reps,RPE
-Day 1,Bench Press Top,1,1,~8
-,Bench Press,3,8,7-8
-REST DAY,,,,
-Week 2,Exercise,Sets,Reps,RPE
-Day 1,Bench Press Top,1,1,8.5
-,Bench Press,3,8,7-8
-REST DAY,,,,
-Week 3,Exercise,Sets,Reps,RPE
-Day 1,Bench Press Top,1,1,~9
-,Bench Press,3,8,7-8
+CSV:
+$csvLines''';
 
-EXAMPLE OUTPUT:
-{
-  "name": "Progressive Meso",
-  "numWeeks": 3,
-  "days": [
-    {
-      "dayIdx": 0,
-      "label": "Day 1",
-      "exercises": [
-        {
-          "name": "Bench Press Top",
-          "muscleGroup": "chest",
-          "weekTargets": [
-            { "weekIdx": 0, "sets": 1, "reps": 1, "rir": 2 },
-            { "weekIdx": 1, "sets": 1, "reps": 1, "rir": 1 },
-            { "weekIdx": 2, "sets": 1, "reps": 1, "rir": 1 }
-          ]
-        },
-        {
-          "name": "Bench Press",
-          "muscleGroup": "chest",
-          "weekTargets": [
-            { "weekIdx": 0, "sets": 3, "reps": 8, "rir": 2 },
-            { "weekIdx": 1, "sets": 3, "reps": 8, "rir": 2 },
-            { "weekIdx": 2, "sets": 3, "reps": 8, "rir": 1 }
-          ]
-        }
-      ]
-    },
-    { "dayIdx": 1, "label": "REST DAY", "exercises": [] }
-  ]
-}
-
-ACTUAL CSV:
-$csv''';
-
-  MesoImportData _parse(String raw) {
+  RawExtractedDay _parseDay(String raw) {
     var text = raw;
 
     final fenceMatch = RegExp(r'```(?:json)?\s*([\s\S]*?)```').firstMatch(text);
     if (fenceMatch != null) text = fenceMatch.group(1)!.trim();
 
-    final start = text.indexOf('{');
-    final end = text.lastIndexOf('}');
-    if (start == -1 || end == -1 || end <= start) {
+    final objects = splitJsonObjects(text);
+    if (objects.isEmpty) {
       throw LlmException('No JSON object in response', rawResponse: raw);
     }
-    text = text.substring(start, end + 1);
 
-    // Strip trailing commas that break jsonDecode
-    text = text.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
-
-    try {
-      final json = jsonDecode(text) as Map<String, dynamic>;
-      return MesoImportData.fromJson(json);
-    } on FormatException catch (e) {
-      throw LlmException('JSON parse failed: ${e.message}', rawResponse: raw);
+    // Merge all objects into one day (model may emit one object per CSV row).
+    String label = '';
+    final exercises = <RawExtractedExercise>[];
+    for (final obj in objects) {
+      final day = RawExtractedDay.fromJson(obj);
+      if (label.isEmpty && day.label.isNotEmpty) label = day.label;
+      exercises.addAll(day.exercises);
     }
+    return RawExtractedDay(label: label, exercises: exercises);
+  }
+
+  static List<Map<String, dynamic>> splitJsonObjects(String text) {
+    final results = <Map<String, dynamic>>[];
+    int depth = 0;
+    int start = -1;
+    for (int i = 0; i < text.length; i++) {
+      final c = text[i];
+      if (c == '{') {
+        if (depth == 0) start = i;
+        depth++;
+      } else if (c == '}') {
+        depth--;
+        if (depth == 0 && start != -1) {
+        final chunk = text.substring(start, i + 1).replaceAllMapped(
+            RegExp(r',\s*([\]}])'), (m) => m.group(1)!);
+          try {
+            results.add(jsonDecode(chunk) as Map<String, dynamic>);
+          } on FormatException {
+            // skip malformed object
+          }
+          start = -1;
+        }
+      }
+    }
+    return results;
   }
 }
 
