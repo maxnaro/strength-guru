@@ -71,6 +71,56 @@ class LlmService {
     }
   }
 
+  Future<MesoImportData> interpretDescription(
+    String description,
+    int numWeeks, {
+    required String apiUrl,
+    void Function(int done, int total)? onProgress,
+  }) async {
+    await WakelockPlus.enable();
+    try {
+      final outlineText = await _chat(apiUrl, _outlineInstructions(description, numWeeks));
+      final outlineJson = _extractFirstJson(outlineText);
+      final programName = (outlineJson['name'] as String?)?.trim().isNotEmpty == true
+          ? outlineJson['name'] as String
+          : 'Generated Program';
+      final dayLabels = (outlineJson['days'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      if (dayLabels.isEmpty) {
+        throw LlmException('No training days in LLM outline.', rawResponse: outlineText);
+      }
+
+      final days = <ImportDay>[];
+      final skipped = <String>[];
+
+      for (int i = 0; i < dayLabels.length; i++) {
+        onProgress?.call(i + 1, dayLabels.length);
+        final label = dayLabels[i];
+        try {
+          final text = await _chat(apiUrl, _dayGenInstructions(description, label, numWeeks));
+          final obj = _extractFirstJson(text);
+          obj['dayIdx'] = i;
+          if ((obj['label'] as String?)?.isEmpty ?? true) obj['label'] = label;
+          days.add(ImportDay.fromJson(obj));
+        } on LlmException {
+          skipped.add(label);
+        }
+      }
+
+      return MesoImportData(
+        name: programName,
+        numWeeks: numWeeks,
+        days: days,
+        skippedDayLabels: skipped,
+      );
+    } finally {
+      await WakelockPlus.disable();
+    }
+  }
+
   Future<MesoImportData> _runLocalInterpretation(
     String csvContent,
     void Function(int done, int total)? onProgress,
@@ -162,24 +212,7 @@ class LlmService {
       final seg = segments[i];
       onProgress?.call(i + 1, segments.length);
       try {
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'model': 'local-model',
-            'messages': [
-              {'role': 'user', 'content': _chunkInstructions(seg.csvLines)},
-            ],
-            'temperature': 0.0,
-          }),
-        );
-
-        if (response.statusCode != 200) {
-          throw LlmException('API failed: ${response.body}');
-        }
-
-        final json = jsonDecode(response.body) as Map<String, dynamic>;
-        final text = json['choices'][0]['message']['content'] as String;
+        final text = await _chat(url, _chunkInstructions(seg.csvLines));
         results.add((seg.weekIdx, seg.dayIdx, _parseDay(text)));
       } on LlmException {
         skipped.add(seg.label.isEmpty ? 'Day ${seg.dayIdx + 1}' : seg.label);
@@ -187,6 +220,36 @@ class LlmService {
     }
 
     return _merge(results, skipped);
+  }
+
+  Future<String> _chat(String url, String prompt) async {
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'model': 'local-model',
+        'messages': [
+          {'role': 'user', 'content': prompt},
+        ],
+        'temperature': 0.0,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw LlmException('API failed: ${response.body}');
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return json['choices'][0]['message']['content'] as String;
+  }
+
+  Map<String, dynamic> _extractFirstJson(String raw) {
+    var text = raw;
+    final fenceMatch = RegExp(r'```(?:json)?\s*([\s\S]*?)```').firstMatch(text);
+    if (fenceMatch != null) text = fenceMatch.group(1)!.trim();
+    final objects = splitJsonObjects(text);
+    if (objects.isEmpty) {
+      throw LlmException('No JSON object in response', rawResponse: raw);
+    }
+    return objects.first;
   }
 
   MesoImportData _merge(
@@ -261,6 +324,32 @@ SCHEMA:
 
 CSV:
 $csvLines''';
+
+  String _outlineInstructions(String description, int numWeeks) =>
+      '''You are a strength training program designer. The user wants a $numWeeks-week program.
+
+Read the description and output a JSON outline with the program name and an ordered list of distinct training day labels (do not repeat for each week — list each unique day type once).
+Respond with JSON only, no markdown.
+
+SCHEMA:
+{"name":"<program name>","days":["<Day 1 label>","<Day 2 label>",...]}
+
+DESCRIPTION:
+$description''';
+
+  String _dayGenInstructions(String description, String dayLabel, int numWeeks) =>
+      '''You are a strength training program designer. Generate the "$dayLabel" training day for a $numWeeks-week mesocycle.
+
+For each exercise include a weekTargets array with one entry per week (weekIdx 0 to ${numWeeks - 1}). Apply progressive overload: increase reps or decrease RIR across weeks. Use 3-5 exercises.
+Respond with JSON only, no markdown.
+
+SCHEMA:
+{"label":"$dayLabel","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|arms|legs|core|other","weekTargets":[{"weekIdx":0,"reps":[8,8,8],"rir":[3,3,3]},{"weekIdx":1,"reps":[9,9,9],"rir":[2,2,2]},...]}]}
+
+reps and rir arrays must have the same length as the number of sets for that exercise. Include all $numWeeks weekTargets for every exercise.
+
+PROGRAM DESCRIPTION:
+$description''';
 
   RawExtractedDay _parseDay(String raw) {
     var text = raw;
