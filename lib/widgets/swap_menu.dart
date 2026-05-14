@@ -122,7 +122,7 @@ class _SwapMenuState extends ConsumerState<SwapMenu> {
     } else {
       // Invalidate the timeline program view
       ref.invalidate(programDayExercisesProvider(
-          ProgramDayKey(key.mesoId, key.dayIdx)));
+          ProgramDayKey(key.mesoId, 0, key.dayIdx)));
 
       // Invalidate all forward weeks
       for (int w = key.weekIdx; w < widget.meso.numWeeks; w++) {

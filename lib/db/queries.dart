@@ -146,6 +146,9 @@ extension MesoQueries on AppDatabase {
     final pDays = await (select(programDays)
           ..where((t) => t.mesocycleId.equals(id)))
         .get();
+    final phases = await (select(mesoPhases)
+          ..where((t) => t.mesocycleId.equals(id)))
+        .get();
     final slots = await (select(exerciseSlots)
           ..where((t) => t.mesocycleId.equals(id)))
         .get();
@@ -173,8 +176,19 @@ extension MesoQueries on AppDatabase {
       for (final r in pDays) {
         await into(programDays).insert(ProgramDaysCompanion.insert(
           mesocycleId: newId_,
+          weekIdx: Value(r.weekIdx),
           dayIdx: r.dayIdx,
           label: Value(r.label),
+        ));
+      }
+
+      for (final r in phases) {
+        await into(mesoPhases).insert(MesoPhasesCompanion.insert(
+          id: newId(),
+          mesocycleId: newId_,
+          name: r.name,
+          startWeekIdx: r.startWeekIdx,
+          endWeekIdx: r.endWeekIdx,
         ));
       }
 
@@ -474,16 +488,20 @@ extension SetEntryQueries on AppDatabase {
 // ── ProgramDay queries ────────────────────────────────────────────────────────
 
 extension ProgramDayQueries on AppDatabase {
-  Stream<ProgramDay?> watchProgramDay(String mesoId, int dayIdx) {
+  Stream<ProgramDay?> watchProgramDay(String mesoId, int weekIdx, int dayIdx) {
     return (select(programDays)
           ..where((t) =>
-              t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayIdx)))
+              t.mesocycleId.equals(mesoId) &
+              t.weekIdx.equals(weekIdx) &
+              t.dayIdx.equals(dayIdx)))
         .watchSingleOrNull();
   }
 
-  Future<void> upsertProgramDay(String mesoId, int dayIdx, String? label) {
+  Future<void> upsertProgramDay(
+      String mesoId, int weekIdx, int dayIdx, String? label) {
     return into(programDays).insertOnConflictUpdate(ProgramDaysCompanion.insert(
       mesocycleId: mesoId,
+      weekIdx: Value(weekIdx),
       dayIdx: dayIdx,
       label: Value(label),
     ));
@@ -519,6 +537,10 @@ extension MesoMutationQueries on AppDatabase {
             ..where((t) =>
                 t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
           .go();
+      await (delete(programDays)
+            ..where((t) =>
+                t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
+          .go();
       await (delete(sessionLogs)
             ..where((t) =>
                 t.mesocycleId.equals(mesoId) & t.weekIdx.equals(weekIdx)))
@@ -543,6 +565,15 @@ extension MesoMutationQueries on AppDatabase {
         dayOverrides
       });
 
+      const shiftProgramDays = 'UPDATE program_days SET week_idx = week_idx - 1 '
+          'WHERE mesocycle_id = ? AND week_idx > ?';
+      await customUpdate(shiftProgramDays, variables: [
+        Variable<String>(mesoId),
+        Variable<int>(weekIdx),
+      ], updates: {
+        programDays
+      });
+
       // Shifting session logs requires care due to unique index on (mesocycle_id, week_idx, day_idx).
       // We update them in descending order to avoid collisions.
       final logsToShift = await (select(sessionLogs)
@@ -557,7 +588,7 @@ extension MesoMutationQueries on AppDatabase {
         );
       }
 
-      // 3. Update Mesocycle metadata
+      // 3. Update Mesocycle metadata & Phases
       final meso = await (select(mesocycles)..where((t) => t.id.equals(mesoId)))
           .getSingle();
 
@@ -579,6 +610,37 @@ extension MesoMutationQueries on AppDatabase {
           deloadWeeks: Value(newDeloads.join(',')),
         ),
       );
+
+      final phases = await (select(mesoPhases)
+            ..where((t) => t.mesocycleId.equals(mesoId)))
+          .get();
+      for (final p in phases) {
+        int start = p.startWeekIdx;
+        int end = p.endWeekIdx;
+        bool changed = false;
+
+        if (start > weekIdx) {
+          start--;
+          changed = true;
+        }
+        if (end >= weekIdx) {
+          end--;
+          changed = true;
+        }
+
+        if (changed) {
+          if (end < start) {
+            await (delete(mesoPhases)..where((t) => t.id.equals(p.id))).go();
+          } else {
+            await (update(mesoPhases)..where((t) => t.id.equals(p.id))).write(
+              MesoPhasesCompanion(
+                startWeekIdx: Value(start),
+                endWeekIdx: Value(end),
+              ),
+            );
+          }
+        }
+      }
     });
   }
 }
@@ -601,6 +663,15 @@ extension MesoImportQueries on AppDatabase {
         numWeeks: Value(data.numWeeks),
       ));
 
+      // Create default phase
+      await into(mesoPhases).insert(MesoPhasesCompanion.insert(
+        id: newId(),
+        mesocycleId: mesoId,
+        name: 'Phase 1',
+        startWeekIdx: 0,
+        endWeekIdx: data.numWeeks - 1,
+      ));
+
       // Resolve / create all exercises and slots up-front
       final exIdByName = <String, String>{};
       final slotIdByExName = <String, String>{};
@@ -615,33 +686,37 @@ extension MesoImportQueries on AppDatabase {
         }
       }
 
-      // ProgramDays
-      for (final day in data.days) {
-        await into(programDays).insert(ProgramDaysCompanion.insert(
-          mesocycleId: mesoId,
-          dayIdx: day.dayIdx,
-          label: Value(day.label.isEmpty ? null : day.label),
-        ));
-      }
-
-      // DayOverrides + WeekTargets per week
+      // ProgramDays + DayOverrides + WeekTargets per week
       for (var w = 0; w < data.numWeeks; w++) {
         for (final day in data.days) {
-          final slotIds = day.exercises
-              .map((e) => slotIdByExName[e.name]!)
-              .toList();
+          // ProgramDays (per week label)
+          await into(programDays).insert(ProgramDaysCompanion.insert(
+            mesocycleId: mesoId,
+            weekIdx: Value(w),
+            dayIdx: day.dayIdx,
+            label: Value(day.labelForWeek(w).isEmpty ? null : day.labelForWeek(w)),
+          ));
 
-          await into(dayOverrides).insertOnConflictUpdate(
-            DayOverridesCompanion.insert(
-              mesocycleId: mesoId,
-              weekIdx: w,
-              dayIdx: day.dayIdx,
-              exerciseIdsCsv: slotIds.join(','),
-            ),
-          );
+          // Only include exercises that have a target for THIS week
+          final scheduledExercises =
+              day.exercises.where((e) => e.targetForWeek(w) != null).toList();
 
-          for (final ex in day.exercises) {
-            final t = ex.targetForWeek(w);
+          final slotIds =
+              scheduledExercises.map((e) => slotIdByExName[e.name]!).toList();
+
+          if (slotIds.isNotEmpty) {
+            await into(dayOverrides).insertOnConflictUpdate(
+              DayOverridesCompanion.insert(
+                mesocycleId: mesoId,
+                weekIdx: w,
+                dayIdx: day.dayIdx,
+                exerciseIdsCsv: slotIds.join(','),
+              ),
+            );
+          }
+
+          for (final ex in scheduledExercises) {
+            final t = ex.targetForWeek(w)!;
             await into(weekTargets).insertOnConflictUpdate(
               WeekTargetsCompanion.insert(
                 mesocycleId: mesoId,
@@ -691,6 +766,32 @@ extension SettingsQueries on AppDatabase {
   }
 }
 
+// ── Phase queries ─────────────────────────────────────────────────────────────
+
+extension PhaseQueries on AppDatabase {
+  Stream<List<MesoPhase>> watchPhases(String mesoId) {
+    return (select(mesoPhases)
+          ..where((t) => t.mesocycleId.equals(mesoId))
+          ..orderBy([(t) => OrderingTerm.asc(t.startWeekIdx)]))
+        .watch();
+  }
+
+  Future<List<MesoPhase>> getPhases(String mesoId) {
+    return (select(mesoPhases)
+          ..where((t) => t.mesocycleId.equals(mesoId))
+          ..orderBy([(t) => OrderingTerm.asc(t.startWeekIdx)]))
+        .get();
+  }
+
+  Future<void> upsertPhase(MesoPhasesCompanion phase) {
+    return into(mesoPhases).insertOnConflictUpdate(phase);
+  }
+
+  Future<void> deletePhase(String id) {
+    return (delete(mesoPhases)..where((t) => t.id.equals(id))).go();
+  }
+}
+
 // ── Day mutation queries ──────────────────────────────────────────────────────
 
 extension DayMutationQueries on AppDatabase {
@@ -712,11 +813,11 @@ extension DayMutationQueries on AppDatabase {
     await transaction(() async {
       await clearDay(mesoId, toIdx);
 
-      final sourceP = await (select(programDays)
+      final oldLabels = await (select(programDays)
             ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(fromIdx)))
-          .getSingleOrNull();
-      if (sourceP != null) {
-        await upsertProgramDay(mesoId, toIdx, sourceP.label);
+          .get();
+      for (final p in oldLabels) {
+        await upsertProgramDay(mesoId, p.weekIdx, toIdx, p.label);
       }
 
       final overrides = await (select(dayOverrides)
@@ -736,20 +837,27 @@ extension DayMutationQueries on AppDatabase {
   Future<void> swapDays(String mesoId, int dayA, int dayB) async {
     if (dayA == dayB) return;
     await transaction(() async {
-      // 1. Swap ProgramDays labels
-      final pA = await (select(programDays)
+      // 1. Swap ProgramDays labels (all weeks + default)
+      final pAs = await (select(programDays)
             ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayA)))
-          .getSingleOrNull();
-      final pB = await (select(programDays)
+          .get();
+      final pBs = await (select(programDays)
             ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayB)))
-          .getSingleOrNull();
+          .get();
 
-      await (update(programDays)
-            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayA)))
-          .write(ProgramDaysCompanion(label: Value(pB?.label)));
-      await (update(programDays)
-            ..where((t) => t.mesocycleId.equals(mesoId) & t.dayIdx.equals(dayB)))
-          .write(ProgramDaysCompanion(label: Value(pA?.label)));
+      // We need to swap them carefully. Easier to just rewrite based on existing.
+      await (delete(programDays)
+            ..where((t) =>
+                t.mesocycleId.equals(mesoId) &
+                (t.dayIdx.equals(dayA) | t.dayIdx.equals(dayB))))
+          .go();
+
+      for (final p in pAs) {
+        await upsertProgramDay(mesoId, p.weekIdx, dayB, p.label);
+      }
+      for (final p in pBs) {
+        await upsertProgramDay(mesoId, p.weekIdx, dayA, p.label);
+      }
 
       // 2. Swap DayOverrides (all weeks)
       await customUpdate(

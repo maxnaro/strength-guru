@@ -158,11 +158,11 @@ class _LogScreenState extends ConsumerState<LogScreen> {
         children: [
           _SessionHeader(
             group: ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest,
-            title: ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.dayIdx)))
+            title: ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.weekIdx, effective.dayIdx)))
                     .valueOrNull
                     ?.label ??
                 '${(ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest).label} Session',
-            plateLabel: (ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.dayIdx)))
+            plateLabel: (ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.weekIdx, effective.dayIdx)))
                         .valueOrNull
                         ?.label ??
                     (ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest).label)

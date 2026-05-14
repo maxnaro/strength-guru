@@ -73,15 +73,19 @@ class PrevSetKey {
 @immutable
 class ProgramDayKey {
   final String mesoId;
+  final int weekIdx;
   final int dayIdx;
-  const ProgramDayKey(this.mesoId, this.dayIdx);
+  const ProgramDayKey(this.mesoId, this.weekIdx, this.dayIdx);
 
   @override
   bool operator ==(Object other) =>
-      other is ProgramDayKey && mesoId == other.mesoId && dayIdx == other.dayIdx;
+      other is ProgramDayKey &&
+      mesoId == other.mesoId &&
+      weekIdx == other.weekIdx &&
+      dayIdx == other.dayIdx;
 
   @override
-  int get hashCode => Object.hash(mesoId, dayIdx);
+  int get hashCode => Object.hash(mesoId, weekIdx, dayIdx);
 }
 
 // ── Core providers ────────────────────────────────────────────────────────────
@@ -112,9 +116,14 @@ final allExercisesProvider = FutureProvider<List<Exercise>>((ref) {
   return ref.watch(dbProvider).allExercises();
 });
 
+final phasesProvider =
+    StreamProvider.family<List<MesoPhase>, String>((ref, mesoId) {
+  return ref.watch(dbProvider).watchPhases(mesoId);
+});
+
 final programDayProvider =
     StreamProvider.family<ProgramDay?, ProgramDayKey>((ref, k) {
-  return ref.watch(dbProvider).watchProgramDay(k.mesoId, k.dayIdx);
+  return ref.watch(dbProvider).watchProgramDay(k.mesoId, k.weekIdx, k.dayIdx);
 });
 
 final isDeloadWeekProvider = Provider.family<bool, WeekKey>((ref, k) {
@@ -193,7 +202,11 @@ final dayGroupProvider =
 final programDayExercisesProvider =
     FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((ref, k) async {
   final db = ref.read(dbProvider);
-  var ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
+  var ov = await db.getDayOverride(k.mesoId, k.weekIdx, k.dayIdx);
+  if (ov == null && k.weekIdx != -1) {
+    ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
+  }
+  
   if (ov == null) {
     final allOvs = await db.getOverridesForDay(k.mesoId, k.dayIdx);
     if (allOvs.isEmpty) return [];

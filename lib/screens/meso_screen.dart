@@ -475,7 +475,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
 
               if (group != null && group != MuscleGroup.rest) {
                 final daySettingsAsync = ref.watch(
-                    programDayProvider(ProgramDayKey(widget.meso.id, d)));
+                    programDayProvider(ProgramDayKey(widget.meso.id, 0, d)));
                 final labelText =
                     daySettingsAsync.valueOrNull?.label ?? group.label;
 
@@ -602,6 +602,9 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
       allTargets[w] = t.valueOrNull ?? {};
     }
 
+    final phasesAsync = ref.watch(phasesProvider(widget.meso.id));
+    final phases = phasesAsync.valueOrNull ?? [];
+
     return Stack(
       children: [
         SingleChildScrollView(
@@ -611,6 +614,54 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Phase header row
+              if (phases.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const SizedBox(width: kTimelineNameColW),
+                    ...(() {
+                      final headerWidgets = <Widget>[];
+                      final sortedPhases = List<MesoPhase>.from(phases)
+                        ..sort((a, b) => a.startWeekIdx.compareTo(b.startWeekIdx));
+
+                      int lastProcessedWeek = -1;
+                      for (final phase in sortedPhases) {
+                        // Gap before this phase
+                        if (phase.startWeekIdx > lastProcessedWeek + 1) {
+                          final gapWeeks = phase.startWeekIdx - (lastProcessedWeek + 1);
+                          headerWidgets.add(SizedBox(width: gapWeeks * (kTimelineCellW + 2)));
+                        }
+
+                        final start = phase.startWeekIdx.clamp(0, widget.meso.numWeeks - 1);
+                        final end = phase.endWeekIdx.clamp(start, widget.meso.numWeeks - 1);
+                        final span = end - start + 1;
+
+                        if (span > 0 && start > lastProcessedWeek) {
+                          headerWidgets.add(Container(
+                            width: span * (kTimelineCellW + 2) - 2,
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: p.chipBg,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${phase.name}: Weeks ${phase.startWeekIdx + 1}–${phase.endWeekIdx + 1}',
+                              style: SGText.mono(8,
+                                  color: p.textDim, weight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ));
+                          lastProcessedWeek = end;
+                        }
+                      }
+                      return headerWidgets;
+                    })(),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
               // Week header row
               Row(
                 children: [
@@ -657,9 +708,9 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
                     ref.watch(dayGroupProvider(DayKey(widget.meso.id, 0, dayIdx)));
                 final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
                 final itemsAsync = ref.watch(
-                    programDayExercisesProvider(ProgramDayKey(widget.meso.id, dayIdx)));
+                    programDayExercisesProvider(ProgramDayKey(widget.meso.id, 0, dayIdx)));
                 final daySettingsAsync = ref
-                    .watch(programDayProvider(ProgramDayKey(widget.meso.id, dayIdx)));
+                    .watch(programDayProvider(ProgramDayKey(widget.meso.id, 0, dayIdx)));
                 final customLabel = daySettingsAsync.valueOrNull?.label;
 
                 return Padding(
@@ -807,7 +858,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
             if (i == sourceIdx) return const SizedBox.shrink();
             return Consumer(builder: (context, ref, _) {
               final daySettingsAsync =
-                  ref.watch(programDayProvider(ProgramDayKey(mesoId, i)));
+                  ref.watch(programDayProvider(ProgramDayKey(mesoId, 0, i)));
               final label = daySettingsAsync.valueOrNull?.label;
               final hasLabel = label != null && label.isNotEmpty;
 
@@ -857,7 +908,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
         excludeIds: const {}, // Allow duplicate exercises in a program swap too
         onSelected: (newEx) async {
           final db = ref.read(dbProvider);
-          final key = ProgramDayKey(widget.meso.id, dayIdx);
+          final key = ProgramDayKey(widget.meso.id, 0, dayIdx);
 
           // Create a NEW slot for the new exercise
           final newSlot = await db.createExerciseSlot(widget.meso.id, newEx.id);
@@ -1097,11 +1148,11 @@ class _DayActionMenu extends ConsumerWidget {
   Future<int?> _showTargetPicker(BuildContext context, WidgetRef ref) async {
     final p = pal(context);
     
-    // Find rest days (days with no exercises in ProgramDayKey(meso.id, dayIdx))
+    // Find rest days (days with no exercises in ProgramDayKey(meso.id, 0, dayIdx))
     final restDays = <int>[];
     for (int i = 0; i < 7; i++) {
       if (i == dayIdx) continue;
-      final items = await ref.read(programDayExercisesProvider(ProgramDayKey(meso.id, i)).future);
+      final items = await ref.read(programDayExercisesProvider(ProgramDayKey(meso.id, 0, i)).future);
       if (items.isEmpty) restDays.add(i);
     }
 
@@ -1125,7 +1176,7 @@ class _DayActionMenu extends ConsumerWidget {
           const SizedBox(height: 16),
           ...restDays.map((idx) => Consumer(builder: (context, ref, _) {
                 final daySettingsAsync = ref.watch(
-                    programDayProvider(ProgramDayKey(meso.id, idx)));
+                    programDayProvider(ProgramDayKey(meso.id, 0, idx)));
                 final label = daySettingsAsync.valueOrNull?.label;
                 final hasLabel = label != null && label.isNotEmpty;
 

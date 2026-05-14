@@ -1189,8 +1189,8 @@ class _ImportTimelineRow extends StatelessWidget {
           ...List.generate(numWeeks, (w) {
             final t = ex.targetForWeek(w);
             return TimelineCell(
-              reps: t.reps,
-              rir: t.rir,
+              reps: t?.reps,
+              rir: t?.rir,
               bgColor: group.tint(brightness).withValues(alpha: 0.5),
               borderColor: p.border,
               borderWidth: 0.5,

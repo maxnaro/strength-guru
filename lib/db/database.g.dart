@@ -1151,6 +1151,14 @@ class $ProgramDaysTable extends ProgramDays
       requiredDuringInsert: true,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'REFERENCES mesocycles (id) ON DELETE CASCADE'));
+  static const VerificationMeta _weekIdxMeta =
+      const VerificationMeta('weekIdx');
+  @override
+  late final GeneratedColumn<int> weekIdx = GeneratedColumn<int>(
+      'week_idx', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(-1));
   static const VerificationMeta _dayIdxMeta = const VerificationMeta('dayIdx');
   @override
   late final GeneratedColumn<int> dayIdx = GeneratedColumn<int>(
@@ -1162,7 +1170,7 @@ class $ProgramDaysTable extends ProgramDays
       'label', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
   @override
-  List<GeneratedColumn> get $columns => [mesocycleId, dayIdx, label];
+  List<GeneratedColumn> get $columns => [mesocycleId, weekIdx, dayIdx, label];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1181,6 +1189,10 @@ class $ProgramDaysTable extends ProgramDays
     } else if (isInserting) {
       context.missing(_mesocycleIdMeta);
     }
+    if (data.containsKey('week_idx')) {
+      context.handle(_weekIdxMeta,
+          weekIdx.isAcceptableOrUnknown(data['week_idx']!, _weekIdxMeta));
+    }
     if (data.containsKey('day_idx')) {
       context.handle(_dayIdxMeta,
           dayIdx.isAcceptableOrUnknown(data['day_idx']!, _dayIdxMeta));
@@ -1195,13 +1207,15 @@ class $ProgramDaysTable extends ProgramDays
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {mesocycleId, dayIdx};
+  Set<GeneratedColumn> get $primaryKey => {mesocycleId, weekIdx, dayIdx};
   @override
   ProgramDay map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ProgramDay(
       mesocycleId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}mesocycle_id'])!,
+      weekIdx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}week_idx'])!,
       dayIdx: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}day_idx'])!,
       label: attachedDatabase.typeMapping
@@ -1217,14 +1231,19 @@ class $ProgramDaysTable extends ProgramDays
 
 class ProgramDay extends DataClass implements Insertable<ProgramDay> {
   final String mesocycleId;
+  final int weekIdx;
   final int dayIdx;
   final String? label;
   const ProgramDay(
-      {required this.mesocycleId, required this.dayIdx, this.label});
+      {required this.mesocycleId,
+      required this.weekIdx,
+      required this.dayIdx,
+      this.label});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['mesocycle_id'] = Variable<String>(mesocycleId);
+    map['week_idx'] = Variable<int>(weekIdx);
     map['day_idx'] = Variable<int>(dayIdx);
     if (!nullToAbsent || label != null) {
       map['label'] = Variable<String>(label);
@@ -1235,6 +1254,7 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
   ProgramDaysCompanion toCompanion(bool nullToAbsent) {
     return ProgramDaysCompanion(
       mesocycleId: Value(mesocycleId),
+      weekIdx: Value(weekIdx),
       dayIdx: Value(dayIdx),
       label:
           label == null && nullToAbsent ? const Value.absent() : Value(label),
@@ -1246,6 +1266,7 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ProgramDay(
       mesocycleId: serializer.fromJson<String>(json['mesocycleId']),
+      weekIdx: serializer.fromJson<int>(json['weekIdx']),
       dayIdx: serializer.fromJson<int>(json['dayIdx']),
       label: serializer.fromJson<String?>(json['label']),
     );
@@ -1255,6 +1276,7 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'mesocycleId': serializer.toJson<String>(mesocycleId),
+      'weekIdx': serializer.toJson<int>(weekIdx),
       'dayIdx': serializer.toJson<int>(dayIdx),
       'label': serializer.toJson<String?>(label),
     };
@@ -1262,10 +1284,12 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
 
   ProgramDay copyWith(
           {String? mesocycleId,
+          int? weekIdx,
           int? dayIdx,
           Value<String?> label = const Value.absent()}) =>
       ProgramDay(
         mesocycleId: mesocycleId ?? this.mesocycleId,
+        weekIdx: weekIdx ?? this.weekIdx,
         dayIdx: dayIdx ?? this.dayIdx,
         label: label.present ? label.value : this.label,
       );
@@ -1273,6 +1297,7 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
     return ProgramDay(
       mesocycleId:
           data.mesocycleId.present ? data.mesocycleId.value : this.mesocycleId,
+      weekIdx: data.weekIdx.present ? data.weekIdx.value : this.weekIdx,
       dayIdx: data.dayIdx.present ? data.dayIdx.value : this.dayIdx,
       label: data.label.present ? data.label.value : this.label,
     );
@@ -1282,6 +1307,7 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
   String toString() {
     return (StringBuffer('ProgramDay(')
           ..write('mesocycleId: $mesocycleId, ')
+          ..write('weekIdx: $weekIdx, ')
           ..write('dayIdx: $dayIdx, ')
           ..write('label: $label')
           ..write(')'))
@@ -1289,29 +1315,33 @@ class ProgramDay extends DataClass implements Insertable<ProgramDay> {
   }
 
   @override
-  int get hashCode => Object.hash(mesocycleId, dayIdx, label);
+  int get hashCode => Object.hash(mesocycleId, weekIdx, dayIdx, label);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ProgramDay &&
           other.mesocycleId == this.mesocycleId &&
+          other.weekIdx == this.weekIdx &&
           other.dayIdx == this.dayIdx &&
           other.label == this.label);
 }
 
 class ProgramDaysCompanion extends UpdateCompanion<ProgramDay> {
   final Value<String> mesocycleId;
+  final Value<int> weekIdx;
   final Value<int> dayIdx;
   final Value<String?> label;
   final Value<int> rowid;
   const ProgramDaysCompanion({
     this.mesocycleId = const Value.absent(),
+    this.weekIdx = const Value.absent(),
     this.dayIdx = const Value.absent(),
     this.label = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ProgramDaysCompanion.insert({
     required String mesocycleId,
+    this.weekIdx = const Value.absent(),
     required int dayIdx,
     this.label = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1319,12 +1349,14 @@ class ProgramDaysCompanion extends UpdateCompanion<ProgramDay> {
         dayIdx = Value(dayIdx);
   static Insertable<ProgramDay> custom({
     Expression<String>? mesocycleId,
+    Expression<int>? weekIdx,
     Expression<int>? dayIdx,
     Expression<String>? label,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (mesocycleId != null) 'mesocycle_id': mesocycleId,
+      if (weekIdx != null) 'week_idx': weekIdx,
       if (dayIdx != null) 'day_idx': dayIdx,
       if (label != null) 'label': label,
       if (rowid != null) 'rowid': rowid,
@@ -1333,11 +1365,13 @@ class ProgramDaysCompanion extends UpdateCompanion<ProgramDay> {
 
   ProgramDaysCompanion copyWith(
       {Value<String>? mesocycleId,
+      Value<int>? weekIdx,
       Value<int>? dayIdx,
       Value<String?>? label,
       Value<int>? rowid}) {
     return ProgramDaysCompanion(
       mesocycleId: mesocycleId ?? this.mesocycleId,
+      weekIdx: weekIdx ?? this.weekIdx,
       dayIdx: dayIdx ?? this.dayIdx,
       label: label ?? this.label,
       rowid: rowid ?? this.rowid,
@@ -1349,6 +1383,9 @@ class ProgramDaysCompanion extends UpdateCompanion<ProgramDay> {
     final map = <String, Expression>{};
     if (mesocycleId.present) {
       map['mesocycle_id'] = Variable<String>(mesocycleId.value);
+    }
+    if (weekIdx.present) {
+      map['week_idx'] = Variable<int>(weekIdx.value);
     }
     if (dayIdx.present) {
       map['day_idx'] = Variable<int>(dayIdx.value);
@@ -1366,8 +1403,331 @@ class ProgramDaysCompanion extends UpdateCompanion<ProgramDay> {
   String toString() {
     return (StringBuffer('ProgramDaysCompanion(')
           ..write('mesocycleId: $mesocycleId, ')
+          ..write('weekIdx: $weekIdx, ')
           ..write('dayIdx: $dayIdx, ')
           ..write('label: $label, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MesoPhasesTable extends MesoPhases
+    with TableInfo<$MesoPhasesTable, MesoPhase> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MesoPhasesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _mesocycleIdMeta =
+      const VerificationMeta('mesocycleId');
+  @override
+  late final GeneratedColumn<String> mesocycleId = GeneratedColumn<String>(
+      'mesocycle_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES mesocycles (id) ON DELETE CASCADE'));
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _startWeekIdxMeta =
+      const VerificationMeta('startWeekIdx');
+  @override
+  late final GeneratedColumn<int> startWeekIdx = GeneratedColumn<int>(
+      'start_week_idx', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _endWeekIdxMeta =
+      const VerificationMeta('endWeekIdx');
+  @override
+  late final GeneratedColumn<int> endWeekIdx = GeneratedColumn<int>(
+      'end_week_idx', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, mesocycleId, name, startWeekIdx, endWeekIdx];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'meso_phases';
+  @override
+  VerificationContext validateIntegrity(Insertable<MesoPhase> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('mesocycle_id')) {
+      context.handle(
+          _mesocycleIdMeta,
+          mesocycleId.isAcceptableOrUnknown(
+              data['mesocycle_id']!, _mesocycleIdMeta));
+    } else if (isInserting) {
+      context.missing(_mesocycleIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('start_week_idx')) {
+      context.handle(
+          _startWeekIdxMeta,
+          startWeekIdx.isAcceptableOrUnknown(
+              data['start_week_idx']!, _startWeekIdxMeta));
+    } else if (isInserting) {
+      context.missing(_startWeekIdxMeta);
+    }
+    if (data.containsKey('end_week_idx')) {
+      context.handle(
+          _endWeekIdxMeta,
+          endWeekIdx.isAcceptableOrUnknown(
+              data['end_week_idx']!, _endWeekIdxMeta));
+    } else if (isInserting) {
+      context.missing(_endWeekIdxMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MesoPhase map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MesoPhase(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      mesocycleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mesocycle_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      startWeekIdx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}start_week_idx'])!,
+      endWeekIdx: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}end_week_idx'])!,
+    );
+  }
+
+  @override
+  $MesoPhasesTable createAlias(String alias) {
+    return $MesoPhasesTable(attachedDatabase, alias);
+  }
+}
+
+class MesoPhase extends DataClass implements Insertable<MesoPhase> {
+  final String id;
+  final String mesocycleId;
+  final String name;
+  final int startWeekIdx;
+  final int endWeekIdx;
+  const MesoPhase(
+      {required this.id,
+      required this.mesocycleId,
+      required this.name,
+      required this.startWeekIdx,
+      required this.endWeekIdx});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['mesocycle_id'] = Variable<String>(mesocycleId);
+    map['name'] = Variable<String>(name);
+    map['start_week_idx'] = Variable<int>(startWeekIdx);
+    map['end_week_idx'] = Variable<int>(endWeekIdx);
+    return map;
+  }
+
+  MesoPhasesCompanion toCompanion(bool nullToAbsent) {
+    return MesoPhasesCompanion(
+      id: Value(id),
+      mesocycleId: Value(mesocycleId),
+      name: Value(name),
+      startWeekIdx: Value(startWeekIdx),
+      endWeekIdx: Value(endWeekIdx),
+    );
+  }
+
+  factory MesoPhase.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MesoPhase(
+      id: serializer.fromJson<String>(json['id']),
+      mesocycleId: serializer.fromJson<String>(json['mesocycleId']),
+      name: serializer.fromJson<String>(json['name']),
+      startWeekIdx: serializer.fromJson<int>(json['startWeekIdx']),
+      endWeekIdx: serializer.fromJson<int>(json['endWeekIdx']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'mesocycleId': serializer.toJson<String>(mesocycleId),
+      'name': serializer.toJson<String>(name),
+      'startWeekIdx': serializer.toJson<int>(startWeekIdx),
+      'endWeekIdx': serializer.toJson<int>(endWeekIdx),
+    };
+  }
+
+  MesoPhase copyWith(
+          {String? id,
+          String? mesocycleId,
+          String? name,
+          int? startWeekIdx,
+          int? endWeekIdx}) =>
+      MesoPhase(
+        id: id ?? this.id,
+        mesocycleId: mesocycleId ?? this.mesocycleId,
+        name: name ?? this.name,
+        startWeekIdx: startWeekIdx ?? this.startWeekIdx,
+        endWeekIdx: endWeekIdx ?? this.endWeekIdx,
+      );
+  MesoPhase copyWithCompanion(MesoPhasesCompanion data) {
+    return MesoPhase(
+      id: data.id.present ? data.id.value : this.id,
+      mesocycleId:
+          data.mesocycleId.present ? data.mesocycleId.value : this.mesocycleId,
+      name: data.name.present ? data.name.value : this.name,
+      startWeekIdx: data.startWeekIdx.present
+          ? data.startWeekIdx.value
+          : this.startWeekIdx,
+      endWeekIdx:
+          data.endWeekIdx.present ? data.endWeekIdx.value : this.endWeekIdx,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MesoPhase(')
+          ..write('id: $id, ')
+          ..write('mesocycleId: $mesocycleId, ')
+          ..write('name: $name, ')
+          ..write('startWeekIdx: $startWeekIdx, ')
+          ..write('endWeekIdx: $endWeekIdx')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, mesocycleId, name, startWeekIdx, endWeekIdx);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MesoPhase &&
+          other.id == this.id &&
+          other.mesocycleId == this.mesocycleId &&
+          other.name == this.name &&
+          other.startWeekIdx == this.startWeekIdx &&
+          other.endWeekIdx == this.endWeekIdx);
+}
+
+class MesoPhasesCompanion extends UpdateCompanion<MesoPhase> {
+  final Value<String> id;
+  final Value<String> mesocycleId;
+  final Value<String> name;
+  final Value<int> startWeekIdx;
+  final Value<int> endWeekIdx;
+  final Value<int> rowid;
+  const MesoPhasesCompanion({
+    this.id = const Value.absent(),
+    this.mesocycleId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.startWeekIdx = const Value.absent(),
+    this.endWeekIdx = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MesoPhasesCompanion.insert({
+    required String id,
+    required String mesocycleId,
+    required String name,
+    required int startWeekIdx,
+    required int endWeekIdx,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        mesocycleId = Value(mesocycleId),
+        name = Value(name),
+        startWeekIdx = Value(startWeekIdx),
+        endWeekIdx = Value(endWeekIdx);
+  static Insertable<MesoPhase> custom({
+    Expression<String>? id,
+    Expression<String>? mesocycleId,
+    Expression<String>? name,
+    Expression<int>? startWeekIdx,
+    Expression<int>? endWeekIdx,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (mesocycleId != null) 'mesocycle_id': mesocycleId,
+      if (name != null) 'name': name,
+      if (startWeekIdx != null) 'start_week_idx': startWeekIdx,
+      if (endWeekIdx != null) 'end_week_idx': endWeekIdx,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MesoPhasesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? mesocycleId,
+      Value<String>? name,
+      Value<int>? startWeekIdx,
+      Value<int>? endWeekIdx,
+      Value<int>? rowid}) {
+    return MesoPhasesCompanion(
+      id: id ?? this.id,
+      mesocycleId: mesocycleId ?? this.mesocycleId,
+      name: name ?? this.name,
+      startWeekIdx: startWeekIdx ?? this.startWeekIdx,
+      endWeekIdx: endWeekIdx ?? this.endWeekIdx,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (mesocycleId.present) {
+      map['mesocycle_id'] = Variable<String>(mesocycleId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (startWeekIdx.present) {
+      map['start_week_idx'] = Variable<int>(startWeekIdx.value);
+    }
+    if (endWeekIdx.present) {
+      map['end_week_idx'] = Variable<int>(endWeekIdx.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MesoPhasesCompanion(')
+          ..write('id: $id, ')
+          ..write('mesocycleId: $mesocycleId, ')
+          ..write('name: $name, ')
+          ..write('startWeekIdx: $startWeekIdx, ')
+          ..write('endWeekIdx: $endWeekIdx, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2679,6 +3039,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExerciseSlotsTable exerciseSlots = $ExerciseSlotsTable(this);
   late final $WeekTargetsTable weekTargets = $WeekTargetsTable(this);
   late final $ProgramDaysTable programDays = $ProgramDaysTable(this);
+  late final $MesoPhasesTable mesoPhases = $MesoPhasesTable(this);
   late final $DayOverridesTable dayOverrides = $DayOverridesTable(this);
   late final $SessionLogsTable sessionLogs = $SessionLogsTable(this);
   late final $SetEntriesTable setEntries = $SetEntriesTable(this);
@@ -2693,6 +3054,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         exerciseSlots,
         weekTargets,
         programDays,
+        mesoPhases,
         dayOverrides,
         sessionLogs,
         setEntries,
@@ -2734,6 +3096,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
                 limitUpdateKind: UpdateKind.delete),
             result: [
               TableUpdate('program_days', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('mesocycles',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('meso_phases', kind: UpdateKind.delete),
             ],
           ),
           WritePropagation(
@@ -2839,6 +3208,21 @@ final class $$MesocyclesTableReferences
         .filter((f) => f.mesocycleId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_programDaysRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$MesoPhasesTable, List<MesoPhase>>
+      _mesoPhasesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.mesoPhases,
+              aliasName: $_aliasNameGenerator(
+                  db.mesocycles.id, db.mesoPhases.mesocycleId));
+
+  $$MesoPhasesTableProcessedTableManager get mesoPhasesRefs {
+    final manager = $$MesoPhasesTableTableManager($_db, $_db.mesoPhases)
+        .filter((f) => f.mesocycleId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_mesoPhasesRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -2956,6 +3340,27 @@ class $$MesocyclesTableFilterComposer
             $$ProgramDaysTableFilterComposer(
               $db: $db,
               $table: $db.programDays,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> mesoPhasesRefs(
+      Expression<bool> Function($$MesoPhasesTableFilterComposer f) f) {
+    final $$MesoPhasesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mesoPhases,
+        getReferencedColumn: (t) => t.mesocycleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesoPhasesTableFilterComposer(
+              $db: $db,
+              $table: $db.mesoPhases,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -3125,6 +3530,27 @@ class $$MesocyclesTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> mesoPhasesRefs<T extends Object>(
+      Expression<T> Function($$MesoPhasesTableAnnotationComposer a) f) {
+    final $$MesoPhasesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mesoPhases,
+        getReferencedColumn: (t) => t.mesocycleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesoPhasesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.mesoPhases,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
   Expression<T> dayOverridesRefs<T extends Object>(
       Expression<T> Function($$DayOverridesTableAnnotationComposer a) f) {
     final $$DayOverridesTableAnnotationComposer composer = $composerBuilder(
@@ -3183,6 +3609,7 @@ class $$MesocyclesTableTableManager extends RootTableManager<
         {bool exerciseSlotsRefs,
         bool weekTargetsRefs,
         bool programDaysRefs,
+        bool mesoPhasesRefs,
         bool dayOverridesRefs,
         bool sessionLogsRefs})> {
   $$MesocyclesTableTableManager(_$AppDatabase db, $MesocyclesTable table)
@@ -3241,6 +3668,7 @@ class $$MesocyclesTableTableManager extends RootTableManager<
               {exerciseSlotsRefs = false,
               weekTargetsRefs = false,
               programDaysRefs = false,
+              mesoPhasesRefs = false,
               dayOverridesRefs = false,
               sessionLogsRefs = false}) {
             return PrefetchHooks(
@@ -3249,6 +3677,7 @@ class $$MesocyclesTableTableManager extends RootTableManager<
                 if (exerciseSlotsRefs) db.exerciseSlots,
                 if (weekTargetsRefs) db.weekTargets,
                 if (programDaysRefs) db.programDays,
+                if (mesoPhasesRefs) db.mesoPhases,
                 if (dayOverridesRefs) db.dayOverrides,
                 if (sessionLogsRefs) db.sessionLogs
               ],
@@ -3290,6 +3719,19 @@ class $$MesocyclesTableTableManager extends RootTableManager<
                         managerFromTypedResult: (p0) =>
                             $$MesocyclesTableReferences(db, table, p0)
                                 .programDaysRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.mesocycleId == item.id),
+                        typedResults: items),
+                  if (mesoPhasesRefs)
+                    await $_getPrefetchedData<Mesocycle, $MesocyclesTable,
+                            MesoPhase>(
+                        currentTable: table,
+                        referencedTable: $$MesocyclesTableReferences
+                            ._mesoPhasesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$MesocyclesTableReferences(db, table, p0)
+                                .mesoPhasesRefs,
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.mesocycleId == item.id),
@@ -3342,6 +3784,7 @@ typedef $$MesocyclesTableProcessedTableManager = ProcessedTableManager<
         {bool exerciseSlotsRefs,
         bool weekTargetsRefs,
         bool programDaysRefs,
+        bool mesoPhasesRefs,
         bool dayOverridesRefs,
         bool sessionLogsRefs})>;
 typedef $$ExercisesTableCreateCompanionBuilder = ExercisesCompanion Function({
@@ -4477,6 +4920,7 @@ typedef $$WeekTargetsTableProcessedTableManager = ProcessedTableManager<
 typedef $$ProgramDaysTableCreateCompanionBuilder = ProgramDaysCompanion
     Function({
   required String mesocycleId,
+  Value<int> weekIdx,
   required int dayIdx,
   Value<String?> label,
   Value<int> rowid,
@@ -4484,6 +4928,7 @@ typedef $$ProgramDaysTableCreateCompanionBuilder = ProgramDaysCompanion
 typedef $$ProgramDaysTableUpdateCompanionBuilder = ProgramDaysCompanion
     Function({
   Value<String> mesocycleId,
+  Value<int> weekIdx,
   Value<int> dayIdx,
   Value<String?> label,
   Value<int> rowid,
@@ -4518,6 +4963,9 @@ class $$ProgramDaysTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<int> get weekIdx => $composableBuilder(
+      column: $table.weekIdx, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get dayIdx => $composableBuilder(
       column: $table.dayIdx, builder: (column) => ColumnFilters(column));
 
@@ -4554,6 +5002,9 @@ class $$ProgramDaysTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<int> get weekIdx => $composableBuilder(
+      column: $table.weekIdx, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get dayIdx => $composableBuilder(
       column: $table.dayIdx, builder: (column) => ColumnOrderings(column));
 
@@ -4590,6 +5041,9 @@ class $$ProgramDaysTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<int> get weekIdx =>
+      $composableBuilder(column: $table.weekIdx, builder: (column) => column);
+
   GeneratedColumn<int> get dayIdx =>
       $composableBuilder(column: $table.dayIdx, builder: (column) => column);
 
@@ -4641,24 +5095,28 @@ class $$ProgramDaysTableTableManager extends RootTableManager<
               $$ProgramDaysTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> mesocycleId = const Value.absent(),
+            Value<int> weekIdx = const Value.absent(),
             Value<int> dayIdx = const Value.absent(),
             Value<String?> label = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProgramDaysCompanion(
             mesocycleId: mesocycleId,
+            weekIdx: weekIdx,
             dayIdx: dayIdx,
             label: label,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String mesocycleId,
+            Value<int> weekIdx = const Value.absent(),
             required int dayIdx,
             Value<String?> label = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProgramDaysCompanion.insert(
             mesocycleId: mesocycleId,
+            weekIdx: weekIdx,
             dayIdx: dayIdx,
             label: label,
             rowid: rowid,
@@ -4718,6 +5176,280 @@ typedef $$ProgramDaysTableProcessedTableManager = ProcessedTableManager<
     $$ProgramDaysTableUpdateCompanionBuilder,
     (ProgramDay, $$ProgramDaysTableReferences),
     ProgramDay,
+    PrefetchHooks Function({bool mesocycleId})>;
+typedef $$MesoPhasesTableCreateCompanionBuilder = MesoPhasesCompanion Function({
+  required String id,
+  required String mesocycleId,
+  required String name,
+  required int startWeekIdx,
+  required int endWeekIdx,
+  Value<int> rowid,
+});
+typedef $$MesoPhasesTableUpdateCompanionBuilder = MesoPhasesCompanion Function({
+  Value<String> id,
+  Value<String> mesocycleId,
+  Value<String> name,
+  Value<int> startWeekIdx,
+  Value<int> endWeekIdx,
+  Value<int> rowid,
+});
+
+final class $$MesoPhasesTableReferences
+    extends BaseReferences<_$AppDatabase, $MesoPhasesTable, MesoPhase> {
+  $$MesoPhasesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $MesocyclesTable _mesocycleIdTable(_$AppDatabase db) =>
+      db.mesocycles.createAlias(
+          $_aliasNameGenerator(db.mesoPhases.mesocycleId, db.mesocycles.id));
+
+  $$MesocyclesTableProcessedTableManager get mesocycleId {
+    final $_column = $_itemColumn<String>('mesocycle_id')!;
+
+    final manager = $$MesocyclesTableTableManager($_db, $_db.mesocycles)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_mesocycleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$MesoPhasesTableFilterComposer
+    extends Composer<_$AppDatabase, $MesoPhasesTable> {
+  $$MesoPhasesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startWeekIdx => $composableBuilder(
+      column: $table.startWeekIdx, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get endWeekIdx => $composableBuilder(
+      column: $table.endWeekIdx, builder: (column) => ColumnFilters(column));
+
+  $$MesocyclesTableFilterComposer get mesocycleId {
+    final $$MesocyclesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableFilterComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MesoPhasesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MesoPhasesTable> {
+  $$MesoPhasesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startWeekIdx => $composableBuilder(
+      column: $table.startWeekIdx,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get endWeekIdx => $composableBuilder(
+      column: $table.endWeekIdx, builder: (column) => ColumnOrderings(column));
+
+  $$MesocyclesTableOrderingComposer get mesocycleId {
+    final $$MesocyclesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableOrderingComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MesoPhasesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MesoPhasesTable> {
+  $$MesoPhasesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get startWeekIdx => $composableBuilder(
+      column: $table.startWeekIdx, builder: (column) => column);
+
+  GeneratedColumn<int> get endWeekIdx => $composableBuilder(
+      column: $table.endWeekIdx, builder: (column) => column);
+
+  $$MesocyclesTableAnnotationComposer get mesocycleId {
+    final $$MesocyclesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.mesocycleId,
+        referencedTable: $db.mesocycles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MesocyclesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.mesocycles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MesoPhasesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MesoPhasesTable,
+    MesoPhase,
+    $$MesoPhasesTableFilterComposer,
+    $$MesoPhasesTableOrderingComposer,
+    $$MesoPhasesTableAnnotationComposer,
+    $$MesoPhasesTableCreateCompanionBuilder,
+    $$MesoPhasesTableUpdateCompanionBuilder,
+    (MesoPhase, $$MesoPhasesTableReferences),
+    MesoPhase,
+    PrefetchHooks Function({bool mesocycleId})> {
+  $$MesoPhasesTableTableManager(_$AppDatabase db, $MesoPhasesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MesoPhasesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MesoPhasesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MesoPhasesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> mesocycleId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<int> startWeekIdx = const Value.absent(),
+            Value<int> endWeekIdx = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MesoPhasesCompanion(
+            id: id,
+            mesocycleId: mesocycleId,
+            name: name,
+            startWeekIdx: startWeekIdx,
+            endWeekIdx: endWeekIdx,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String mesocycleId,
+            required String name,
+            required int startWeekIdx,
+            required int endWeekIdx,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MesoPhasesCompanion.insert(
+            id: id,
+            mesocycleId: mesocycleId,
+            name: name,
+            startWeekIdx: startWeekIdx,
+            endWeekIdx: endWeekIdx,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$MesoPhasesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({mesocycleId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (mesocycleId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.mesocycleId,
+                    referencedTable:
+                        $$MesoPhasesTableReferences._mesocycleIdTable(db),
+                    referencedColumn:
+                        $$MesoPhasesTableReferences._mesocycleIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$MesoPhasesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MesoPhasesTable,
+    MesoPhase,
+    $$MesoPhasesTableFilterComposer,
+    $$MesoPhasesTableOrderingComposer,
+    $$MesoPhasesTableAnnotationComposer,
+    $$MesoPhasesTableCreateCompanionBuilder,
+    $$MesoPhasesTableUpdateCompanionBuilder,
+    (MesoPhase, $$MesoPhasesTableReferences),
+    MesoPhase,
     PrefetchHooks Function({bool mesocycleId})>;
 typedef $$DayOverridesTableCreateCompanionBuilder = DayOverridesCompanion
     Function({
@@ -5963,6 +6695,8 @@ class $AppDatabaseManager {
       $$WeekTargetsTableTableManager(_db, _db.weekTargets);
   $$ProgramDaysTableTableManager get programDays =>
       $$ProgramDaysTableTableManager(_db, _db.programDays);
+  $$MesoPhasesTableTableManager get mesoPhases =>
+      $$MesoPhasesTableTableManager(_db, _db.mesoPhases);
   $$DayOverridesTableTableManager get dayOverrides =>
       $$DayOverridesTableTableManager(_db, _db.dayOverrides);
   $$SessionLogsTableTableManager get sessionLogs =>

@@ -237,7 +237,7 @@ class _HeroCard extends ConsumerWidget {
     final items = planAsync.valueOrNull ?? [];
     final targets = targetsAsync.valueOrNull ?? {};
     final session = sessionAsync.valueOrNull;
-    final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, heroKey.dayIdx)));
+    final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, heroKey.weekIdx, heroKey.dayIdx)));
     final customLabel = daySettingsAsync.valueOrNull?.label;
     final isDeloadWeek = ref.watch(isDeloadWeekProvider(WeekKey(meso.id, heroKey.weekIdx)));
 

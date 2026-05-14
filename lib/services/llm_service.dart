@@ -449,40 +449,64 @@ class LlmService {
     final days = <ImportDay>[];
     for (final dayIdx in byDay.keys.toList()..sort()) {
       final weekMap = byDay[dayIdx]!;
-      final firstDay = weekMap.values.first;
-      final label = firstDay.label.isEmpty ? 'Day ${dayIdx + 1}' : firstDay.label;
 
-      final nExercises =
-          weekMap.values.map((d) => d.exercises.length).fold(0, (a, b) => a > b ? a : b);
-
-      final exercises = <ImportExercise>[];
-      for (int pos = 0; pos < nExercises; pos++) {
-        final weekRaw = <({int weekIdx, String sets, String reps, String rpe})>[];
-        String exName = 'Unknown';
-        String exGroup = 'other';
-
-        for (final weekIdx in weekMap.keys.toList()..sort()) {
-          final exList = weekMap[weekIdx]!.exercises;
-          if (pos < exList.length) {
-            final ex = exList[pos];
-            if (exName == 'Unknown') {
-              exName = ex.name;
-              exGroup = ex.group;
-            }
-            weekRaw.add((weekIdx: weekIdx, sets: ex.sets, reps: ex.reps, rpe: ex.rpe));
-          }
+      // Determine default label and per-week labels
+      String defaultLabel = '';
+      final weekLabels = <int, String>{};
+      for (final entry in weekMap.entries) {
+        if (defaultLabel.isEmpty && entry.value.label.isNotEmpty) {
+          defaultLabel = entry.value.label;
         }
+        if (entry.value.label.isNotEmpty) {
+          weekLabels[entry.key] = entry.value.label;
+        }
+      }
+      if (defaultLabel.isEmpty) defaultLabel = 'Day ${dayIdx + 1}';
 
-        if (weekRaw.isEmpty) continue;
+      // Intelligent Name-Based Alignment
+      final exercises = <ImportExercise>[];
+      final seenExNames = <String>{};
 
-        exercises.add(ImportExercise(
-          name: exName,
-          muscleGroup: exGroup,
-          weekTargets: TargetMath.buildWeekTargets(weekRaw),
-        ));
+      for (final weekIdx in weekMap.keys.toList()..sort()) {
+        final rawDay = weekMap[weekIdx]!;
+        for (final rawEx in rawDay.exercises) {
+          if (seenExNames.contains(rawEx.name)) continue;
+
+          // New exercise found, collect its targets across all weeks
+          seenExNames.add(rawEx.name);
+          final weekRaw =
+              <({int weekIdx, String sets, String reps, String rpe})>[];
+          String exGroup = rawEx.group;
+
+          for (final wIdx in weekMap.keys.toList()..sort()) {
+            final otherDay = weekMap[wIdx]!;
+            // Find exercise with same name in this week
+            final match =
+                otherDay.exercises.where((e) => e.name == rawEx.name).firstOrNull;
+            if (match != null) {
+              weekRaw.add((
+                weekIdx: wIdx,
+                sets: match.sets,
+                reps: match.reps,
+                rpe: match.rpe
+              ));
+            }
+          }
+
+          exercises.add(ImportExercise(
+            name: rawEx.name,
+            muscleGroup: exGroup,
+            weekTargets: TargetMath.buildWeekTargets(weekRaw),
+          ));
+        }
       }
 
-      days.add(ImportDay(dayIdx: dayIdx, label: label, exercises: exercises));
+      days.add(ImportDay(
+        dayIdx: dayIdx,
+        label: defaultLabel,
+        weekLabels: weekLabels,
+        exercises: exercises,
+      ));
     }
 
     return MesoImportData(

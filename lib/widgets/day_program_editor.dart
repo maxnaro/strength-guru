@@ -48,7 +48,7 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
-    final key = ProgramDayKey(widget.meso.id, widget.dayIdx);
+    final key = ProgramDayKey(widget.meso.id, 0, widget.dayIdx);
     final asyncExs = ref.watch(programDayExercisesProvider(key));
     final daySettingsAsync = ref.watch(programDayProvider(key));
 
@@ -213,6 +213,7 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
 
     await db.upsertProgramDay(
       widget.meso.id,
+      0,
       widget.dayIdx,
       _labelController.text.trim().isEmpty ? null : _labelController.text.trim(),
     );
@@ -222,7 +223,7 @@ class _DayProgramEditorState extends ConsumerState<DayProgramEditor> {
   }
 
   void _invalidate() {
-    final key = ProgramDayKey(widget.meso.id, widget.dayIdx);
+    final key = ProgramDayKey(widget.meso.id, 0, widget.dayIdx);
     ref.invalidate(programDayExercisesProvider(key));
     ref.invalidate(programDayProvider(key));
     for (int w = 0; w < widget.meso.numWeeks; w++) {

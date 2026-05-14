@@ -63,11 +63,24 @@ class WeekTargets extends Table {
 class ProgramDays extends Table {
   TextColumn get mesocycleId =>
       text().references(Mesocycles, #id, onDelete: KeyAction.cascade)();
+  IntColumn get weekIdx => integer().withDefault(const Constant(-1))();
   IntColumn get dayIdx => integer()();
   TextColumn get label => text().nullable()();
 
   @override
-  Set<Column> get primaryKey => {mesocycleId, dayIdx};
+  Set<Column> get primaryKey => {mesocycleId, weekIdx, dayIdx};
+}
+
+class MesoPhases extends Table {
+  TextColumn get id => text()();
+  TextColumn get mesocycleId =>
+      text().references(Mesocycles, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  IntColumn get startWeekIdx => integer()();
+  IntColumn get endWeekIdx => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
 }
 
 class DayOverrides extends Table {
@@ -129,6 +142,7 @@ class Settings extends Table {
   ExerciseSlots,
   WeekTargets,
   ProgramDays,
+  MesoPhases,
   DayOverrides,
   SessionLogs,
   SetEntries,
@@ -138,7 +152,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -345,6 +359,50 @@ class AppDatabase extends _$AppDatabase {
 
             // Data heal: Merge exercises with the same name (e.g. Pull-ups Top/Backoff)
             await _healRedundantExercises();
+          }
+
+          if (from < 9) {
+            // v8 -> v9: Add MesoPhases and update ProgramDays primary key.
+            await m.createTable(mesoPhases);
+
+            // Migrate ProgramDays to have weekIdx column.
+            // SQLite doesn't support changing primary keys via ALTER, so we recreate.
+            await customStatement(
+                'ALTER TABLE program_days RENAME TO program_days_old');
+            await m.createTable(programDays);
+
+            final allMesos = await select(mesocycles).get();
+            for (final meso in allMesos) {
+              // Create a default Phase for each mesocycle.
+              await into(mesoPhases).insert(MesoPhasesCompanion.insert(
+                id: newId(),
+                mesocycleId: meso.id,
+                name: 'Phase 1',
+                startWeekIdx: 0,
+                endWeekIdx: meso.numWeeks - 1,
+              ));
+
+              // Migrate existing labels to all weeks.
+              final oldLabels = await customSelect(
+                'SELECT * FROM program_days_old WHERE mesocycle_id = ?',
+                variables: [Variable.withString(meso.id)],
+              ).get();
+
+              for (final row in oldLabels) {
+                final dayIdx = row.read<int>('day_idx');
+                final label = row.read<String?>('label');
+
+                for (var w = 0; w < meso.numWeeks; w++) {
+                  await into(programDays).insert(ProgramDaysCompanion.insert(
+                    mesocycleId: meso.id,
+                    weekIdx: Value(w),
+                    dayIdx: dayIdx,
+                    label: Value(label),
+                  ));
+                }
+              }
+            }
+            await customStatement('DROP TABLE program_days_old');
           }
         },
       );

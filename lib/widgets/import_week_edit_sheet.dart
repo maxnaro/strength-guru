@@ -33,8 +33,8 @@ class _ImportWeekEditSheetState extends State<ImportWeekEditSheet> {
   void initState() {
     super.initState();
     final t = widget.ex.targetForWeek(widget.weekIdx);
-    _reps = List.of(t.reps);
-    _rir = List.of(t.rir);
+    _reps = List.of(t?.reps ?? [8, 8, 8]);
+    _rir = List.of(t?.rir ?? [2, 2, 2]);
   }
 
   void _updateSets(int count) {

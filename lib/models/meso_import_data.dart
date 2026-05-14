@@ -33,18 +33,25 @@ class MesoImportData {
 class ImportDay {
   int dayIdx;
   String label;
+  final Map<int, String> weekLabels;
   final List<ImportExercise> exercises;
 
   ImportDay({
     required this.dayIdx,
     required this.label,
     required this.exercises,
+    this.weekLabels = const {},
   });
+
+  String labelForWeek(int weekIdx) => weekLabels[weekIdx] ?? label;
 
   factory ImportDay.fromJson(Map<String, dynamic> json) {
     return ImportDay(
       dayIdx: (json['dayIdx'] as int?) ?? 0,
       label: (json['label'] as String?) ?? '',
+      weekLabels: (json['weekLabels'] as Map<String, dynamic>? ?? {}).map(
+        (k, v) => MapEntry(int.parse(k), v as String),
+      ),
       exercises: (json['exercises'] as List<dynamic>? ?? [])
           .map((e) => ImportExercise.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -54,6 +61,7 @@ class ImportDay {
   Map<String, dynamic> toJson() => {
         'dayIdx': dayIdx,
         'label': label,
+        'weekLabels': weekLabels.map((k, v) => MapEntry(k.toString(), v)),
         'exercises': exercises.map((e) => e.toJson()).toList(),
       };
 }
@@ -97,12 +105,11 @@ class ImportExercise {
     );
   }
 
-  ImportWeekTarget targetForWeek(int weekIdx) {
-    if (weekTargets.length == 1) return weekTargets.first;
-    return weekTargets.firstWhere(
-      (t) => t.weekIdx == weekIdx,
-      orElse: () => weekTargets.last,
-    );
+  ImportWeekTarget? targetForWeek(int weekIdx) {
+    for (final t in weekTargets) {
+      if (t.weekIdx == weekIdx) return t;
+    }
+    return null;
   }
 
   void setWeekTarget(ImportWeekTarget t) {
