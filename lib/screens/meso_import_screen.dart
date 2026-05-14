@@ -31,6 +31,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
   String? _errorMessage;
   String? _rawLlmResponse;
   double _downloadProgress = 0;
+  String _loadingLabel = 'Interpreting plan…';
   StreamSubscription<double>? _downloadSub;
   final _nameController = TextEditingController();
   final _apiUrlController = TextEditingController();
@@ -77,6 +78,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
       _phase = _Phase.loading;
       _errorMessage = null;
       _rawLlmResponse = null;
+      _loadingLabel = 'Interpreting plan…';
     });
 
     try {
@@ -113,6 +115,11 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
       final data = await LlmService().interpretPlan(
         cleanedCsv,
         apiUrl: _useExternalApi ? _apiUrlController.text.trim() : null,
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() => _loadingLabel = 'Interpreting day $done/$total…');
+          }
+        },
       );
       await _matchExercises(data);
       _nameController.text = data.name;
@@ -213,7 +220,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
             palette: p,
             onCancel: _cancelDownload,
           ),
-        _Phase.loading => _LoadingView(palette: p),
+        _Phase.loading => _LoadingView(palette: p, label: _loadingLabel),
         _Phase.error => _ErrorView(
             message: _errorMessage ?? 'Unknown error',
             rawResponse: _rawLlmResponse,
@@ -608,6 +615,13 @@ class _ReviewView extends StatelessWidget {
                     if (newCount > 0) ...[
                       const SizedBox(width: 8),
                       SGChip('$newCount NEW EX', tone: ChipTone.warn),
+                    ],
+                    if (data.skippedDayLabels.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      SGChip(
+                        '${data.skippedDayLabels.length} DAYS SKIPPED',
+                        tone: ChipTone.warn,
+                      ),
                     ],
                   ],
                 ),

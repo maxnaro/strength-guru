@@ -2,11 +2,13 @@ class MesoImportData {
   String name;
   int numWeeks;
   final List<ImportDay> days;
+  final List<String> skippedDayLabels;
 
   MesoImportData({
     required this.name,
     required this.numWeeks,
     required this.days,
+    this.skippedDayLabels = const [],
   });
 
   factory MesoImportData.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,12 @@ class MesoImportData {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'numWeeks': numWeeks,
+        'days': days.map((d) => d.toJson()).toList(),
+      };
 }
 
 class ImportDay {
@@ -42,6 +50,12 @@ class ImportDay {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'dayIdx': dayIdx,
+        'label': label,
+        'exercises': exercises.map((e) => e.toJson()).toList(),
+      };
 }
 
 class ImportExercise {
@@ -90,6 +104,12 @@ class ImportExercise {
       orElse: () => weekTargets.last,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'muscleGroup': muscleGroup,
+        'weekTargets': weekTargets.map((t) => t.toJson()).toList(),
+      };
 }
 
 class ImportWeekTarget {
@@ -120,4 +140,10 @@ class ImportWeekTarget {
           [2, 2, 2],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'weekIdx': weekIdx,
+        'reps': reps,
+        'rir': rir,
+      };
 }
