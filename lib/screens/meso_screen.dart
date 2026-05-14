@@ -1114,6 +1114,8 @@ class _DayActionMenu extends ConsumerWidget {
       return null;
     }
 
+    if (!context.mounted) return null;
+
     return showSGSheet<int>(
       context,
       child: Column(
