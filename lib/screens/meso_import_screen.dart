@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:string_similarity/string_similarity.dart';
 
@@ -26,9 +27,20 @@ enum _Phase {
 }
 
 class MesoImportScreen extends ConsumerStatefulWidget {
-  final String csvContent;
+  final String? csvContent;
+  final Future<MesoImportData> Function(
+    void Function(int, int)? onProgress,
+    void Function(String reasoningDelta) onReasoning,
+  )? dataProducer;
 
-  const MesoImportScreen({super.key, required this.csvContent});
+  const MesoImportScreen({
+    super.key,
+    this.csvContent,
+    this.dataProducer,
+  }) : assert(
+          (csvContent != null) != (dataProducer != null),
+          'Provide exactly one of csvContent or dataProducer',
+        );
 
   @override
   ConsumerState<MesoImportScreen> createState() => _MesoImportScreenState();
@@ -41,6 +53,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
   String? _rawLlmResponse;
   double _downloadProgress = 0;
   String _loadingLabel = 'Interpreting plan…';
+  String _reasoning = '';
   StreamSubscription<double>? _downloadSub;
   final _nameController = TextEditingController();
   final _apiUrlController = TextEditingController();
@@ -49,7 +62,11 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
   @override
   void initState() {
     super.initState();
-    _loadConfigAndStart();
+    if (widget.dataProducer != null) {
+      _runProducer();
+    } else {
+      _loadConfigAndStart();
+    }
   }
 
   @override
@@ -80,6 +97,76 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     await db.setSetting('llm_use_external', _useExternalApi.toString());
 
     _runLlm();
+  }
+
+  Future<void> _runProducer() async {
+    setState(() {
+      _phase = _Phase.loading;
+      _errorMessage = null;
+      _rawLlmResponse = null;
+      _loadingLabel = 'Generating program…';
+      _reasoning = '';
+    });
+    try {
+      final data = await widget.dataProducer!(
+        (done, total) {
+          if (mounted) {
+            setState(() => _loadingLabel = 'Generating day $done/$total…');
+          }
+        },
+        (delta) {
+          if (mounted) {
+            setState(() {
+              if (delta.isEmpty) {
+                _reasoning = '';
+              } else {
+                _reasoning += delta;
+              }
+            });
+          }
+        },
+      );
+      await _handleData(data,
+          emptyMessage:
+              'No training days were generated. Refine your description and try again.');
+    } on LlmException catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message;
+          _rawLlmResponse = e.rawResponse;
+          _phase = _Phase.error;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _phase = _Phase.error;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleData(MesoImportData data,
+      {String emptyMessage =
+          'No training days could be parsed. Check the format and try again.'}) async {
+    if (data.days.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = emptyMessage;
+          _phase = _Phase.error;
+        });
+      }
+      return;
+    }
+    await _matchExercises(data);
+    if (mounted) {
+      _nameController.text = data.name;
+      setState(() {
+        _data = data;
+        _phase = _Phase.review;
+      });
+    }
   }
 
   Future<void> _runLlm() async {
@@ -113,7 +200,7 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
         setState(() => _phase = _Phase.loading);
       }
 
-      final cleanedCsv = widget.csvContent
+      final cleanedCsv = widget.csvContent!
           .split('\n')
           .map((line) => line.trim())
           .where((line) =>
@@ -130,20 +217,9 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
           }
         },
       );
-      if (data.days.isEmpty) {
-        setState(() {
-          _errorMessage =
-              'No training days could be parsed from the CSV. Check the format and try again.';
-          _phase = _Phase.error;
-        });
-        return;
-      }
-      await _matchExercises(data);
-      _nameController.text = data.name;
-      setState(() {
-        _data = data;
-        _phase = _Phase.review;
-      });
+      await _handleData(data,
+          emptyMessage:
+              'No training days could be parsed from the CSV. Check the format and try again.');
     } on LlmException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -203,7 +279,10 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
       await db.importMesoFromPlan(data);
       ref.invalidate(activeMesoProvider);
       ref.invalidate(allMesosProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ref.read(tabIndexProvider.notifier).state = 2;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -224,7 +303,10 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
           icon: Icon(Icons.arrow_back, color: p.text),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Import Plan', style: SGText.display(17, color: p.text)),
+        title: Text(
+          widget.dataProducer != null ? 'Generate Program' : 'Import Plan',
+          style: SGText.display(17, color: p.text),
+        ),
       ),
       body: switch (_phase) {
         _Phase.configuration => _ConfigView(
@@ -239,12 +321,13 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
             palette: p,
             onCancel: _cancelDownload,
           ),
-        _Phase.loading => _LoadingView(palette: p, label: _loadingLabel),
+        _Phase.loading =>
+          _LoadingView(palette: p, label: _loadingLabel, reasoning: _reasoning),
         _Phase.error => _ErrorView(
             message: _errorMessage ?? 'Unknown error',
             rawResponse: _rawLlmResponse,
             palette: p,
-            onRetry: _runLlm,
+            onRetry: widget.dataProducer != null ? _runProducer : _runLlm,
           ),
         _Phase.importing => _LoadingView(palette: p, label: 'Saving…'),
         _Phase.review => _ReviewView(
@@ -481,9 +564,13 @@ class _DownloadView extends StatelessWidget {
 class _LoadingView extends StatelessWidget {
   final SGPalette palette;
   final String label;
+  final String reasoning;
 
-  const _LoadingView(
-      {required this.palette, this.label = 'Interpreting plan…'});
+  const _LoadingView({
+    required this.palette,
+    this.label = 'Interpreting plan…',
+    this.reasoning = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -502,10 +589,85 @@ class _LoadingView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: SGText.body(14, color: palette.textDim),
             ),
+            if (reasoning.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _ReasoningBox(reasoning: reasoning, palette: palette),
+            ],
           ],
         ),
       ),
     );
+  }
+}
+
+class _ReasoningBox extends StatefulWidget {
+  final String reasoning;
+  final SGPalette palette;
+
+  const _ReasoningBox({required this.reasoning, required this.palette});
+
+  @override
+  State<_ReasoningBox> createState() => _ReasoningBoxState();
+}
+
+class _ReasoningBoxState extends State<_ReasoningBox> {
+  final _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(_ReasoningBox old) {
+    super.didUpdateWidget(old);
+    if (widget.reasoning != old.reasoning) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.palette;
+    return Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          collapsedIconColor: p.textFaint,
+          iconColor: p.textFaint,
+          tilePadding: EdgeInsets.zero,
+          title: Text('Thinking', style: SGText.mono(10, color: p.textFaint)),
+          children: [
+            Container(
+              height: 180,
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: p.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: p.border, width: 0.5),
+              ),
+              child: Markdown(
+                controller: _scrollController,
+                data: widget.reasoning,
+                padding: EdgeInsets.zero,
+                styleSheet: MarkdownStyleSheet(
+                  p: SGText.body(12, color: p.textDim),
+                  code: SGText.mono(11, color: p.textDim),
+                  h1: SGText.display(14, color: p.text),
+                  h2: SGText.display(13, color: p.text),
+                  h3: SGText.body(12, color: p.text, weight: FontWeight.w600),
+                  listBullet: SGText.body(12, color: p.textDim),
+                ),
+              ),
+            ),
+          ],
+        ));
   }
 }
 
@@ -680,7 +842,8 @@ class _ReviewView extends StatelessWidget {
                       if (data.days.length < 7)
                         SGButton.ghost(
                           label: 'Add Rest Day',
-                          leadingIcon: Icon(Icons.add, color: p.accent, size: 20),
+                          leadingIcon:
+                              Icon(Icons.add, color: p.accent, size: 20),
                           color: p.accent,
                           onTap: () {
                             data.days.add(ImportDay(

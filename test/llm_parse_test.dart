@@ -49,5 +49,37 @@ void main() {
       final result = LlmService.splitJsonObjects(input);
       expect(result.length, 2);
     });
+
+    test('recovers truncated JSON object', () {
+      const input =
+          '{"label":"Push B","exercises":[{"name":"Incline DB","weekTargets":[{"weekIdx":0,"reps":[10,10';
+      final result = LlmService.splitJsonObjects(input);
+      expect(result.length, 1);
+      expect(result[0]['label'], 'Push B');
+      expect(result[0]['exercises'][0]['weekTargets'][0]['reps'], [10, 10]);
+    });
+
+    test('recovers truncated property key', () {
+      const input = '{"label":"Push B","exercises":[{"name":"Incline DB","weekTar';
+      final result = LlmService.splitJsonObjects(input);
+      expect(result.length, 1);
+      expect(result[0]['exercises'][0]['name'], 'Incline DB');
+      expect(result[0]['exercises'][0].containsKey('weekTargets'), isFalse);
+    });
+
+    test('recovers truncated property value colon', () {
+      const input = '{"label":"Push B","exercises":[{"name":"Incline DB","weekTargets":';
+      final result = LlmService.splitJsonObjects(input);
+      expect(result.length, 1);
+      expect(result[0]['exercises'][0]['name'], 'Incline DB');
+    });
+
+    test('ignores braces inside strings', () {
+      const input = '{"label":"Push {with brace}","exercises":[{"name":"Exercise } name"}]}';
+      final result = LlmService.splitJsonObjects(input);
+      expect(result.length, 1);
+      expect(result[0]['label'], 'Push {with brace}');
+      expect(result[0]['exercises'][0]['name'], 'Exercise } name');
+    });
   });
 }

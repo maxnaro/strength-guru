@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../db/database.dart';
 import '../db/queries.dart';
 import '../providers.dart';
+import '../screens/generate_program_screen.dart';
 import '../screens/meso_import_screen.dart';
 import '../theme/tokens.dart';
 import '../theme/sg_atoms.dart';
@@ -114,6 +115,26 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
             ),
           ),
         ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _handleGenerate,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: p.chipBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.border, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_outlined, size: 18, color: p.textDim),
+                const SizedBox(width: 8),
+                Text('Generate from description',
+                    style: SGText.body(14, color: p.textDim)),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           'Starts as a 5-week template. Edit any cell after.',
@@ -163,6 +184,14 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
     ref.invalidate(activeMesoProvider);
     ref.invalidate(allMesosProvider);
     if (mounted) Navigator.of(context).pop();
+  }
+
+  void _handleGenerate() {
+    final nav = Navigator.of(context);
+    nav.pop();
+    nav.push(MaterialPageRoute(
+      builder: (_) => const GenerateProgramScreen(),
+    ));
   }
 
   Future<void> _handleImportCsv() async {
