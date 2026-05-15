@@ -279,7 +279,10 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
       await db.importMesoFromPlan(data);
       ref.invalidate(activeMesoProvider);
       ref.invalidate(allMesosProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        ref.read(tabIndexProvider.notifier).state = 2;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
