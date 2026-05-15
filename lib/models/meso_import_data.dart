@@ -92,7 +92,7 @@ class ImportExercise {
 
     return ImportExercise(
       name: (json['name'] as String?) ?? 'Unknown',
-      muscleGroup: (json['muscleGroup'] as String?) ?? 'other',
+      muscleGroup: (json['group'] as String?) ?? (json['muscleGroup'] as String?) ?? 'other',
       weekTargets: weekTargets,
     );
   }
@@ -143,10 +143,10 @@ class ImportWeekTarget {
       );
     }
     return ImportWeekTarget(
-      weekIdx: (json['weekIdx'] as int?) ?? 0,
-      reps: (json['reps'] as List<dynamic>?)?.map((e) => e as int).toList() ??
+      weekIdx: (json['weekIdx'] as num?)?.toInt() ?? 0,
+      reps: (json['reps'] as List<dynamic>?)?.map((e) => (e as num).toInt()).toList() ??
           [8, 8, 8],
-      rir: (json['rir'] as List<dynamic>?)?.map((e) => e as int).toList() ??
+      rir: (json['rir'] as List<dynamic>?)?.map((e) => (e as num).toInt()).toList() ??
           [2, 2, 2],
     );
   }

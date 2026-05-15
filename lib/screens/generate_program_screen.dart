@@ -16,10 +16,13 @@ class GenerateProgramScreen extends ConsumerStatefulWidget {
       _GenerateProgramScreenState();
 }
 
+enum _ExperienceLevel { beginner, intermediate, advanced }
+
 class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   final _descriptionController = TextEditingController();
   final _apiUrlController = TextEditingController();
   int _numWeeks = 5;
+  _ExperienceLevel _experience = _ExperienceLevel.intermediate;
 
   @override
   void initState() {
@@ -55,14 +58,17 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
 
     if (!mounted) return;
     final weeks = _numWeeks;
+    final exp = _experience.name; // 'beginner' | 'intermediate' | 'advanced'
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MesoImportScreen(
-          dataProducer: (onProgress) => LlmService().interpretDescription(
+          dataProducer: (onProgress, onReasoning) => LlmService().interpretDescription(
             desc,
             weeks,
             apiUrl: url,
+            experienceLevel: exp,
             onProgress: onProgress,
+            onReasoning: onReasoning,
           ),
         ),
       ),
@@ -91,7 +97,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text('Describe your program',
                         style: SGText.display(20, color: p.text)),
@@ -117,38 +123,29 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                               '4-day upper/lower split, 6 weeks, progressive overload, compound-focused, intermediate lifter…',
                           hintStyle: SGText.body(14, color: p.textFaint),
                           border: InputBorder.none,
+                          fillColor: Colors.transparent,
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Text('Duration', style: SGText.body(13, color: p.textDim)),
+                    Text('Experience Level',
+                        style: SGText.body(13, color: p.textDim)),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.remove_circle_outline,
-                              color: _numWeeks > 1 ? p.accent : p.textFaint),
-                          onPressed: _numWeeks > 1
-                              ? () => setState(() => _numWeeks--)
-                              : null,
-                        ),
-                        SizedBox(
-                          width: 80,
-                          child: Text(
-                            '$_numWeeks ${_numWeeks == 1 ? 'week' : 'weeks'}',
-                            textAlign: TextAlign.center,
-                            style: SGText.display(16, color: p.text),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.add_circle_outline,
-                              color: _numWeeks < 16 ? p.accent : p.textFaint),
-                          onPressed: _numWeeks < 16
-                              ? () => setState(() => _numWeeks++)
-                              : null,
-                        ),
-                      ],
+                    _ExperiencePicker(
+                      value: _experience,
+                      palette: p,
+                      onChanged: (v) => setState(() => _experience = v),
+                    ),
+                    const SizedBox(height: 24),
+                    SGStepper(
+                      value: _numWeeks,
+                      min: 1,
+                      max: 16,
+                      step: 1,
+                      label: 'WEEKS',
+                      accentColor: p.accent,
+                      onChanged: (v) => setState(() => _numWeeks = v.toInt()),
                     ),
                     const SizedBox(height: 24),
                     Text('API Endpoint', style: SGText.body(13, color: p.textDim)),
@@ -167,12 +164,14 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                           hintText: 'http://...',
                           hintStyle: SGText.mono(13, color: p.textFaint),
                           border: InputBorder.none,
+                          fillColor: Colors.transparent,
                           labelText: 'OpenAI-compatible endpoint',
                           labelStyle: SGText.body(11, color: p.textFaint),
                         ),
                       ),
                     ),
                     const Spacer(),
+                    const SizedBox(height: 16),
                     SGButton.solid(
                       label: 'Generate Program',
                       color: p.accent,
@@ -186,6 +185,76 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ExperiencePicker extends StatelessWidget {
+  final _ExperienceLevel value;
+  final SGPalette palette;
+  final ValueChanged<_ExperienceLevel> onChanged;
+
+  const _ExperiencePicker({
+    required this.value,
+    required this.palette,
+    required this.onChanged,
+  });
+
+  static const _options = [
+    (_ExperienceLevel.beginner, 'Beginner', '< 1 yr'),
+    (_ExperienceLevel.intermediate, 'Intermediate', '1–4 yrs'),
+    (_ExperienceLevel.advanced, 'Advanced', '4+ yrs'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return Row(
+      children: _options.map((opt) {
+        final (level, label, sub) = opt;
+        final selected = value == level;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(level),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: EdgeInsets.only(
+                right: level != _ExperienceLevel.advanced ? 6 : 0,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? p.accent.withValues(alpha: 0.12)
+                    : p.chipBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected
+                      ? p.accent.withValues(alpha: 0.4)
+                      : p.border,
+                  width: selected ? 1.5 : 0.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: SGText.body(13,
+                        color: selected ? p.accent : p.text,
+                        weight: selected ? FontWeight.w600 : FontWeight.w400),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    sub,
+                    style: SGText.mono(10, color: p.textFaint),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
