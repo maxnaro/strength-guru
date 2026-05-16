@@ -1,15 +1,19 @@
+import 'plan_advisory.dart';
+
 class MesoImportData {
   String name;
   int numWeeks;
   final List<ImportDay> days;
   final List<String> skippedDayLabels;
+  final List<PlanAdvisory> advisories;
 
   MesoImportData({
     required this.name,
     required this.numWeeks,
     required this.days,
     this.skippedDayLabels = const [],
-  });
+    List<PlanAdvisory>? advisories,
+  }) : advisories = advisories ?? [];
 
   factory MesoImportData.fromJson(Map<String, dynamic> json) {
     return MesoImportData(

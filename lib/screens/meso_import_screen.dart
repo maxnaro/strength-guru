@@ -7,6 +7,7 @@ import 'package:string_similarity/string_similarity.dart';
 
 import '../db/queries.dart';
 import '../models/meso_import_data.dart';
+import '../models/plan_advisory.dart';
 import '../providers.dart';
 import '../services/llm_service.dart';
 import '../services/model_service.dart';
@@ -819,6 +820,10 @@ class _ReviewView extends StatelessWidget {
                     ),
                 ],
               ),
+              if (data.advisories.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _AdvisoryCallout(advisories: data.advisories, palette: p),
+              ],
               const SizedBox(height: 12),
             ],
           ),
@@ -1231,6 +1236,59 @@ class _LegendDot extends StatelessWidget {
       width: 8,
       height: 8,
       decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+}
+
+class _AdvisoryCallout extends StatelessWidget {
+  final List<PlanAdvisory> advisories;
+  final SGPalette palette;
+
+  const _AdvisoryCallout({required this.advisories, required this.palette});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: p.warn.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.warn.withValues(alpha: 0.3), width: 0.5),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: advisories.length <= 3,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: p.warn, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Plan advisories (${advisories.length})',
+                style: SGText.body(13, color: p.warn, weight: FontWeight.w600),
+              ),
+            ],
+          ),
+          children: advisories
+              .map((a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('• ', style: SGText.mono(12, color: p.textDim)),
+                        Expanded(
+                          child: Text(a.message,
+                              style: SGText.mono(12, color: p.textDim)),
+                        ),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        ),
+      ),
     );
   }
 }

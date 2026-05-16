@@ -61,6 +61,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
     final db = ref.read(dbProvider);
     await db.setSetting('llm_api_url', url);
     await db.setSetting('llm_use_external', 'true');
+    final exercises = await db.allExercises();
 
     if (!mounted) return;
     final weeks = _numWeeks;
@@ -68,6 +69,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
     final goalStr = _goal.name;   // 'strength' | 'hypertrophy' | 'mix'
     final days = _trainingDays;
     final sport = _sportController.text.trim();
+    final exerciseLibrary = exercises.map((e) => (name: e.name, group: e.group)).toList();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MesoImportScreen(
@@ -79,6 +81,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
             goal: goalStr,
             trainingDays: days,
             sportContext: sport,
+            exerciseLibrary: exerciseLibrary,
             onProgress: onProgress,
             onReasoning: onReasoning,
           ),

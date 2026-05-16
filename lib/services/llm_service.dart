@@ -6,9 +6,12 @@ import 'package:llama_cpp_dart/llama_cpp_dart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/meso_import_data.dart';
+import '../models/plan_advisory.dart';
+import '../theme/groups.dart';
 import 'csv_segmenter.dart';
 import 'model_service.dart';
 import 'target_math.dart';
+import 'volume_validator.dart';
 
 class RawExtractedExercise {
   final String name;
@@ -79,11 +82,16 @@ class LlmService {
     String goal = 'mix',
     int? trainingDays,
     String sportContext = '',
+    List<({String name, String group})> exerciseLibrary = const [],
     void Function(int done, int total)? onProgress,
     void Function(String reasoningDelta)? onReasoning,
   }) async {
     await WakelockPlus.enable();
     try {
+      final libByGroup = <String, List<String>>{};
+      for (final ex in exerciseLibrary) {
+        (libByGroup[ex.group] ??= []).add(ex.name);
+      }
       onReasoning?.call('');
       final outlineText = await _chat(
         apiUrl,
@@ -164,7 +172,12 @@ class LlmService {
           await Future.delayed(const Duration(milliseconds: 150));
         }
         ImportDay? importedDay;
-        final prompt = _dayGenInstructions(description, label, numWeeks, experienceLevel, goal: goal, sportContext: sportContext);
+        final relGroups = _groupsForDayLabel(label);
+        final dayLib = relGroups.isEmpty
+            ? exerciseLibrary.map((e) => e.name).toList()
+            : relGroups.expand((g) => libByGroup[g] ?? <String>[]).toList();
+        final prompt = _dayGenInstructions(description, label, numWeeks, experienceLevel,
+            goal: goal, sportContext: sportContext, exerciseLibrary: dayLib);
         for (int attempt = 0; attempt < 3 && importedDay == null; attempt++) {
           try {
             // Signal the UI to clear reasoning for the new call on the first attempt
@@ -188,12 +201,27 @@ class LlmService {
         }
       }
 
-      return MesoImportData(
+      final result = MesoImportData(
         name: programName,
         numWeeks: numWeeks,
         days: days,
         skippedDayLabels: skipped,
       );
+
+      final volAdvisories = VolumeValidator.validate(result,
+          experienceLevel: experienceLevel, goal: goal);
+      final criticAdvisories = await _critiquePlan(
+        result, description, numWeeks, experienceLevel, goal,
+        trainingDays, sportContext, apiUrl, onReasoning: onReasoning,
+      );
+
+      final seen = <String>{};
+      result.advisories.addAll(
+        [...volAdvisories, ...criticAdvisories]
+            .where((a) => seen.add('${a.scope}|${a.message}')),
+      );
+
+      return result;
     } finally {
       await WakelockPlus.disable();
     }
@@ -502,7 +530,7 @@ Copy reps, sets, and RPE cell values verbatim as strings. Do not do math.
 Respond with JSON only, no markdown.
 
 SCHEMA:
-{"label":"<day label>","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|arms|legs|core|other","sets":"<raw>","reps":"<raw>","rpe":"<raw>"}]}
+{"label":"<day label>","exercises":[{"name":"<exercise name>","group":"chest|back|shoulders|biceps|triceps|forearms|quads|hamstrings|glutes|abs|calves|other","sets":"<raw>","reps":"<raw>","rpe":"<raw>"}]}
 
 CSV:
 $csvLines''';
@@ -605,6 +633,7 @@ $description''';
     String experienceLevel, {
     String goal = 'mix',
     String sportContext = '',
+    List<String> exerciseLibrary = const [],
   }) {
     final deloadWeeks = _deloadWeekIndices(numWeeks);
     final deloadNote = deloadWeeks.isEmpty
@@ -686,7 +715,8 @@ Source description: "$description"
 ═══ EXERCISE SELECTION ═══
 - 4–6 exercises total. Compounds first, isolations last.
 - Use specific names: "Barbell Back Squat" not "Squat", "Seated Cable Row" not "Row".
-- "group" must be exactly one of: chest | back | shoulders | arms | legs | core | other.
+- "group" must be exactly one of: chest | back | shoulders | biceps | triceps | forearms | quads | hamstrings | glutes | abs | calves | other.
+${exerciseLibrary.isEmpty ? '' : 'EXERCISE LIBRARY (prefer these exact names — only invent a name if no match exists):\n${exerciseLibrary.join('\n')}'}
 
 ═══ SETS & REPS ═══
 Compound lifts (squat, deadlift, bench, OHP, barbell/DB row, pull-up, chin-up, RDL):
@@ -718,6 +748,118 @@ Respond with JSON only. No markdown, no commentary.
 
 SCHEMA:
 {"label":"$dayLabel","exercises":[{"name":"<name>","group":"<group>","weekTargets":[{"weekIdx":0,"reps":[8,8,8],"rir":[3,3,3]},{"weekIdx":1,"reps":[9,9,9],"rir":[2,2,2]},...]}]}''';
+  }
+
+  Set<String> _groupsForDayLabel(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('push') || l.contains('chest')) {
+      return {'chest', 'shoulders', 'triceps', 'abs'};
+    }
+    if (l.contains('pull') || l.contains('back') || l.contains('row')) {
+      return {'back', 'biceps', 'forearms', 'abs'};
+    }
+    if (l.contains('lower') || l.contains('leg') || l.contains('squat') ||
+        l.contains('dead') || l.contains('hinge')) {
+      return {'quads', 'hamstrings', 'glutes', 'calves', 'abs'};
+    }
+    if (l.contains('upper')) {
+      return {'chest', 'back', 'shoulders', 'biceps', 'triceps', 'abs'};
+    }
+    if (l.contains('shoulder') || l.contains('delt') || l.contains('ohp')) {
+      return {'shoulders', 'triceps', 'abs'};
+    }
+    if (l.contains('arm') || l.contains('curl') || l.contains('tricep')) {
+      return {'biceps', 'triceps', 'forearms'};
+    }
+    // Full body or unknown → no filtering, return empty to use full library
+    return {};
+  }
+
+  Future<List<PlanAdvisory>> _critiquePlan(
+    MesoImportData data,
+    String description,
+    int numWeeks,
+    String experienceLevel,
+    String goal,
+    int? trainingDays,
+    String sportContext,
+    String apiUrl, {
+    void Function(String)? onReasoning,
+  }) async {
+    final setsW1 = VolumeValidator.setsForWeek(data, 0);
+    final volStats = setsW1.entries
+        .map((e) => '${e.key.label}: ${e.value} sets')
+        .join(', ');
+
+    final prompt =
+        '''You are an evidence-based S&C coach reviewing a generated mesocycle.
+
+INPUTS:
+- Description: "$description"
+- Weeks: $numWeeks
+- Experience: $experienceLevel
+- Goal: $goal
+- Training days/week: ${trainingDays ?? 'inferred'}
+- Sport/context: ${sportContext.isEmpty ? 'general' : sportContext}
+
+VOLUME SUMMARY (week 1 sets per muscle):
+$volStats
+
+PLAN:
+${_serializePlanForCritic(data)}
+
+TASK: Identify up to 5 high-impact issues. Focus on:
+1. Constraint honoring — verify description's mandatory items (named exercises, 1RM tests, protocols) are present
+2. Sport specificity — SAID principle applied correctly for stated sport
+3. Volume balance — flagrant under/over-programming vs stated goal
+4. Progression coherence — reps/RIR progresses meaningfully week-over-week
+
+If the plan looks solid, output an empty advisories array.
+Output JSON only — no markdown, no commentary.
+SCHEMA: {"advisories":[{"severity":"warn"|"info","scope":"<topic>","message":"<concise issue>"}]}
+STRICT: max 5 items. Do NOT add any field other than severity, scope, message.''';
+
+    try {
+      onReasoning?.call('--- REVIEWING PLAN ---\n');
+      final text = await _chat(apiUrl, prompt, onReasoning: onReasoning);
+      final json = _extractFirstJson(text);
+      final rawList = json['advisories'] as List<dynamic>? ?? [];
+      return rawList
+          .map((e) {
+            final m = e as Map<String, dynamic>;
+            return PlanAdvisory(
+              severity: (m['severity'] as String?) == 'info'
+                  ? AdvisorySeverity.info
+                  : AdvisorySeverity.warn,
+              scope: (m['scope'] as String?) ?? 'general',
+              message: (m['message'] as String?) ?? '',
+              source: 'critic',
+            );
+          })
+          .where((a) => a.message.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String _serializePlanForCritic(MesoImportData data) {
+    final sb = StringBuffer();
+    for (final day in data.days) {
+      if (day.exercises.isEmpty) {
+        sb.writeln('${day.label}: [rest]');
+        continue;
+      }
+      sb.writeln('${day.label}:');
+      for (final ex in day.exercises) {
+        final targets = ex.weekTargets
+            .map((t) =>
+                'W${t.weekIdx + 1}: ${t.reps.length}×${t.reps.isNotEmpty ? t.reps.first : '?'}@RIR${t.rir.isNotEmpty ? t.rir.first : '?'}')
+            .join(', ');
+        sb.writeln('  ${ex.name} (${ex.muscleGroup}) — $targets');
+      }
+    }
+    return sb.toString();
   }
 
   RawExtractedDay _parseDay(String raw) {
