@@ -18,11 +18,16 @@ class GenerateProgramScreen extends ConsumerStatefulWidget {
 
 enum _ExperienceLevel { beginner, intermediate, advanced }
 
+enum _Goal { strength, hypertrophy, mix }
+
 class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   final _descriptionController = TextEditingController();
   final _apiUrlController = TextEditingController();
+  final _sportController = TextEditingController();
   int _numWeeks = 5;
+  int _trainingDays = 4;
   _ExperienceLevel _experience = _ExperienceLevel.intermediate;
+  _Goal _goal = _Goal.mix;
 
   @override
   void initState() {
@@ -34,6 +39,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   void dispose() {
     _descriptionController.dispose();
     _apiUrlController.dispose();
+    _sportController.dispose();
     super.dispose();
   }
 
@@ -59,6 +65,9 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
     if (!mounted) return;
     final weeks = _numWeeks;
     final exp = _experience.name; // 'beginner' | 'intermediate' | 'advanced'
+    final goalStr = _goal.name;   // 'strength' | 'hypertrophy' | 'mix'
+    final days = _trainingDays;
+    final sport = _sportController.text.trim();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MesoImportScreen(
@@ -67,6 +76,9 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
             weeks,
             apiUrl: url,
             experienceLevel: exp,
+            goal: goalStr,
+            trainingDays: days,
+            sportContext: sport,
             onProgress: onProgress,
             onReasoning: onReasoning,
           ),
@@ -138,6 +150,24 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                       onChanged: (v) => setState(() => _experience = v),
                     ),
                     const SizedBox(height: 24),
+                    Text('Goal', style: SGText.body(13, color: p.textDim)),
+                    const SizedBox(height: 8),
+                    _GoalPicker(
+                      value: _goal,
+                      palette: p,
+                      onChanged: (v) => setState(() => _goal = v),
+                    ),
+                    const SizedBox(height: 24),
+                    SGStepper(
+                      value: _trainingDays,
+                      min: 1,
+                      max: 7,
+                      step: 1,
+                      label: 'TRAINING DAYS / WEEK',
+                      accentColor: p.accent,
+                      onChanged: (v) => setState(() => _trainingDays = v.toInt()),
+                    ),
+                    const SizedBox(height: 24),
                     SGStepper(
                       value: _numWeeks,
                       min: 1,
@@ -146,6 +176,28 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                       label: 'WEEKS',
                       accentColor: p.accent,
                       onChanged: (v) => setState(() => _numWeeks = v.toInt()),
+                    ),
+                    const SizedBox(height: 24),
+                    Text('Sport / Context (optional)', style: SGText.body(13, color: p.textDim)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: p.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: p.border, width: 0.5),
+                      ),
+                      child: TextField(
+                        controller: _sportController,
+                        style: SGText.body(14, color: p.text),
+                        decoration: InputDecoration(
+                          hintText: 'climbing, running, BJJ, general fitness…',
+                          hintStyle: SGText.body(14, color: p.textFaint),
+                          border: InputBorder.none,
+                          fillColor: Colors.transparent,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text('API Endpoint', style: SGText.body(13, color: p.textDim)),
@@ -185,6 +237,76 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _GoalPicker extends StatelessWidget {
+  final _Goal value;
+  final SGPalette palette;
+  final ValueChanged<_Goal> onChanged;
+
+  const _GoalPicker({
+    required this.value,
+    required this.palette,
+    required this.onChanged,
+  });
+
+  static const _options = [
+    (_Goal.strength, 'Strength', '1–6 reps'),
+    (_Goal.hypertrophy, 'Hypertrophy', '6–15 reps'),
+    (_Goal.mix, 'Mix', 'blend'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return Row(
+      children: _options.map((opt) {
+        final (goal, label, sub) = opt;
+        final selected = value == goal;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(goal),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: EdgeInsets.only(
+                right: goal != _Goal.mix ? 6 : 0,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? p.accent.withValues(alpha: 0.12)
+                    : p.chipBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected
+                      ? p.accent.withValues(alpha: 0.4)
+                      : p.border,
+                  width: selected ? 1.5 : 0.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: SGText.body(13,
+                        color: selected ? p.accent : p.text,
+                        weight: selected ? FontWeight.w600 : FontWeight.w400),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    sub,
+                    style: SGText.mono(10, color: p.textFaint),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

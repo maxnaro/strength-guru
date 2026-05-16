@@ -76,15 +76,23 @@ class LlmService {
     int numWeeks, {
     required String apiUrl,
     String experienceLevel = 'intermediate',
+    String goal = 'mix',
+    int? trainingDays,
+    String sportContext = '',
     void Function(int done, int total)? onProgress,
     void Function(String reasoningDelta)? onReasoning,
   }) async {
     await WakelockPlus.enable();
     try {
       onReasoning?.call('');
-      final outlineText = await _chat(apiUrl, _outlineInstructions(description, numWeeks, experienceLevel), onReasoning: onReasoning);
+      final outlineText = await _chat(
+        apiUrl,
+        _outlineInstructions(description, numWeeks, experienceLevel,
+            goal: goal, trainingDays: trainingDays, sportContext: sportContext),
+        onReasoning: onReasoning,
+      );
       final outlineJson = _extractFirstJson(outlineText);
-      final programName = (outlineJson['name'] as String?)?.trim().isNotEmpty == true
+      var programName = (outlineJson['name'] as String?)?.trim().isNotEmpty == true
           ? outlineJson['name'] as String
           : 'Generated Program';
       final allLabels = (outlineJson['days'] as List<dynamic>? ?? [])
@@ -102,6 +110,38 @@ class LlmService {
       }
 
       final restPattern = RegExp(r'^\s*(rest|off|recovery)\b', caseSensitive: false);
+
+      // When trainingDays is pinned by the UI picker, validate the count and retry once.
+      if (trainingDays != null) {
+        final actual = allLabels.where((l) => !restPattern.hasMatch(l)).length;
+        if (actual != trainingDays) {
+          onReasoning?.call('');
+          try {
+            final retryText = await _chat(
+              apiUrl,
+              _outlineInstructions(description, numWeeks, experienceLevel,
+                  goal: goal, trainingDays: trainingDays, sportContext: sportContext),
+              onReasoning: onReasoning,
+            );
+            final retryJson = _extractFirstJson(retryText);
+            final newLabels = (retryJson['days'] as List<dynamic>? ?? [])
+                .map((e) => e.toString())
+                .where((s) => s.isNotEmpty)
+                .take(7)
+                .toList();
+            while (newLabels.length < 7) { newLabels.add('Rest'); }
+            if (newLabels.isNotEmpty) {
+              allLabels
+                ..clear()
+                ..addAll(newLabels);
+              if ((retryJson['name'] as String?)?.trim().isNotEmpty == true) {
+                programName = retryJson['name'] as String;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
       final trainingCount = allLabels.where((l) => !restPattern.hasMatch(l)).length;
 
       if (trainingCount == 0) {
@@ -124,7 +164,7 @@ class LlmService {
           await Future.delayed(const Duration(milliseconds: 150));
         }
         ImportDay? importedDay;
-        final prompt = _dayGenInstructions(description, label, numWeeks, experienceLevel);
+        final prompt = _dayGenInstructions(description, label, numWeeks, experienceLevel, goal: goal, sportContext: sportContext);
         for (int attempt = 0; attempt < 3 && importedDay == null; attempt++) {
           try {
             // Signal the UI to clear reasoning for the new call on the first attempt
@@ -478,35 +518,73 @@ $csvLines''';
     return result;
   }
 
-  String _outlineInstructions(String description, int numWeeks, String experienceLevel) =>
-      '''You are an expert strength and hypertrophy coach designing a $numWeeks-week training program for a ${experienceLevel.toUpperCase()} lifter.
+  String _outlineInstructions(
+    String description,
+    int numWeeks,
+    String experienceLevel, {
+    String goal = 'mix',
+    int? trainingDays,
+    String sportContext = '',
+  }) {
+    final trainingDaysLine = trainingDays != null
+        ? '- Training days: EXACTLY $trainingDays non-Rest entries. This is an absolute constraint — count before writing.'
+        : '';
 
-Output a JSON object with:
-- "name": a short, descriptive program name.
-- "days": EXACTLY 7 strings (representing Monday through Sunday in order).
+    final goalLabel = switch (goal) {
+      'strength' => 'STRENGTH — maximal force; prioritise heavy compound movements',
+      'hypertrophy' => 'HYPERTROPHY — muscle size; moderate–high volume, varied rep ranges',
+      _ => 'MIX — balanced strength + hypertrophy; compounds heavy, accessories moderate volume',
+    };
 
-CRITICAL — TRAINING DAY COUNT:
-Count the number of training days in the description before writing anything.
-"3 day" = 3 training labels. "4 day" = 4 training labels. Never deviate.
-Verify: count your non-Rest entries. It MUST match the description.
+    final sportSection = sportContext.trim().isEmpty
+        ? ''
+        : '''
+SPORT / CONTEXT: ${sportContext.trim()}
+Apply the SAID principle (Specific Adaptation to Imposed Demands) when choosing labels and exercise emphasis:
+1. Identify the dominant movement patterns of this sport.
+2. Identify the chronically undertrained antagonist groups.
+3. Bias day labels and accessory focus toward those antagonists and sport-specific stabilisers.
+   Examples: climbing → push antagonists (chest, triceps, wrist extensors), rotator cuff, core; running → posterior chain, glute med, anti-rotation core.''';
 
-FORMAT FOR "days":
-- Use descriptive labels for training sessions (e.g., "Upper A", "Push").
-- Use exactly "Rest" for rest days.
-- Ensure the array has EXACTLY 7 items.
+    return '''You are an evidence-based strength and conditioning coach. Your recommendations follow:
+- Schoenfeld's volume landmarks (MEV / MAV / MRV, diminishing returns above MAV)
+- Helms' RIR-based autoregulation
+- The SAID principle (specific adaptation to imposed demands)
 
-SPLIT SELECTION (defaults when unspecified):
-- 2–3 training days → full-body or push/pull/legs variant
-- 4 days → upper/lower (each muscle hit 2×/week)
+═══ INPUTS ═══
+- Experience: ${experienceLevel.toUpperCase()}
+- Goal: $goalLabel
+- Weeks: $numWeeks
+$trainingDaysLine
+$sportSection
+
+═══ TASK ═══
+Design a 7-entry weekly template (Monday–Sunday) as JSON.
+
+REASON FIRST (use reasoning_content if available):
+a. Count the exact number of training days required from the description or the pinned value above.
+b. Identify the goal and implied weekly volume band.
+c. If sportContext is present, apply SAID bias.
+d. Choose a split where each major muscle hits ≥2×/wk where day count permits.
+e. Verify your non-Rest count matches the required training-day count. If it does not, recount and fix.
+
+THEN emit JSON only — no markdown, no commentary.
+
+SPLIT DEFAULTS (when unspecified):
+- 2–3 days → full-body or PPL variant
+- 4 days → upper/lower (each muscle 2×/wk)
 - 5 days → upper/lower/full-body or PPL+upper
-- 6 days → PPL (push/pull/legs × 2)
-Prefer splits where each major muscle group appears at least TWICE per week.
-Avoid single-muscle bro splits (chest day, back day, etc.) unless explicitly requested.
+- 6 days → PPL×2
 
-STRUCTURE:
+STRUCTURE RULES:
 - Exactly 7 entries total (training + rest = 7).
-- No more than 2 consecutive training days (avoid 3+ in a row unless requested).
-- Balance push/pull, quad/hip-hinge, horizontal/vertical within the week.
+- Avoid 4+ consecutive training days. Up to 3 in a row is acceptable when day count demands it.
+- Balance push/pull, quad/hip-hinge, horizontal/vertical across the week.
+- Training labels: descriptive ("Upper A", "Push", "Full Body B"). Rest days: exactly "Rest".
+- Avoid single-muscle bro splits (chest day, back day) unless explicitly requested.
+
+MANDATORY CONSTRAINTS:
+If the description names specific exercises, final-week tests (e.g. "1RM test"), AMRAPs, or required protocols, note them in your reasoning and surface them in relevant day labels (e.g. "Lower A — 1RM Day").
 
 Example — "3 day full body":
 {"name":"3-Day Full Body","days":["Full Body A","Rest","Full Body B","Rest","Full Body C","Rest","Rest"]}
@@ -514,96 +592,132 @@ Example — "3 day full body":
 Example — "4 day upper lower":
 {"name":"4-Day Upper/Lower","days":["Upper A","Lower A","Rest","Upper B","Lower B","Rest","Rest"]}
 
-Respond with JSON only. No markdown, no commentary.
 SCHEMA: {"name":"<name>","days":["<Mon>","<Tue>","<Wed>","<Thu>","<Fri>","<Sat>","<Sun>"]}
 
 DESCRIPTION:
 $description''';
+  }
 
-  String _dayGenInstructions(String description, String dayLabel, int numWeeks, String experienceLevel) {
+  String _dayGenInstructions(
+    String description,
+    String dayLabel,
+    int numWeeks,
+    String experienceLevel, {
+    String goal = 'mix',
+    String sportContext = '',
+  }) {
     final deloadWeeks = _deloadWeekIndices(numWeeks);
     final deloadNote = deloadWeeks.isEmpty
         ? ''
         : '''
-DELOAD WEEKS (weekIdx values: ${deloadWeeks.join(', ')}):
-On these weeks reduce fatigue and prime for the next training block:
-- Cut working sets to 2 per exercise (regardless of normal set count).
-- Keep the same rep targets but raise RIR to 3–4.
-- Keep the same exercises — only volume and proximity to failure change.
-Example deload weekTarget: {"weekIdx":${deloadWeeks.first},"reps":[8,8],"rir":[4,4]}
+DELOAD WEEKS (weekIdx: ${deloadWeeks.join(', ')}):
+- Cut working sets to 2 per exercise.
+- Keep rep targets; raise RIR to 3–4.
+- Keep same exercises — only volume and proximity-to-failure change.
+Example: {"weekIdx":${deloadWeeks.first},"reps":[8,8],"rir":[4,4]}
 All other weekIdx values are normal training weeks.''';
 
-    // Experience-level-specific guidance based on evidence-based volume landmarks.
-    final (levelDesc, compoundSets, isoSets, weeklyVolume, rirNote) = switch (experienceLevel) {
+    final (levelDesc, compoundSets, isoSets, weeklyVolume) = switch (experienceLevel) {
       'beginner' => (
-          'BEGINNER (< 1 year of consistent, proper training)',
+          'BEGINNER (< 1 year of consistent training)',
           '2–3 sets',
           '1–2 sets',
-          '4–8 sets per muscle group per week (MEV). Beginners respond to even minimal volume; do not over-prescribe sets.',
-          'Start RIR 3–4 on compounds (technique still being learned). Accessories RIR 2. Progression is fast — prioritise adding reps/weight rather than chasing failure.',
+          '4–8 sets per muscle group/week (MEV). Prioritise technique over volume. Linear progression is the primary driver.',
         ),
       'advanced' => (
-          'ADVANCED (4+ years of consistent, proper training)',
+          'ADVANCED (4+ years of consistent training)',
+          '3–5 sets',
           '3–4 sets',
-          '3–4 sets',
-          '12–20 sets per muscle group per week (MAV). Advanced lifters need high volume to continue progressing. Prioritise lagging muscle groups.',
-          'Compounds can start at RIR 2 (week 0) and push to RIR 0 by the final week. Accessories should reach RIR 0 by week 1–2.',
+          '12–20 sets per muscle group/week (MAV). Volume above MAV yields diminishing returns — do NOT push to MRV unless this is a specialisation block.',
         ),
-      _ => ( // intermediate (default)
-          'INTERMEDIATE (1–4 years of consistent, proper training)',
+      _ => (
+          'INTERMEDIATE (1–4 years of consistent training)',
           '3–4 sets',
           '2–3 sets',
-          '8–15 sets per muscle group per week. Train each muscle at least twice per week for optimal hypertrophy.',
-          'Compounds start RIR 3 (week 0), end at RIR 0–1 (final week). Accessories start RIR 2 and reach RIR 0 by the last training week.',
+          '8–15 sets per muscle group/week. Train each muscle group ≥2×/wk for optimal hypertrophy.',
         ),
     };
 
-    return '''You are an expert strength and hypertrophy coach. Design the "$dayLabel" session for a $numWeeks-week mesocycle.
+    final (compoundReps, isoReps, rirNote) = switch (goal) {
+      'strength' => (
+          '1–6 reps (3–5 for volume work; singles on test weeks)',
+          '6–10 reps',
+          'Compounds: start RIR 2 (week 0), progress to RIR 0 by final training week. Accessories: start RIR 1, reach RIR 0 by week 2. Strength demands high proximity to failure on the key compound lift.',
+        ),
+      'hypertrophy' => (
+          '6–12 reps',
+          '10–20 reps',
+          'Compounds: start RIR 3 (week 0), end RIR 0–1 (final training week). Accessories: start RIR 2, reach RIR 0 by last week. Higher rep ranges and proximity to failure are the primary hypertrophy drivers.',
+        ),
+      _ => (
+          '4–8 reps (include a heavy top set + back-off set where sets ≥ 3)',
+          '8–15 reps',
+          'Compounds: start RIR 2–3 (week 0), end RIR 0–1. Mix a heavy set (4–6 reps) with a back-off set (8–10 reps) for the primary compound. Accessories: start RIR 2, reach RIR 0.',
+        ),
+    };
+
+    final sportSection = sportContext.trim().isEmpty
+        ? ''
+        : '''
+
+═══ SPORT CONTEXT (SAID PRINCIPLE) ═══
+Sport/context: ${sportContext.trim()}
+Exercise selection must address sport-specific muscular imbalances. When two exercises are equally appropriate, choose the one that targets the athlete's undertrained antagonists.
+- Climbing → prioritise: chest (DB press, push-up), triceps, wrist extensors (reverse curl, rice bucket), rotator cuff (face pull, band ER), anti-rotation core. Avoid adding load to finger flexors.
+- Running → prioritise: glute med (lateral band walk, single-leg press), hamstrings (Nordic curl, leg curl), anti-rotation core (Pallof press), ankle stability.
+- Cycling → prioritise: posterior chain (RDL, leg curl), horizontal pull, push/pull balance.
+- BJJ / wrestling / combat sports → prioritise: rotational core, neck, wrist stability, posterior chain, trap-3 raises.
+- General fitness → no restriction; follow standard split selection.''';
+
+    return '''You are an evidence-based strength and conditioning coach (Schoenfeld volume landmarks, Helms RIR autoregulation, SAID principle). Design the "$dayLabel" session of a $numWeeks-week mesocycle.
 LIFTER LEVEL: $levelDesc
+GOAL: ${goal.toUpperCase()}
+$sportSection
+
+═══ USER CONSTRAINTS — MUST HONOUR ═══
+Source description: "$description"
+- Any explicitly named exercise MUST appear in this session if appropriate for "$dayLabel".
+- Any named protocol MUST be encoded in weekTargets:
+  · "1RM test" or "max test" on the final week → weekIdx:${numWeeks - 1}, reps:[1], rir:[0] for the relevant compound.
+  · "AMRAP" → reps:[20], rir:[0] (signals max-effort set).
+  · "pause reps" → include in exercise name (e.g. "Pause Bench Press").
+- Respect any stated exercise order (e.g. "start with deadlift").
 
 ═══ EXERCISE SELECTION ═══
-- 4–6 exercises. Compounds first, isolations last.
-- Use specific movement names: "Barbell Back Squat" not "Quad Exercise", "Seated Cable Row" not "Row".
+- 4–6 exercises total. Compounds first, isolations last.
+- Use specific names: "Barbell Back Squat" not "Squat", "Seated Cable Row" not "Row".
 - "group" must be exactly one of: chest | back | shoulders | arms | legs | core | other.
-- Choose exercises appropriate for a $experienceLevel lifter on a "$dayLabel" day.
 
 ═══ SETS & REPS ═══
-Compound lifts (squats, deadlifts, bench press, OHP, barbell/dumbbell rows, pull-ups, chin-ups, Romanian deadlifts):
+Compound lifts (squat, deadlift, bench, OHP, barbell/DB row, pull-up, chin-up, RDL):
 - $compoundSets working sets.
-- Strength focus: 3–6 reps. Hypertrophy focus: 6–12 reps. Infer from the description; default to hypertrophy.
+- Rep target: $compoundReps.
 
-Accessory & isolation exercises (curls, lateral raises, tricep pushdowns/extensions, leg curls, leg extensions, cable flyes, face pulls, calf raises, rear-delt flyes):
+Accessory & isolation (curls, lateral raises, tricep work, leg curl, leg extension, cable fly, face pull, calf raise, rear-delt fly):
 - $isoSets working sets.
-- 10–20 reps (accessories respond well to higher reps and proximity to failure).
+- Rep target: $isoReps.
 
 WEEKLY VOLUME: $weeklyVolume
-- If a muscle is trained twice per week → roughly half the weekly sets per session.
-- If trained once per week → full weekly set count in that session.
+- Muscle trained once/wk → full weekly set count that session.
+- Muscle trained twice/wk → ~half the weekly sets per session.
 
 ═══ RIR PROGRESSION ═══
-RIR = reps in reserve (0 = failure, 1 = one rep left, etc.)
+RIR = reps in reserve (0 = failure, 1 = one rep left).
 $rirNote
-
-COMPOUNDS vs ACCESSORIES: accessories are safer to push closer to failure than compounds.
-Accessories should ALWAYS have equal or lower RIR than compounds in the same week.
-
-Progressive overload: each week show either a rep increase OR an RIR decrease (or both).
-Do NOT keep reps and RIR identical across consecutive weeks — progression is mandatory.
+Progressive overload: each week show a rep increase OR an RIR decrease (or both). NEVER keep reps AND rir identical across consecutive normal weeks — progression is mandatory.
+Accessories should always have equal or lower RIR than compounds in the same week.
 $deloadNote
 
 ═══ MANDATORY FORMAT RULES ═══
-- Every exercise must have EXACTLY $numWeeks weekTargets, weekIdx 0 through ${numWeeks - 1}.
-- "reps" and "rir" arrays must be the same length (one entry per set in that week).
-- This is always a training session — always output a non-empty exercise list.
-- STRICT: Do not include any extra fields like "description", "sets", or "notes". Stick exactly to the schema.
+- Every exercise MUST have EXACTLY $numWeeks weekTargets, weekIdx 0 through ${numWeeks - 1}.
+- "reps" and "rir" arrays must be the same length (one entry per set that week).
+- This is a training session — always output a non-empty exercise list.
+- STRICT: Do NOT include any extra fields ("sets", "description", "notes"). If you are about to add one, stop and remove it.
 
 Respond with JSON only. No markdown, no commentary.
 
 SCHEMA:
-{"label":"$dayLabel","exercises":[{"name":"<name>","group":"<group>","weekTargets":[{"weekIdx":0,"reps":[8,8,8],"rir":[3,3,3]},{"weekIdx":1,"reps":[9,9,9],"rir":[2,2,2]},...]}]}
-
-PROGRAM DESCRIPTION:
-$description''';
+{"label":"$dayLabel","exercises":[{"name":"<name>","group":"<group>","weekTargets":[{"weekIdx":0,"reps":[8,8,8],"rir":[3,3,3]},{"weekIdx":1,"reps":[9,9,9],"rir":[2,2,2]},...]}]}''';
   }
 
   RawExtractedDay _parseDay(String raw) {
@@ -703,7 +817,7 @@ $description''';
 
       // Clean up incomplete property keys like `,"key"}` or `{"key"}`
       chunk = chunk.replaceAllMapped(
-          RegExp(r'([,{])\s*"[^"]+"\s*}'), (m) => "${m.group(1)}}");
+          RegExp(r'([,{])\s*"[^"]+"\s*}'), (m) => '${m.group(1)}}');
       // Clean up incomplete key-value pairs like `"key":}`
       chunk = chunk.replaceAllMapped(
           RegExp(r'"[^"]+"\s*:\s*([\]}])'), (m) => m.group(1)!);
