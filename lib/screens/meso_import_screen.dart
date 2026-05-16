@@ -820,10 +820,6 @@ class _ReviewView extends StatelessWidget {
                     ),
                 ],
               ),
-              if (data.advisories.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _AdvisoryCallout(advisories: data.advisories, palette: p),
-              ],
               const SizedBox(height: 12),
             ],
           ),
@@ -834,6 +830,11 @@ class _ReviewView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (data.advisories.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: _AdvisoryCallout(advisories: data.advisories, palette: p),
+                  ),
                 _ImportTimelineView(
                   data: data,
                   palette: p,
