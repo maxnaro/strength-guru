@@ -169,7 +169,7 @@ void main() {
     test('counts sets correctly for target week', () {
       final ex = _exercise('Bench', 'chest', 4, 8, 2);
       // Add a second week target
-      ex.weekTargets.add(ImportWeekTarget(
+      ex.weekTargets.add(const ImportWeekTarget(
         weekIdx: 1,
         reps: [8, 8, 8],
         rir: [1, 1, 1],

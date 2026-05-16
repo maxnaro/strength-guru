@@ -15,6 +15,7 @@ import '../widgets/day_program_editor.dart';
 import '../widgets/exercise_picker.dart';
 import '../widgets/about_sheet.dart';
 import '../widgets/timeline_cell.dart';
+import '../widgets/volume_validation_sheet.dart';
 
 enum _MesoViz { calendar, timeline }
 
@@ -91,6 +92,14 @@ class _MesoScreenState extends ConsumerState<MesoScreen> {
                     Expanded(
                       child: Text('CURRENT MESOCYCLE',
                           style: SGText.mono(11, color: p.textFaint, ls: 1.2)),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.fact_check_outlined, size: 18, color: p.textFaint),
+                      onPressed: () => showSGSheet(
+                        context,
+                        child: VolumeValidationSheet(meso: meso),
+                      ),
+                      visualDensity: VisualDensity.compact,
                     ),
                     IconButton(
                       icon: Icon(Icons.info_outline, size: 18, color: p.textFaint),

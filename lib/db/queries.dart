@@ -585,6 +585,81 @@ extension MesoMutationQueries on AppDatabase {
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
+extension MesoExportQueries on AppDatabase {
+  Future<MesoImportData> exportMesoToImportData(String mesoId) async {
+    final meso =
+        await (select(mesocycles)..where((t) => t.id.equals(mesoId))).getSingle();
+
+    final pDays = await (select(programDays)
+          ..where((t) => t.mesocycleId.equals(mesoId)))
+        .get();
+    final overrides = await (select(dayOverrides)
+          ..where((t) => t.mesocycleId.equals(mesoId)))
+        .get();
+    final slots = await (select(exerciseSlots)
+          ..where((t) => t.mesocycleId.equals(mesoId)))
+        .get();
+    final targets = await (select(weekTargets)
+          ..where((t) => t.mesocycleId.equals(mesoId)))
+        .get();
+
+    final exIds = slots.map((s) => s.exerciseId).toList();
+    final allExs =
+        await (select(exercises)..where((t) => t.id.isIn(exIds))).get();
+    final exMap = {for (final e in allExs) e.id: e};
+    final slotToExMap = {
+      for (final s in slots) s.id: exMap[s.exerciseId]
+    };
+
+    final importDays = <ImportDay>[];
+    for (var d = 0; d < 7; d++) {
+      final pDay = pDays.where((p) => p.dayIdx == d).firstOrNull;
+      // We only care about days that have overrides (exercises) scheduled in AT LEAST one week.
+      final dayOverrides = overrides.where((o) => o.dayIdx == d);
+      if (dayOverrides.isEmpty) continue;
+
+      // Use week 0 (base) for the exercise list structure, or the first available week.
+      final baseOverride = dayOverrides.where((o) => o.weekIdx == 0).firstOrNull ??
+          dayOverrides.first;
+      final slotIds =
+          baseOverride.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty);
+
+      final importExs = <ImportExercise>[];
+      for (final sId in slotIds) {
+        final ex = slotToExMap[sId];
+        if (ex == null) continue;
+
+        final exTargets = targets.where((t) => t.slotId == sId).toList();
+        final importTargets = exTargets
+            .map((t) => ImportWeekTarget(
+                  weekIdx: t.weekIdx,
+                  reps: t.reps,
+                  rir: t.rir,
+                ))
+            .toList();
+
+        importExs.add(ImportExercise(
+          name: ex.name,
+          muscleGroup: ex.group,
+          weekTargets: importTargets,
+        ));
+      }
+
+      importDays.add(ImportDay(
+        dayIdx: d,
+        label: pDay?.label ?? '',
+        exercises: importExs,
+      ));
+    }
+
+    return MesoImportData(
+      name: meso.name,
+      numWeeks: meso.numWeeks,
+      days: importDays,
+    );
+  }
+}
+
 extension MesoImportQueries on AppDatabase {
   Future<Mesocycle> importMesoFromPlan(MesoImportData data) async {
     final mesoId = newId();
