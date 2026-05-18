@@ -11,7 +11,7 @@ ImportDay _day(int idx, String label, {int exercises = 2}) => ImportDay(
         (i) => ImportExercise(
           name: 'Exercise $i',
           muscleGroup: 'chest',
-          weekTargets: [ImportWeekTarget(weekIdx: 0, reps: [8, 8, 8], rir: [2, 2, 2])],
+          weekTargets: [const ImportWeekTarget(weekIdx: 0, reps: [8, 8, 8], rir: [2, 2, 2])],
         ),
       ),
     );

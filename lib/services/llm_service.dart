@@ -13,6 +13,14 @@ import 'model_service.dart';
 import 'target_math.dart';
 import 'volume_validator.dart';
 
+typedef _DayBrief = ({
+  int dayIdx,
+  String label,
+  Set<String> muscles,
+  Map<String, int> setBudget,
+  List<String> primaryCompounds,
+});
+
 class RawExtractedExercise {
   final String name;
   final String group;
@@ -156,9 +164,17 @@ class LlmService {
         throw LlmException('No training days in LLM outline.', rawResponse: outlineText);
       }
 
+      final briefs = _parseBriefs(outlineJson, allLabels, experienceLevel, goal);
+
       final days = <ImportDay>[];
       final skipped = <String>[];
       int progressDone = 0;
+
+      // Running accumulators for whole-week context.
+      final runningSets = <String, int>{};
+      final doneDays = <({String label, List<String> compounds, Map<String, int> sets})>[];
+      // Compounds already assigned as primary across previous days.
+      final usedPrimaryCompounds = <String>{};
 
       for (int i = 0; i < allLabels.length; i++) {
         final label = allLabels[i];
@@ -176,8 +192,25 @@ class LlmService {
         final dayLib = relGroups.isEmpty
             ? exerciseLibrary.map((e) => e.name).toList()
             : relGroups.expand((g) => libByGroup[g] ?? <String>[]).toList();
-        final prompt = _dayGenInstructions(description, label, numWeeks, experienceLevel,
-            goal: goal, sportContext: sportContext, exerciseLibrary: dayLib);
+        final brief = briefs[i];
+        // Compute remaining set budget: planned budget minus already-assigned sets.
+        final remaining = {
+          for (final entry in brief.setBudget.entries)
+            entry.key: (entry.value - (runningSets[entry.key] ?? 0)).clamp(0, 99),
+        };
+        final prompt = _dayGenInstructions(
+          description,
+          label,
+          numWeeks,
+          experienceLevel,
+          goal: goal,
+          sportContext: sportContext,
+          exerciseLibrary: dayLib,
+          brief: brief,
+          priorDays: List.unmodifiable(doneDays),
+          remainingSetBudget: remaining,
+          usedPrimaryCompounds: usedPrimaryCompounds,
+        );
         for (int attempt = 0; attempt < 3 && importedDay == null; attempt++) {
           try {
             // Signal the UI to clear reasoning for the new call on the first attempt
@@ -196,6 +229,13 @@ class LlmService {
         }
         if (importedDay != null) {
           days.add(importedDay);
+          // Update running context for subsequent days.
+          final summary = _summarizeDay(importedDay);
+          for (final entry in summary.sets.entries) {
+            runningSets[entry.key] = (runningSets[entry.key] ?? 0) + entry.value;
+          }
+          doneDays.add((label: label, compounds: summary.compounds, sets: summary.sets));
+          usedPrimaryCompounds.addAll(brief.primaryCompounds);
         } else {
           skipped.add(label);
         }
@@ -251,9 +291,14 @@ class LlmService {
           ? ''
           : '\nEXERCISE LIBRARY (prefer these exact names):\n${exerciseLibrary.map((e) => e.name).join('\n')}';
       final dayIdxList = data.days.map((d) => d.dayIdx).join(', ');
-      final dayCountTable = data.days
-          .map((d) => '- dayIdx ${d.dayIdx} (${d.label}): ${d.exercises.length} exercises')
-          .join('\n');
+      final dayDetailTable = data.days.map((d) {
+        if (d.exercises.isEmpty) return '- dayIdx ${d.dayIdx} (${d.label}): [rest]';
+        final summary = _summarizeDay(d);
+        final compStr = summary.compounds.isEmpty ? 'none' : summary.compounds.join(', ');
+        final setStr = summary.sets.entries.map((e) => '${e.key}:${e.value}').join(', ');
+        return '- dayIdx ${d.dayIdx} (${d.label}): ${d.exercises.length} exercises'
+            ' | compounds: $compStr | sets — $setStr';
+      }).join('\n');
 
       final prompt = '''You are an evidence-based S&C coach fixing a mesocycle plan.
 The current draft plan has the following validation advisories:
@@ -263,8 +308,8 @@ Advisories describe the entire mesocycle unless they name specific weeks. Apply 
 $deloadNote
 $libNote
 
-CURRENT EXERCISE COUNTS PER DAY (preserve count; swap or edit, never delete without replacing):
-$dayCountTable
+CURRENT PLAN PER DAY (preserve exercise count; rebalance compounds/sets across days to fix issues):
+$dayDetailTable
 
 CURRENT PLAN JSON:
 $planJson
@@ -449,7 +494,9 @@ SCHEMA: {"name":"<name>","numWeeks":${data.numWeeks},"days":[{"dayIdx":0,"label"
       final msg = json['choices']?[0]?['message'] as Map<String, dynamic>?;
       return (msg?['content'] as String?)?.isNotEmpty == true
           ? msg!['content'] as String
-          : (msg?['reasoning_content'] as String?) ?? '';
+          : ((msg?['reasoning_content'] ?? msg?['reasoning'] ?? msg?['thinking'])
+                  as String?) ??
+              '';
     }
 
     // Streaming SSE path — surfaces reasoning_content live, falls back to
@@ -490,8 +537,9 @@ SCHEMA: {"name":"<name>","numWeeks":${data.numWeeks},"days":[{"dayIdx":0,"label"
           if (delta == null) continue;
           final content = delta['content'] as String?;
           if (content != null) buffer.write(content);
-          final reasoning =
-              (delta['reasoning_content'] ?? delta['reasoning']) as String?;
+          final reasoning = (delta['reasoning_content'] ??
+              delta['reasoning'] ??
+              delta['thinking']) as String?;
           if (reasoning != null && reasoning.isNotEmpty) {
             reasoningBuffer.write(reasoning);
             onReasoning(reasoning);
@@ -511,7 +559,9 @@ SCHEMA: {"name":"<name>","numWeeks":${data.numWeeks},"days":[{"dayIdx":0,"label"
           if (reasoning != null && reasoning.isNotEmpty) onReasoning(reasoning);
           final content = (msg?['content'] as String?)?.isNotEmpty == true
               ? msg!['content'] as String
-              : (msg?['reasoning_content'] as String?) ?? '';
+              : ((msg?['reasoning_content'] ?? msg?['reasoning'] ?? msg?['thinking'])
+                      as String?) ??
+                  '';
           return content;
         } on FormatException {
           // raw is not valid JSON either; fall through
@@ -708,15 +758,22 @@ STRUCTURE RULES:
 - Avoid single-muscle bro splits (chest day, back day) unless explicitly requested.
 
 MANDATORY CONSTRAINTS:
-If the description names specific exercises, final-week tests (e.g. "1RM test"), AMRAPs, or required protocols, note them in your reasoning and surface them in relevant day labels (e.g. "Lower A — 1RM Day").
+ONLY if the description explicitly names a specific protocol (e.g. a named exercise, a testing day, an AMRAP), reflect it in the matching day's label. Do NOT add testing days, 1RM days, AMRAP days, or peaking weeks the description does not request — default plans end with a deload, not a max-effort test.
 
-Example — "3 day full body":
-{"name":"3-Day Full Body","days":["Full Body A","Rest","Full Body B","Rest","Full Body C","Rest","Rest"]}
+═══ BRIEFS (required in output) ═══
+For every training day (skip Rest days) emit a brief that divides the weekly volume across the split. Rules:
+- "muscles": list of muscle groups trained that day.
+- "setBudget": per-muscle set target for ONE week so the sum across all days for that muscle lands inside MEV–MAV. Do NOT assign the full weekly allocation to a single day.
+- "primaryCompounds": 1–2 specific compound names for this day. Each compound must appear in exactly one day's primaryCompounds across the whole week — no shared primary compounds between days.
 
-Example — "4 day upper lower":
-{"name":"4-Day Upper/Lower","days":["Upper A","Lower A","Rest","Upper B","Lower B","Rest","Rest"]}
+Example — Push day in a 4-day upper/lower, intermediate, hypertrophy:
+{"dayIdx":0,"label":"Push","muscles":["chest","shoulders","triceps"],"setBudget":{"chest":5,"shoulders":3,"triceps":3},"primaryCompounds":["Barbell Bench Press","Overhead Press"]}
 
-SCHEMA: {"name":"<name>","days":["<Mon>","<Tue>","<Wed>","<Thu>","<Fri>","<Sat>","<Sun>"]}
+SCHEMA:
+{"name":"<name>","days":["<Mon>","...","<Sun>"],
+ "briefs":[{"dayIdx":<int>,"label":"<label>","muscles":["<group>",...],"setBudget":{"<group>":<sets>,...},"primaryCompounds":["<name>","<name>"]},...]}
+
+Only include briefs entries for training days (days where label != "Rest").
 
 DESCRIPTION:
 $description''';
@@ -730,6 +787,11 @@ $description''';
     String goal = 'mix',
     String sportContext = '',
     List<String> exerciseLibrary = const [],
+    _DayBrief? brief,
+    List<({String label, List<String> compounds, Map<String, int> sets})> priorDays =
+        const [],
+    Map<String, int> remainingSetBudget = const {},
+    Set<String> usedPrimaryCompounds = const {},
   }) {
     final deloadWeeks = _deloadWeekIndices(numWeeks);
     final deloadNote = deloadWeeks.isEmpty
@@ -794,18 +856,61 @@ Exercise selection must address sport-specific muscular imbalances. When two exe
 - BJJ / wrestling / combat sports → prioritise: rotational core, neck, wrist stability, posterior chain, trap-3 raises.
 - General fitness → no restriction; follow standard split selection.''';
 
+    // ── Weekly-context block (only rendered when there are prior days) ──
+    final weeklyContextSection = priorDays.isEmpty
+        ? ''
+        : () {
+            final sb = StringBuffer('\n═══ WEEKLY CONTEXT (already generated) ═══\n');
+            for (final d in priorDays) {
+              final setStr = d.sets.entries.map((e) => '${e.key}:${e.value}').join(', ');
+              final compStr =
+                  d.compounds.isEmpty ? 'none' : d.compounds.join(', ');
+              sb.writeln('${d.label} | compounds: $compStr | sets — $setStr');
+            }
+            return sb.toString().trimRight();
+          }();
+
+    // ── Day brief block ──
+    final briefSection = () {
+      final targetMuscles = brief?.muscles.isNotEmpty == true
+          ? brief!.muscles.join(', ')
+          : 'inferred from label';
+      final budgetStr = remainingSetBudget.isEmpty
+          ? 'see weekly volume guidelines'
+          : remainingSetBudget.entries
+              .where((e) => e.value > 0)
+              .map((e) => '${e.key}: ${e.value} sets remaining')
+              .join(', ');
+      final primaryStr = brief?.primaryCompounds.isNotEmpty == true
+          ? brief!.primaryCompounds.join(', ')
+          : 'choose freely';
+      final usedStr = usedPrimaryCompounds.isEmpty
+          ? ''
+          : '\nDO NOT use these as primary compounds (already claimed by earlier days): ${usedPrimaryCompounds.join(', ')}.';
+
+      return '''
+
+═══ DAY BRIEF ═══
+Target muscles: $targetMuscles
+Remaining weekly set budget for this day: $budgetStr$usedStr
+Primary compound(s) for this day: $primaryStr''';
+    }();
+
     return '''You are an evidence-based strength and conditioning coach (Schoenfeld volume landmarks, Helms RIR autoregulation, SAID principle). Design the "$dayLabel" session of a $numWeeks-week mesocycle.
 LIFTER LEVEL: $levelDesc
 GOAL: ${goal.toUpperCase()}
 $sportSection
+$weeklyContextSection
+$briefSection
 
 ═══ USER CONSTRAINTS — MUST HONOUR ═══
 Source description: "$description"
 - Any explicitly named exercise MUST appear in this session if appropriate for "$dayLabel".
-- Any named protocol MUST be encoded in weekTargets:
-  · "1RM test" or "max test" on the final week → weekIdx:${numWeeks - 1}, reps:[1], rir:[0] for the relevant compound.
-  · "AMRAP" → reps:[20], rir:[0] (signals max-effort set).
-  · "pause reps" → include in exercise name (e.g. "Pause Bench Press").
+- Encode a protocol in weekTargets ONLY if the description above explicitly names it:
+  · If — and only if — the description says "1RM test" or "max test": weekIdx:${numWeeks - 1}, reps:[1], rir:[0] for the relevant compound.
+  · If the description says "AMRAP": reps:[20], rir:[0].
+  · If the description says "pause reps": include in the exercise name (e.g. "Pause Bench Press").
+- Do NOT invent testing days, 1RM sets, or AMRAP sets the description does not request. Normal final weeks use the standard RIR progression, NOT a max test.
 - Respect any stated exercise order (e.g. "start with deadlift").
 
 ═══ EXERCISE SELECTION ═══
@@ -824,8 +929,7 @@ Accessory & isolation (curls, lateral raises, tricep work, leg curl, leg extensi
 - Rep target: $isoReps.
 
 WEEKLY VOLUME: $weeklyVolume
-- Muscle trained once/wk → full weekly set count that session.
-- Muscle trained twice/wk → ~half the weekly sets per session.
+- Use the per-muscle "remaining" set budget from the DAY BRIEF above. Do not assign more sets than the budget allows for muscles trained on multiple days.
 
 ═══ RIR PROGRESSION ═══
 RIR = reps in reserve (0 = failure, 1 = one rep left).
@@ -871,6 +975,91 @@ SCHEMA:
     return {};
   }
 
+  // ─────────────────────── Week-context helpers ───────────────────────
+
+  /// Parse `briefs` from the outline JSON, falling back to defaults.
+  List<_DayBrief> _parseBriefs(
+    Map<String, dynamic> outlineJson,
+    List<String> allLabels,
+    String experienceLevel,
+    String goal,
+  ) {
+    // Try to parse LLM-provided briefs.
+    final rawBriefs = outlineJson['briefs'] as List<dynamic>?;
+    if (rawBriefs != null && rawBriefs.isNotEmpty) {
+      try {
+        final parsed = <int, _DayBrief>{};
+        for (final rb in rawBriefs) {
+          final m = rb as Map<String, dynamic>;
+          final idx = (m['dayIdx'] as int?) ?? -1;
+          if (idx < 0 || idx >= allLabels.length) continue;
+          final muscles = ((m['muscles'] as List<dynamic>?) ?? [])
+              .map((e) => e.toString())
+              .toSet();
+          final rawBudget = m['setBudget'] as Map<String, dynamic>? ?? {};
+          final setBudget = rawBudget.map((k, v) => MapEntry(k, (v as num).toInt()));
+          final compounds = ((m['primaryCompounds'] as List<dynamic>?) ?? [])
+              .map((e) => e.toString())
+              .toList();
+          parsed[idx] = (
+            dayIdx: idx,
+            label: allLabels[idx],
+            muscles: muscles,
+            setBudget: setBudget,
+            primaryCompounds: compounds,
+          );
+        }
+        if (parsed.isNotEmpty) {
+          return [
+            for (int i = 0; i < allLabels.length; i++)
+              parsed[i] ?? _defaultBrief(i, allLabels[i], experienceLevel, goal),
+          ];
+        }
+      } catch (_) {}
+    }
+    // Fallback: derive default brief from label.
+    return [
+      for (int i = 0; i < allLabels.length; i++)
+        _defaultBrief(i, allLabels[i], experienceLevel, goal),
+    ];
+  }
+
+  _DayBrief _defaultBrief(
+      int dayIdx, String label, String experienceLevel, String goal) {
+    final muscles = _groupsForDayLabel(label);
+    // Rough per-muscle set budget: midpoint of level-appropriate weekly volume
+    // split evenly across muscles in this day's focus group.
+    final midpoint = switch (experienceLevel) {
+      'beginner' => 6,
+      'advanced' => 16,
+      _ => 11,
+    };
+    final share = muscles.isEmpty ? midpoint : (midpoint / muscles.length).ceil();
+    final setBudget = {for (final m in muscles) m: share};
+    return (
+      dayIdx: dayIdx,
+      label: label,
+      muscles: muscles,
+      setBudget: setBudget,
+      primaryCompounds: const <String>[],
+    );
+  }
+
+  /// Returns per-muscle set count for a generated day (week 0 as representative sample).
+  ({Map<String, int> sets, List<String> compounds}) _summarizeDay(ImportDay day) {
+    final sets = <String, int>{};
+    final compounds = <String>[];
+    for (final ex in day.exercises) {
+      final w0 = ex.targetForWeek(0);
+      final count = w0.reps.length;
+      if (count > 0) {
+        final g = ex.muscleGroup;
+        sets[g] = (sets[g] ?? 0) + count;
+      }
+    }
+    return (sets: sets, compounds: compounds);
+  }
+
   Future<List<PlanAdvisory>> _critiquePlan(
     MesoImportData data,
     String description,
@@ -912,7 +1101,7 @@ SEVERITY GUIDE:
 - "info" = soft recommendation the user may intentionally ignore: exercise frequency choice, split style, exercise name alternatives.
 
 TASK: Identify up to 5 issues. Check only:
-1. Constraint honoring — named exercises, 1RM tests, or protocols from description missing or misplaced
+1. Constraint honoring — only flag missing items the description EXPLICITLY names. Do NOT flag a missing 1RM/max test/AMRAP/peaking week unless the description literally requests one.
 2. Sport specificity — SAID principle misapplied for stated sport (skip if sportContext is general/empty)
 3. Volume — flagrant MEV/MRV violation vs stated goal (not minor deviations)
 4. Progression — reps/RIR flat or regresses across consecutive normal (non-deload) weeks
