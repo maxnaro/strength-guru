@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../db/database.dart';
 import '../db/queries.dart';
+import '../models/meso_import_data.dart';
 import '../providers.dart';
 import '../screens/meso_import_screen.dart';
 import '../services/llm_service.dart';
@@ -28,6 +30,9 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   int _trainingDays = 4;
   _ExperienceLevel _experience = _ExperienceLevel.intermediate;
   _Goal _goal = _Goal.mix;
+  List<Mesocycle> _mesocycles = [];
+  String? _basisMesoId;
+  String _basisMode = 'inspiration';
 
   @override
   void initState() {
@@ -46,9 +51,11 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   Future<void> _loadSettings() async {
     final db = ref.read(dbProvider);
     final savedUrl = await db.getSetting('llm_api_url');
+    final mesos = await db.watchAllMesocycles().first;
     if (mounted) {
       setState(() {
         _apiUrlController.text = savedUrl ?? LlmService.defaultUrl;
+        _mesocycles = mesos;
       });
     }
   }
@@ -61,13 +68,22 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
     final db = ref.read(dbProvider);
     await db.setSetting('llm_api_url', url);
     await db.setSetting('llm_use_external', 'true');
+    final exercises = await db.allExercises();
+
+    MesoImportData? priorMeso;
+    if (_basisMesoId != null) {
+      priorMeso = await db.exportMesoToImportData(_basisMesoId!);
+    }
 
     if (!mounted) return;
-    final weeks = _numWeeks;
+    final bool progressMode = priorMeso != null && _basisMode == 'progress';
+    final weeks = progressMode ? priorMeso.numWeeks : _numWeeks;
     final exp = _experience.name; // 'beginner' | 'intermediate' | 'advanced'
     final goalStr = _goal.name;   // 'strength' | 'hypertrophy' | 'mix'
-    final days = _trainingDays;
+    final int? days = progressMode ? null : _trainingDays;
     final sport = _sportController.text.trim();
+    final exerciseLibrary = exercises.map((e) => (name: e.name, group: e.group)).toList();
+    final capturedBasisMode = _basisMode;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MesoImportScreen(
@@ -79,7 +95,22 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
             goal: goalStr,
             trainingDays: days,
             sportContext: sport,
+            exerciseLibrary: exerciseLibrary,
+            priorMeso: priorMeso,
+            basisMode: capturedBasisMode,
             onProgress: onProgress,
+            onReasoning: onReasoning,
+          ),
+          fixProducer: (currentData, advisories, onReasoning) =>
+              LlmService().fixPlanAdvisories(
+            currentData,
+            advisories,
+            apiUrl: url,
+            experienceLevel: exp,
+            goal: goalStr,
+            sportContext: sport,
+            description: desc,
+            exerciseLibrary: exerciseLibrary,
             onReasoning: onReasoning,
           ),
         ),
@@ -90,6 +121,12 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
   @override
   Widget build(BuildContext context) {
     final p = pal(context);
+    final selectedMeso =
+        _mesocycles.where((m) => m.id == _basisMesoId).firstOrNull;
+    final bool progressMode =
+        _basisMesoId != null && _basisMode == 'progress';
+    final int displayWeeks =
+        progressMode && selectedMeso != null ? selectedMeso.numWeeks : _numWeeks;
     return Scaffold(
       backgroundColor: p.bg,
       appBar: AppBar(
@@ -119,6 +156,26 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                       style: SGText.body(14, color: p.textDim),
                     ),
                     const SizedBox(height: 24),
+                    if (_mesocycles.isNotEmpty) ...[
+                      Text('Base on prior mesocycle (optional)',
+                          style: SGText.body(13, color: p.textDim)),
+                      const SizedBox(height: 8),
+                      _MesoPicker(
+                        mesocycles: _mesocycles,
+                        selectedId: _basisMesoId,
+                        palette: p,
+                        onChanged: (id) => setState(() => _basisMesoId = id),
+                      ),
+                      if (_basisMesoId != null) ...[
+                        const SizedBox(height: 12),
+                        _BasisModePicker(
+                          value: _basisMode,
+                          palette: p,
+                          onChanged: (v) => setState(() => _basisMode = v),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -158,24 +215,38 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
                       onChanged: (v) => setState(() => _goal = v),
                     ),
                     const SizedBox(height: 24),
-                    SGStepper(
-                      value: _trainingDays,
-                      min: 1,
-                      max: 7,
-                      step: 1,
-                      label: 'TRAINING DAYS / WEEK',
-                      accentColor: p.accent,
-                      onChanged: (v) => setState(() => _trainingDays = v.toInt()),
+                    IgnorePointer(
+                      ignoring: progressMode,
+                      child: Opacity(
+                        opacity: progressMode ? 0.35 : 1.0,
+                        child: SGStepper(
+                          value: _trainingDays,
+                          min: 1,
+                          max: 7,
+                          step: 1,
+                          label: 'TRAINING DAYS / WEEK',
+                          accentColor: p.accent,
+                          onChanged: (v) =>
+                              setState(() => _trainingDays = v.toInt()),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    SGStepper(
-                      value: _numWeeks,
-                      min: 1,
-                      max: 16,
-                      step: 1,
-                      label: 'WEEKS',
-                      accentColor: p.accent,
-                      onChanged: (v) => setState(() => _numWeeks = v.toInt()),
+                    IgnorePointer(
+                      ignoring: progressMode,
+                      child: Opacity(
+                        opacity: progressMode ? 0.35 : 1.0,
+                        child: SGStepper(
+                          value: displayWeeks,
+                          min: 1,
+                          max: 16,
+                          step: 1,
+                          label: 'WEEKS',
+                          accentColor: p.accent,
+                          onChanged: (v) =>
+                              setState(() => _numWeeks = v.toInt()),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text('Sport / Context (optional)', style: SGText.body(13, color: p.textDim)),
@@ -364,6 +435,218 @@ class _ExperiencePicker extends StatelessWidget {
                     style: SGText.body(13,
                         color: selected ? p.accent : p.text,
                         weight: selected ? FontWeight.w600 : FontWeight.w400),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    sub,
+                    style: SGText.mono(10, color: p.textFaint),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MesoPicker extends StatelessWidget {
+  final List<Mesocycle> mesocycles;
+  final String? selectedId;
+  final SGPalette palette;
+  final ValueChanged<String?> onChanged;
+
+  const _MesoPicker({
+    required this.mesocycles,
+    required this.selectedId,
+    required this.palette,
+    required this.onChanged,
+  });
+
+  void _openSheet(BuildContext context) {
+    final p = palette;
+    showSGSheet(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Prior mesocycle', style: SGText.display(18, color: p.text)),
+          const SizedBox(height: 16),
+          _OptionTile(
+            label: 'None',
+            sub: 'generate fresh',
+            selected: selectedId == null,
+            palette: p,
+            onTap: () {
+              onChanged(null);
+              Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 6),
+          ...mesocycles.map((m) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _OptionTile(
+                  label: m.name,
+                  sub: '${m.numWeeks} weeks',
+                  selected: selectedId == m.id,
+                  palette: p,
+                  onTap: () {
+                    onChanged(m.id);
+                    Navigator.pop(context);
+                  },
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    final selected = mesocycles.where((m) => m.id == selectedId).firstOrNull;
+    return GestureDetector(
+      onTap: () => _openSheet(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: p.border, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selected?.name ?? 'None',
+                style: SGText.body(14,
+                    color: selected != null ? p.text : p.textFaint),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (selected != null) ...[
+              const SizedBox(width: 8),
+              Text('${selected.numWeeks}w',
+                  style: SGText.mono(10, color: p.textFaint)),
+            ],
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 16, color: p.textFaint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OptionTile extends StatelessWidget {
+  final String label;
+  final String sub;
+  final bool selected;
+  final SGPalette palette;
+  final VoidCallback onTap;
+
+  const _OptionTile({
+    required this.label,
+    required this.sub,
+    required this.selected,
+    required this.palette,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? p.accent.withValues(alpha: 0.10) : p.chipBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? p.accent.withValues(alpha: 0.35) : Colors.transparent,
+            width: selected ? 1.5 : 0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label,
+                      style: SGText.body(14,
+                          color: selected ? p.accent : p.text,
+                          weight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400),
+                      overflow: TextOverflow.ellipsis),
+                  Text(sub, style: SGText.mono(10, color: p.textFaint)),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_rounded, size: 16, color: p.accent),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BasisModePicker extends StatelessWidget {
+  final String value;
+  final SGPalette palette;
+  final ValueChanged<String> onChanged;
+
+  const _BasisModePicker({
+    required this.value,
+    required this.palette,
+    required this.onChanged,
+  });
+
+  static const _options = [
+    ('inspiration', 'Inspiration', 'adapts freely'),
+    ('progress', 'Progress from', 'keeps structure'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = palette;
+    return Row(
+      children: _options.map((opt) {
+        final (mode, label, sub) = opt;
+        final selected = value == mode;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(mode),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: EdgeInsets.only(right: mode == 'inspiration' ? 6 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: selected ? p.accent.withValues(alpha: 0.12) : p.chipBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? p.accent.withValues(alpha: 0.4) : p.border,
+                  width: selected ? 1.5 : 0.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: SGText.body(13,
+                        color: selected ? p.accent : p.text,
+                        weight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400),
                     textAlign: TextAlign.center,
                   ),
                   Text(
