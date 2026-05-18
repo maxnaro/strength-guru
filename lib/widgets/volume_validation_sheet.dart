@@ -5,6 +5,8 @@ import '../db/database.dart';
 import '../db/queries.dart';
 import '../models/plan_advisory.dart';
 import '../providers.dart';
+import '../screens/meso_import_screen.dart';
+import '../services/llm_service.dart';
 import '../services/volume_validator.dart';
 import '../theme/sg_atoms.dart';
 import '../theme/tokens.dart';
@@ -21,20 +23,10 @@ class VolumeValidationSheet extends ConsumerStatefulWidget {
 class _VolumeValidationSheetState extends ConsumerState<VolumeValidationSheet> {
   String _experienceLevel = 'intermediate';
   String _goal = 'hypertrophy';
-  late int _weekIdx;
+  String _sportContext = '';
   List<PlanAdvisory>? _advisories;
   bool _loading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final today = ref.read(todayKeyProvider);
-    if (today != null && today.mesoId == widget.meso.id) {
-      _weekIdx = today.weekIdx;
-    } else {
-      _weekIdx = 0;
-    }
-  }
+  final _sportController = TextEditingController();
 
   Future<void> _runValidation() async {
     setState(() {
@@ -50,7 +42,6 @@ class _VolumeValidationSheetState extends ConsumerState<VolumeValidationSheet> {
         importData,
         experienceLevel: _experienceLevel,
         goal: _goal,
-        weekToCheck: _weekIdx,
       );
 
       if (mounted) {
@@ -67,6 +58,12 @@ class _VolumeValidationSheetState extends ConsumerState<VolumeValidationSheet> {
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _sportController.dispose();
+    super.dispose();
   }
 
   @override
@@ -111,18 +108,33 @@ class _VolumeValidationSheetState extends ConsumerState<VolumeValidationSheet> {
               ),
               const SizedBox(height: 20),
 
-              // ── Target Week ───────────────────────────────────────
-              Text('Target Week', style: SGText.body(13, color: p.textDim)),
+              // ── Sport / Context ────────────────────────────────────
+              Text('Sport / Context (optional)', style: SGText.body(13, color: p.textDim)),
               const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: p.border, width: 0.5),
+                ),
+                child: TextField(
+                  controller: _sportController,
+                  onChanged: (v) => _sportContext = v,
+                  style: SGText.body(13, color: p.text),
+                  decoration: InputDecoration(
+                    hintText: 'climbing, running, BJJ…',
+                    hintStyle: SGText.body(13, color: p.textFaint),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
             ],
           ),
-        ),
-
-        _WeekPickerStrip(
-          numWeeks: widget.meso.numWeeks,
-          value: _weekIdx,
-          palette: p,
-          onChanged: (v) => setState(() => _weekIdx = v),
         ),
 
         const SizedBox(height: 24),
@@ -147,12 +159,54 @@ class _VolumeValidationSheetState extends ConsumerState<VolumeValidationSheet> {
             ),
           )
         else if (_advisories != null)
-          _ResultsView(advisories: _advisories!, palette: p)
+          _ResultsView(
+            advisories: _advisories!,
+            palette: p,
+            onFixRequested: _onFixRequested,
+          )
         else
           const SizedBox(height: 20),
 
         SizedBox(height: bottomPad + 16),
       ],
+    );
+  }
+
+  Future<void> _onFixRequested() async {
+    final db = ref.read(dbProvider);
+    final url = await db.getSetting('llm_api_url') ?? LlmService.defaultUrl;
+    final importData = await db.exportMesoToImportData(widget.meso.id);
+    final exercises = await db.allExercises();
+    final lib = exercises.map((e) => (name: e.name, group: e.group)).toList();
+
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MesoImportScreen(
+          dataProducer: (onProgress, onReasoning) => LlmService().fixPlanAdvisories(
+            importData,
+            _advisories!,
+            apiUrl: url,
+            experienceLevel: _experienceLevel,
+            goal: _goal,
+            sportContext: _sportContext,
+            exerciseLibrary: lib,
+            onReasoning: onReasoning,
+          ),
+          fixProducer: (currentData, advisories, onReasoning) =>
+              LlmService().fixPlanAdvisories(
+            currentData,
+            advisories,
+            apiUrl: url,
+            experienceLevel: _experienceLevel,
+            goal: _goal,
+            sportContext: _sportContext,
+            exerciseLibrary: lib,
+            onReasoning: onReasoning,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -297,85 +351,18 @@ class _GoalPicker extends StatelessWidget {
   }
 }
 
-class _WeekPickerStrip extends StatelessWidget {
-  final int numWeeks;
-  final int value;
-  final SGPalette palette;
-  final ValueChanged<int> onChanged;
-
-  const _WeekPickerStrip({
-    required this.numWeeks,
-    required this.value,
-    required this.palette,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final p = palette;
-
-    return Stack(
-      children: [
-        SizedBox(
-          height: 44,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: numWeeks,
-            itemBuilder: (ctx, i) {
-              final active = value == i;
-              return GestureDetector(
-                onTap: () => onChanged(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.only(right: 6, top: 4, bottom: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: active ? p.text : p.chipBg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'WEEK ${i + 1}',
-                      style: SGText.mono(10,
-                          color: active ? p.bg : p.textDim,
-                          weight: active ? FontWeight.bold : FontWeight.normal),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Positioned(
-          right: -1,
-          top: 0,
-          bottom: 0,
-          width: 30,
-          child: IgnorePointer(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerRight,
-                  end: Alignment.centerLeft,
-                  colors: [p.bg, p.bg.withValues(alpha: 0)],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ── Results ───────────────────────────────────────────────────────────────────
 
 class _ResultsView extends StatelessWidget {
   final List<PlanAdvisory> advisories;
   final SGPalette palette;
+  final VoidCallback? onFixRequested;
 
-  const _ResultsView({required this.advisories, required this.palette});
+  const _ResultsView({
+    required this.advisories,
+    required this.palette,
+    this.onFixRequested,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +383,7 @@ class _ResultsView extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Volume looks optimal for this week!',
+                'Volume looks optimal across the mesocycle!',
                 style: SGText.body(14, color: p.success, weight: FontWeight.w600),
               ),
             ),
@@ -422,12 +409,25 @@ class _ResultsView extends StatelessWidget {
             childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             title: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: p.warn, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  'Plan advisories (${advisories.length})',
-                  style: SGText.body(13, color: p.warn, weight: FontWeight.w600),
+                Icon(Icons.warning_amber_rounded, color: p.warn, size: 24),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '(${advisories.length})',
+                    style: SGText.body(16, color: p.warn, weight: FontWeight.w600),
+                  ),
                 ),
+                if (onFixRequested != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: SGButton.ghost(
+                      label: 'Fix with AI',
+                      leadingIcon: Icon(Icons.auto_awesome, size: 14, color: p.warn),
+                      color: p.warn,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      onTap: onFixRequested,
+                    ),
+                  ),
               ],
             ),
             children: advisories
