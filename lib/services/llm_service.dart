@@ -227,6 +227,101 @@ class LlmService {
     }
   }
 
+  Future<MesoImportData> fixPlanAdvisories(
+    MesoImportData data,
+    List<PlanAdvisory> advisories, {
+    required String apiUrl,
+    String experienceLevel = 'intermediate',
+    String goal = 'mix',
+    String sportContext = '',
+    List<({String name, String group})> exerciseLibrary = const [],
+    void Function(String reasoningDelta)? onReasoning,
+  }) async {
+    await WakelockPlus.enable();
+    try {
+      final advisoryText =
+          advisories.map((a) => '- [${a.scope}] ${a.message}').join('\n');
+      final planJson = jsonEncode(data.toJson());
+      final deloadWeeks = _deloadWeekIndices(data.numWeeks);
+      final deloadNote = deloadWeeks.isEmpty
+          ? ''
+          : '\nDELOAD WEEKS (weekIdx: ${deloadWeeks.join(', ')}): keep sets at 2, do NOT raise volume to fix below-MEV on these weeks.';
+      final libNote = exerciseLibrary.isEmpty
+          ? ''
+          : '\nEXERCISE LIBRARY (prefer these exact names):\n${exerciseLibrary.map((e) => e.name).join('\n')}';
+      final dayIdxList = data.days.map((d) => d.dayIdx).join(', ');
+      final dayCountTable = data.days
+          .map((d) => '- dayIdx ${d.dayIdx} (${d.label}): ${d.exercises.length} exercises')
+          .join('\n');
+
+      final prompt = '''You are an evidence-based S&C coach fixing a mesocycle plan.
+The current draft plan has the following validation advisories:
+$advisoryText
+
+Advisories describe the entire mesocycle unless they name specific weeks. Apply your fix to every week the issue affects (typically all weeks), not just week 1.
+$deloadNote
+$libNote
+
+CURRENT EXERCISE COUNTS PER DAY (preserve count; swap or edit, never delete without replacing):
+$dayCountTable
+
+CURRENT PLAN JSON:
+$planJson
+
+TASK:
+Return the COMPLETE plan. All ${data.days.length} days MUST appear in the response in dayIdx order ($dayIdxList). Rest days and unchanged training days MUST be echoed back verbatim — do NOT omit, do NOT collapse them.
+- numWeeks: ${data.numWeeks} — DO NOT change this value.
+- Each training day MUST return the same number of exercises as listed above (or more if adding). Do NOT delete exercises without a direct replacement.
+- Adjust sets/reps to fix volume issues.
+- Change exercises if necessary to address balance or SAID principle issues.
+
+Respond with JSON only — no markdown, no commentary.
+SCHEMA: {"name":"<name>","numWeeks":${data.numWeeks},"days":[{"dayIdx":0,"label":"...","exercises":[]}]}''';
+
+      onReasoning?.call('# Fixing Plan\n');
+      MesoImportData? result;
+      for (int attempt = 0; attempt < 3 && result == null; attempt++) {
+        try {
+          if (attempt > 0) {
+            await Future.delayed(Duration(milliseconds: 300 * attempt));
+          }
+          final text = await _chat(apiUrl, prompt, onReasoning: attempt == 0 ? onReasoning : null);
+          final obj = _extractFirstJson(text);
+          result = MesoImportData.fromJson(obj);
+        } catch (_) {
+          if (attempt == 2) rethrow;
+        }
+      }
+
+      final fixed = _mergeFixedDays(data, result!);
+
+      // Re-validate
+      final volAdvisories = VolumeValidator.validate(fixed,
+          experienceLevel: experienceLevel, goal: goal);
+      final criticAdvisories = await _critiquePlan(
+        fixed,
+        'Fixing plan',
+        fixed.numWeeks,
+        experienceLevel,
+        goal,
+        null,
+        sportContext,
+        apiUrl,
+        onReasoning: onReasoning,
+      );
+
+      final seen = <String>{};
+      fixed.advisories.addAll(
+        [...volAdvisories, ...criticAdvisories]
+            .where((a) => seen.add('${a.scope}|${a.message}')),
+      );
+
+      return fixed;
+    } finally {
+      await WakelockPlus.disable();
+    }
+  }
+
   Future<MesoImportData> _runLocalInterpretation(
     String csvContent,
     void Function(int done, int total)? onProgress,
@@ -786,10 +881,13 @@ SCHEMA:
     String apiUrl, {
     void Function(String)? onReasoning,
   }) async {
-    final setsW1 = VolumeValidator.setsForWeek(data, 0);
-    final volStats = setsW1.entries
-        .map((e) => '${e.key.label}: ${e.value} sets')
-        .join(', ');
+    final volTable = StringBuffer();
+    for (var w = 0; w < numWeeks; w++) {
+      final s = VolumeValidator.setsForWeek(data, w);
+      if (s.isEmpty) continue;
+      final line = s.entries.map((e) => '${e.key.label}: ${e.value}').join(', ');
+      volTable.writeln('W${w + 1}: $line');
+    }
 
     final prompt =
         '''You are an evidence-based S&C coach reviewing a generated mesocycle.
@@ -802,25 +900,32 @@ INPUTS:
 - Training days/week: ${trainingDays ?? 'inferred'}
 - Sport/context: ${sportContext.isEmpty ? 'general' : sportContext}
 
-VOLUME SUMMARY (week 1 sets per muscle):
-$volStats
+VOLUME PER WEEK (sets per muscle):
+${volTable.toString().trim()}
 
 PLAN:
 ${_serializePlanForCritic(data)}
 
-TASK: Identify up to 5 high-impact issues. Focus on:
-1. Constraint honoring — verify description's mandatory items (named exercises, 1RM tests, protocols) are present
-2. Sport specificity — SAID principle applied correctly for stated sport
-3. Volume balance — flagrant under/over-programming vs stated goal
-4. Progression coherence — reps/RIR progresses meaningfully week-over-week
+SEVERITY GUIDE:
+- "warn" = objective problem: missing mandatory item, broken constraint, broken progression, volume clearly outside safe range.
+- "info" = soft recommendation the user may intentionally ignore: exercise frequency choice, split style, exercise name alternatives.
 
+TASK: Identify up to 5 issues. Check only:
+1. Constraint honoring — named exercises, 1RM tests, or protocols from description missing or misplaced
+2. Sport specificity — SAID principle misapplied for stated sport (skip if sportContext is general/empty)
+3. Volume — flagrant MEV/MRV violation vs stated goal (not minor deviations)
+4. Progression — reps/RIR flat or regresses across consecutive normal (non-deload) weeks
+
+Frame issues at mesocycle scope. Only name specific weeks when the issue is week-specific (e.g., a progression break between W2→W3).
+
+DO NOT flag: exercise frequency per week (user's choice), split type, exercise naming style.
 If the plan looks solid, output an empty advisories array.
 Output JSON only — no markdown, no commentary.
 SCHEMA: {"advisories":[{"severity":"warn"|"info","scope":"<topic>","message":"<concise issue>"}]}
 STRICT: max 5 items. Do NOT add any field other than severity, scope, message.''';
 
     try {
-      onReasoning?.call('--- REVIEWING PLAN ---\n');
+      onReasoning?.call('# Reviewing Plan\n');
       final text = await _chat(apiUrl, prompt, onReasoning: onReasoning);
       final json = _extractFirstJson(text);
       final rawList = json['advisories'] as List<dynamic>? ?? [];
@@ -883,6 +988,36 @@ STRICT: max 5 items. Do NOT add any field other than severity, scope, message.''
     }
     return RawExtractedDay(label: label, exercises: exercises);
   }
+
+  static ImportDay _pickDay(ImportDay original, ImportDay? fixed) {
+    if (fixed == null) return original;
+    // Guard: model returned fewer than half the original exercises — truncation,
+    // not an intentional swap. Keep original.
+    if (original.exercises.length >= 3 &&
+        fixed.exercises.length * 2 < original.exercises.length) {
+      return original;
+    }
+    return fixed;
+  }
+
+  static MesoImportData _mergeFixedDays(
+      MesoImportData original, MesoImportData fixedResult) {
+    final fixedByIdx = {for (final d in fixedResult.days) d.dayIdx: d};
+    final mergedDays = [
+      for (final orig in original.days) _pickDay(orig, fixedByIdx[orig.dayIdx]),
+    ];
+    return MesoImportData(
+      name: fixedResult.name,
+      numWeeks: original.numWeeks,
+      days: mergedDays,
+      skippedDayLabels: original.skippedDayLabels,
+    );
+  }
+
+  // ignore: library_private_types_in_public_api
+  static MesoImportData mergeFixedDaysForTest(
+          MesoImportData original, MesoImportData fixedResult) =>
+      _mergeFixedDays(original, fixedResult);
 
   static List<Map<String, dynamic>> splitJsonObjects(String text) {
     final results = <Map<String, dynamic>>[];
