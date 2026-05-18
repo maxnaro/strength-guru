@@ -91,6 +91,8 @@ class LlmService {
     int? trainingDays,
     String sportContext = '',
     List<({String name, String group})> exerciseLibrary = const [],
+    MesoImportData? priorMeso,
+    String basisMode = 'inspiration', // 'inspiration' | 'progress'
     void Function(int done, int total)? onProgress,
     void Function(String reasoningDelta)? onReasoning,
   }) async {
@@ -100,11 +102,14 @@ class LlmService {
       for (final ex in exerciseLibrary) {
         (libByGroup[ex.group] ??= []).add(ex.name);
       }
+      final priorSummary = priorMeso == null ? '' : _buildPriorSummary(priorMeso, basisMode);
+
       onReasoning?.call('');
       final outlineText = await _chat(
         apiUrl,
         _outlineInstructions(description, numWeeks, experienceLevel,
-            goal: goal, trainingDays: trainingDays, sportContext: sportContext),
+            goal: goal, trainingDays: trainingDays, sportContext: sportContext,
+            priorSummary: priorSummary),
         onReasoning: onReasoning,
       );
       final outlineJson = _extractFirstJson(outlineText);
@@ -136,7 +141,8 @@ class LlmService {
             final retryText = await _chat(
               apiUrl,
               _outlineInstructions(description, numWeeks, experienceLevel,
-                  goal: goal, trainingDays: trainingDays, sportContext: sportContext),
+                  goal: goal, trainingDays: trainingDays, sportContext: sportContext,
+                  priorSummary: priorSummary),
               onReasoning: onReasoning,
             );
             final retryJson = _extractFirstJson(retryText);
@@ -170,6 +176,11 @@ class LlmService {
       final skipped = <String>[];
       int progressDone = 0;
 
+      // Prior meso day lookup (by dayIdx).
+      final priorDayByIdx = priorMeso == null
+          ? <int, ImportDay>{}
+          : {for (final d in priorMeso.days) d.dayIdx: d};
+
       // Running accumulators for whole-week context.
       final runningSets = <String, int>{};
       final doneDays = <({String label, List<String> compounds, Map<String, int> sets})>[];
@@ -198,6 +209,7 @@ class LlmService {
           for (final entry in brief.setBudget.entries)
             entry.key: (entry.value - (runningSets[entry.key] ?? 0)).clamp(0, 99),
         };
+        final priorDay = priorDayByIdx[i];
         final prompt = _dayGenInstructions(
           description,
           label,
@@ -210,6 +222,8 @@ class LlmService {
           priorDays: List.unmodifiable(doneDays),
           remainingSetBudget: remaining,
           usedPrimaryCompounds: usedPrimaryCompounds,
+          priorDay: priorDay != null && priorDay.exercises.isNotEmpty ? priorDay : null,
+          basisMode: basisMode,
         );
         for (int attempt = 0; attempt < 3 && importedDay == null; attempt++) {
           try {
@@ -699,6 +713,7 @@ $csvLines''';
     String goal = 'mix',
     int? trainingDays,
     String sportContext = '',
+    String priorSummary = '',
   }) {
     final trainingDaysLine = trainingDays != null
         ? '- Training days: EXACTLY $trainingDays non-Rest entries. This is an absolute constraint — count before writing.'
@@ -763,7 +778,7 @@ ONLY if the description explicitly names a specific protocol (e.g. a named exerc
 ═══ BRIEFS (required in output) ═══
 For every training day (skip Rest days) emit a brief that divides the weekly volume across the split. Rules:
 - "muscles": list of muscle groups trained that day.
-- "setBudget": per-muscle set target for ONE week so the sum across all days for that muscle lands inside MEV–MAV. Do NOT assign the full weekly allocation to a single day.
+- "setBudget": per-muscle weekly set target for **week 0** (the starting week). Aim for ~MAV per muscle across the week; never below MEV. Distribute across days — do NOT assign the full weekly allocation to a single day. The day-gen step will progress sets upward toward MRV by the final training week.
 - "primaryCompounds": 1–2 specific compound names for this day. Each compound must appear in exactly one day's primaryCompounds across the whole week — no shared primary compounds between days.
 
 Example — Push day in a 4-day upper/lower, intermediate, hypertrophy:
@@ -774,7 +789,7 @@ SCHEMA:
  "briefs":[{"dayIdx":<int>,"label":"<label>","muscles":["<group>",...],"setBudget":{"<group>":<sets>,...},"primaryCompounds":["<name>","<name>"]},...]}
 
 Only include briefs entries for training days (days where label != "Rest").
-
+${priorSummary.isEmpty ? '' : '\n$priorSummary\n'}
 DESCRIPTION:
 $description''';
   }
@@ -792,6 +807,8 @@ $description''';
         const [],
     Map<String, int> remainingSetBudget = const {},
     Set<String> usedPrimaryCompounds = const {},
+    ImportDay? priorDay,
+    String basisMode = 'inspiration',
   }) {
     final deloadWeeks = _deloadWeekIndices(numWeeks);
     final deloadNote = deloadWeeks.isEmpty
@@ -809,19 +826,19 @@ All other weekIdx values are normal training weeks.''';
           'BEGINNER (< 1 year of consistent training)',
           '2–3 sets',
           '1–2 sets',
-          '4–8 sets per muscle group/week (MEV). Prioritise technique over volume. Linear progression is the primary driver.',
+          'MEV ~4 sets/muscle/week (floor), target MAV ~6 by week 0, approach MRV ~8 in the final training week. Prioritise technique; set count grows slowly.',
         ),
       'advanced' => (
           'ADVANCED (4+ years of consistent training)',
           '3–5 sets',
           '3–4 sets',
-          '12–20 sets per muscle group/week (MAV). Volume above MAV yields diminishing returns — do NOT push to MRV unless this is a specialisation block.',
+          'MEV ~12 sets/muscle/week (floor), target MAV ~16 by week 0, approach MRV ~20 in the final training week.',
         ),
       _ => (
           'INTERMEDIATE (1–4 years of consistent training)',
           '3–4 sets',
           '2–3 sets',
-          '8–15 sets per muscle group/week. Train each muscle group ≥2×/wk for optimal hypertrophy.',
+          'MEV ~8 sets/muscle/week (floor), target MAV ~11 by week 0, approach MRV ~15 in the final training week. Train each muscle group ≥2×/wk.',
         ),
     };
 
@@ -896,12 +913,32 @@ Remaining weekly set budget for this day: $budgetStr$usedStr
 Primary compound(s) for this day: $primaryStr''';
     }();
 
+    // ── Prior day block ──
+    final priorDaySection = () {
+      if (priorDay == null) return '';
+      final modeInstruction = basisMode == 'progress'
+          ? 'This is the NEXT training block. Keep these exercises and order. Progress sets/reps/RIR per the standard progression rules. Only swap an exercise if the description explicitly demands it.'
+          : 'For reference only — draw on this exercise selection where it fits, but feel free to deviate.';
+      final sb = StringBuffer('\n═══ PRIOR DAY (${priorDay.label}) ═══\n');
+      sb.writeln(modeInstruction);
+      for (final ex in priorDay.exercises) {
+        final w0 = ex.weekTargets.where((t) => t.weekIdx == 0).firstOrNull ??
+            ex.weekTargets.firstOrNull;
+        final setsReps = w0 != null
+            ? '${w0.reps.length}×${w0.reps.isNotEmpty ? w0.reps.first : "?"}@RIR${w0.rir.isNotEmpty ? w0.rir.first : "?"}'
+            : '';
+        sb.writeln('  ${ex.name} (${ex.muscleGroup})${setsReps.isNotEmpty ? " — W1: $setsReps" : ""}');
+      }
+      return sb.toString().trimRight();
+    }();
+
     return '''You are an evidence-based strength and conditioning coach (Schoenfeld volume landmarks, Helms RIR autoregulation, SAID principle). Design the "$dayLabel" session of a $numWeeks-week mesocycle.
 LIFTER LEVEL: $levelDesc
 GOAL: ${goal.toUpperCase()}
 $sportSection
 $weeklyContextSection
 $briefSection
+$priorDaySection
 
 ═══ USER CONSTRAINTS — MUST HONOUR ═══
 Source description: "$description"
@@ -936,6 +973,11 @@ RIR = reps in reserve (0 = failure, 1 = one rep left).
 $rirNote
 Progressive overload: each week show a rep increase OR an RIR decrease (or both). NEVER keep reps AND rir identical across consecutive normal weeks — progression is mandatory.
 Accessories should always have equal or lower RIR than compounds in the same week.
+
+SET PROGRESSION (volume accumulation):
+Across normal training weeks, add 1 set to 1–2 exercises per day every 1–2 weeks so the per-muscle weekly total grows from ~MAV (week 0) toward ~MRV by the final non-deload week.
+Encode set count in the length of the reps/rir arrays — emit a longer array for a week with more sets (e.g. week 0: [8,8,8], week 3: [8,8,8,8]).
+Floor: never fewer sets than week 0 in any normal week.
 $deloadNote
 
 ═══ MANDATORY FORMAT RULES ═══
@@ -1030,9 +1072,9 @@ SCHEMA:
     // Rough per-muscle set budget: midpoint of level-appropriate weekly volume
     // split evenly across muscles in this day's focus group.
     final midpoint = switch (experienceLevel) {
-      'beginner' => 6,
-      'advanced' => 16,
-      _ => 11,
+      'beginner' => 8,
+      'advanced' => 20,
+      _ => 15,
     };
     final share = muscles.isEmpty ? midpoint : (midpoint / muscles.length).ceil();
     final setBudget = {for (final m in muscles) m: share};
@@ -1043,6 +1085,27 @@ SCHEMA:
       setBudget: setBudget,
       primaryCompounds: const <String>[],
     );
+  }
+
+  String _buildPriorSummary(MesoImportData prior, String basisMode) {
+    final modeLabel = basisMode == 'progress' ? 'progress' : 'inspiration';
+    final modeInstruction = basisMode == 'progress'
+        ? 'Preserve this split shape and day labels. The new plan is the next training block — same structure, advanced loading. Adjust only what the new description explicitly requests.'
+        : "Draw on this split's decisions and exercise selection where they fit the new description, but feel free to deviate.";
+    final sb = StringBuffer('═══ PRIOR PLAN (basis: $modeLabel) ═══\n');
+    sb.writeln('${prior.numWeeks}-week "${prior.name}"');
+    sb.writeln(modeInstruction);
+    for (final day in prior.days) {
+      if (day.exercises.isEmpty) {
+        sb.writeln('- Day ${day.dayIdx} "${day.label}": [rest]');
+        continue;
+      }
+      final summary = _summarizeDay(day);
+      final exNames = day.exercises.map((e) => '${e.name} (${e.muscleGroup})').join(', ');
+      final setStr = summary.sets.entries.map((e) => '${e.key}:${e.value}').join(', ');
+      sb.writeln('- Day ${day.dayIdx} "${day.label}": $exNames | sets — $setStr');
+    }
+    return sb.toString().trimRight();
   }
 
   /// Returns per-muscle set count for a generated day (week 0 as representative sample).
