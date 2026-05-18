@@ -54,13 +54,39 @@ class VolumeValidator {
     return result;
   }
 
+  static Map<MuscleGroup, Set<int>> _daysForWeek(MesoImportData data, int weekIdx) {
+    final result = <MuscleGroup, Set<int>>{};
+    for (final day in data.days) {
+      for (final ex in day.exercises) {
+        final g = MuscleGroupX.fromString(ex.muscleGroup);
+        if (g == MuscleGroup.other || g == MuscleGroup.rest || g == MuscleGroup.forearms) {
+          continue;
+        }
+        if (ex.targetForWeek(weekIdx).reps.isNotEmpty) {
+          (result[g] ??= {}).add(day.dayIdx);
+        }
+      }
+    }
+    return result;
+  }
+
+  static String _formatWeeks(Set<int> weeks, int total) {
+    if (weeks.length == total) return '';
+    final sorted = weeks.toList()..sort();
+    final isRange =
+        sorted.length >= 3 && sorted.last - sorted.first == sorted.length - 1;
+    if (isRange) return ' in weeks ${sorted.first + 1}–${sorted.last + 1}';
+    return ' in week${sorted.length == 1 ? '' : 's'} ${sorted.map((w) => w + 1).join(', ')}';
+  }
+
   static List<PlanAdvisory> validate(
     MesoImportData data, {
     required String experienceLevel,
     required String goal,
-    int weekToCheck = 0,
   }) {
     if (data.days.isEmpty) return [];
+
+    final numWeeks = data.numWeeks;
 
     final scale = switch (experienceLevel) {
       'beginner' => 0.7,
@@ -69,94 +95,126 @@ class VolumeValidator {
     };
 
     final advisories = <PlanAdvisory>[];
-    final setsPerGroup = setsForWeek(data, weekToCheck);
 
-    // Track how many distinct days each group appears on
-    final daysPerGroup = <MuscleGroup, Set<int>>{};
-    for (final day in data.days) {
-      for (final ex in day.exercises) {
-        final g = MuscleGroupX.fromString(ex.muscleGroup);
-        if (g == MuscleGroup.other || g == MuscleGroup.rest || g == MuscleGroup.forearms) {
-          continue;
-        }
-        (daysPerGroup[g] ??= {}).add(day.dayIdx);
-      }
-    }
+    final weekSets = [for (var w = 0; w < numWeeks; w++) setsForWeek(data, w)];
+    final weekDays = [for (var w = 0; w < numWeeks; w++) _daysForWeek(data, w)];
+
+    final trainingDayCount = data.days.where((d) => d.exercises.isNotEmpty).length;
 
     for (final g in _mev.keys) {
       final mev = (_mev[g]! * scale).round();
       final mrv = (_mrv[g]! * scale).round();
-      final sets = setsPerGroup[g] ?? 0;
 
       final isMajor = _majorMuscles.contains(g);
       final isSecondary = _secondaryMajor.contains(g);
       final skipSecondary = isSecondary && experienceLevel == 'beginner';
 
-      if (sets == 0 && (isMajor || (isSecondary && !skipSecondary))) {
+      final zeroWeeks = <int>{};
+      final belowMevWeeks = <int>{};
+      final aboveMrvWeeks = <int>{};
+
+      for (var w = 0; w < numWeeks; w++) {
+        final sets = weekSets[w][g] ?? 0;
+        if (sets == 0 && (isMajor || (isSecondary && !skipSecondary))) {
+          zeroWeeks.add(w);
+        } else if (sets > 0 && sets < mev) {
+          belowMevWeeks.add(w);
+        } else if (sets > mrv) {
+          aboveMrvWeeks.add(w);
+        }
+      }
+
+      if (zeroWeeks.isNotEmpty) {
+        final suffix = _formatWeeks(zeroWeeks, numWeeks);
         advisories.add(PlanAdvisory(
           severity: AdvisorySeverity.warn,
           scope: g.name,
-          message: 'No ${g.label} work in week 1.',
+          message: 'No ${g.label} work$suffix.',
           source: 'volume',
         ));
-      } else if (sets > 0 && sets < mev) {
+      }
+      if (belowMevWeeks.isNotEmpty) {
+        final sets = weekSets[belowMevWeeks.first][g]!;
+        final suffix = _formatWeeks(belowMevWeeks, numWeeks);
         advisories.add(PlanAdvisory(
           severity: AdvisorySeverity.warn,
           scope: g.name,
-          message: '${g.label}: $sets sets — below MEV (~$mev).',
+          message: '${g.label}: $sets sets — below MEV (~$mev)$suffix.',
           source: 'volume',
         ));
-      } else if (sets > mrv) {
+      }
+      if (aboveMrvWeeks.isNotEmpty) {
+        final sets = weekSets[aboveMrvWeeks.first][g]!;
+        final suffix = _formatWeeks(aboveMrvWeeks, numWeeks);
         advisories.add(PlanAdvisory(
           severity: AdvisorySeverity.warn,
           scope: g.name,
-          message: '${g.label}: $sets sets — above MRV (~$mrv).',
+          message: '${g.label}: $sets sets — above MRV (~$mrv)$suffix.',
           source: 'volume',
         ));
       }
     }
 
-    // Frequency check for major muscles when plan has 4+ training days
-    final trainingDayCount = data.days.where((d) => d.exercises.isNotEmpty).length;
     if (trainingDayCount >= 4) {
       for (final g in _majorMuscles) {
-        final dayCount = daysPerGroup[g]?.length ?? 0;
-        if ((setsPerGroup[g] ?? 0) > 0 && dayCount < 2) {
+        final lowFreqWeeks = <int>{};
+        for (var w = 0; w < numWeeks; w++) {
+          final sets = weekSets[w][g] ?? 0;
+          final dayCount = weekDays[w][g]?.length ?? 0;
+          if (sets > 0 && dayCount < 2) lowFreqWeeks.add(w);
+        }
+        if (lowFreqWeeks.isNotEmpty) {
+          final suffix = _formatWeeks(lowFreqWeeks, numWeeks);
           advisories.add(PlanAdvisory(
-            severity: AdvisorySeverity.warn,
+            severity: AdvisorySeverity.info,
             scope: '${g.name}_freq',
-            message: '${g.label} trained only 1×/wk — aim for ≥2×/wk.',
+            message: '${g.label} trained only 1×/wk$suffix — consider ≥2×/wk for hypertrophy.',
             source: 'volume',
           ));
         }
       }
     }
 
-    // Push:pull ratio (skip for strength — powerlifting splits are squat-heavy by design)
     if (goal != 'strength') {
-      final pushSets = (setsPerGroup[MuscleGroup.chest] ?? 0) +
-          (setsPerGroup[MuscleGroup.shoulders] ?? 0) +
-          (setsPerGroup[MuscleGroup.triceps] ?? 0);
-      final pullSets =
-          (setsPerGroup[MuscleGroup.back] ?? 0) + (setsPerGroup[MuscleGroup.biceps] ?? 0);
-      if (pushSets > 0 && pullSets > 0) {
-        final ratio = pushSets / pullSets;
-        if (ratio > 1.7) {
-          advisories.add(PlanAdvisory(
-            severity: AdvisorySeverity.warn,
-            scope: 'balance',
-            message: 'Push:pull ratio ${ratio.toStringAsFixed(1)}:1 — consider adding pulling volume.',
-            source: 'volume',
-          ));
-        } else if (ratio < 0.6) {
-          final pullRatio = pullSets / pushSets;
-          advisories.add(PlanAdvisory(
-            severity: AdvisorySeverity.warn,
-            scope: 'balance',
-            message: 'Pull:push ratio ${pullRatio.toStringAsFixed(1)}:1 — consider adding pressing volume.',
-            source: 'volume',
-          ));
+      final tooPushWeeks = <int, double>{};
+      final tooPullWeeks = <int, double>{};
+      for (var w = 0; w < numWeeks; w++) {
+        final s = weekSets[w];
+        final pushSets = (s[MuscleGroup.chest] ?? 0) +
+            (s[MuscleGroup.shoulders] ?? 0) +
+            (s[MuscleGroup.triceps] ?? 0);
+        final pullSets =
+            (s[MuscleGroup.back] ?? 0) + (s[MuscleGroup.biceps] ?? 0);
+        if (pushSets > 0 && pullSets > 0) {
+          final ratio = pushSets / pullSets;
+          if (ratio > 1.7) {
+            tooPushWeeks[w] = ratio;
+          } else if (ratio < 0.6) {
+            tooPullWeeks[w] = pullSets / pushSets;
+          }
         }
+      }
+      if (tooPushWeeks.isNotEmpty) {
+        final ratio = tooPushWeeks.values.first;
+        final suffix = _formatWeeks(tooPushWeeks.keys.toSet(), numWeeks);
+        advisories.add(PlanAdvisory(
+          severity: AdvisorySeverity.warn,
+          scope: 'balance',
+          message:
+              'Push:pull ratio ${ratio.toStringAsFixed(1)}:1$suffix — consider adding pulling volume.',
+          source: 'volume',
+        ));
+      }
+      if (tooPullWeeks.isNotEmpty) {
+        final pullRatio = tooPullWeeks.values.first;
+        final suffix = _formatWeeks(tooPullWeeks.keys.toSet(), numWeeks);
+        advisories.add(PlanAdvisory(
+          severity: AdvisorySeverity.warn,
+          scope: 'balance',
+          message:
+              'Pull:push ratio ${pullRatio.toStringAsFixed(1)}:1$suffix — consider adding pressing volume.',
+          source: 'volume',
+        ));
       }
     }
 
