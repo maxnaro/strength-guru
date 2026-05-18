@@ -9,6 +9,7 @@ import '../theme/groups.dart';
 import '../theme/tokens.dart';
 import '../theme/sg_atoms.dart';
 import '../widgets/guide_sheet.dart';
+import '../widgets/rep_calc_sheet.dart';
 
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
@@ -175,7 +176,36 @@ class _DayView extends ConsumerWidget {
                     _QuickStats(
                         meso: meso, heroKey: heroKey, group: group,
                         targetsAsync: targetsAsync),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  // ── Tools ─────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: GestureDetector(
+                      onTap: () => showRepCalcSheet(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: p.surface,
+                          borderRadius:
+                              BorderRadius.circular(SGRadius.card),
+                          border: Border.all(color: p.border, width: 0.5),
+                        ),
+                        child: Row(children: [
+                          Icon(Icons.calculate_outlined,
+                              size: 18, color: p.textDim),
+                          const SizedBox(width: 8),
+                          Text('Rep Calculator',
+                              style: SGText.body(14,
+                                  weight: FontWeight.w600, color: p.text)),
+                          const Spacer(),
+                          Icon(Icons.chevron_right,
+                              size: 18, color: p.textFaint),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   // ── Today's plan ───────────────────────────────────────
                   if (!isRest) ...[
                     Padding(
