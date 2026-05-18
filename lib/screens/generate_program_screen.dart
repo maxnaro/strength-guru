@@ -85,6 +85,17 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
             onProgress: onProgress,
             onReasoning: onReasoning,
           ),
+          fixProducer: (currentData, advisories, onReasoning) =>
+              LlmService().fixPlanAdvisories(
+            currentData,
+            advisories,
+            apiUrl: url,
+            experienceLevel: exp,
+            goal: goalStr,
+            sportContext: sport,
+            exerciseLibrary: exerciseLibrary,
+            onReasoning: onReasoning,
+          ),
         ),
       ),
     );

@@ -33,11 +33,17 @@ class MesoImportScreen extends ConsumerStatefulWidget {
     void Function(int, int)? onProgress,
     void Function(String reasoningDelta) onReasoning,
   )? dataProducer;
+  final Future<MesoImportData> Function(
+    MesoImportData currentData,
+    List<PlanAdvisory> advisories,
+    void Function(String reasoningDelta) onReasoning,
+  )? fixProducer;
 
   const MesoImportScreen({
     super.key,
     this.csvContent,
     this.dataProducer,
+    this.fixProducer,
   }) : assert(
           (csvContent != null) != (dataProducer != null),
           'Provide exactly one of csvContent or dataProducer',
@@ -242,6 +248,57 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
     if (mounted) setState(() => _phase = _Phase.configuration);
   }
 
+  Future<void> _onFixRequested() async {
+    final data = _data;
+    if (data == null) return;
+
+    setState(() {
+      _phase = _Phase.loading;
+      _loadingLabel = 'Fixing plan with AI…';
+      _reasoning = '';
+    });
+
+    try {
+      final newData = widget.fixProducer != null
+          ? await widget.fixProducer!(
+              data,
+              data.advisories,
+              (r) => setState(() => _reasoning += r),
+            )
+          : await () async {
+              final db = ref.read(dbProvider);
+              final exercises = await db.allExercises();
+              final lib = exercises
+                  .map((e) => (name: e.name, group: e.group))
+                  .toList();
+              return LlmService().fixPlanAdvisories(
+                data,
+                data.advisories,
+                apiUrl: _apiUrlController.text.trim(),
+                exerciseLibrary: lib,
+                onReasoning: (r) => setState(() => _reasoning += r),
+              );
+            }();
+
+      await _matchExercises(newData);
+
+      if (mounted) {
+        setState(() {
+          _data = newData;
+          _nameController.text = newData.name;
+          _phase = _Phase.review;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _phase = _Phase.review);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fix failed: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _matchExercises(MesoImportData data) async {
     final db = ref.read(dbProvider);
     final existing = await db.allExercises();
@@ -337,6 +394,9 @@ class _MesoImportScreenState extends ConsumerState<MesoImportScreen> {
             palette: p,
             onChanged: () => setState(() {}),
             onImport: _import,
+            onFixRequested: _onFixRequested,
+            fixProducer: widget.fixProducer,
+            useExternalApi: _useExternalApi,
           ),
       },
     );
@@ -754,12 +814,19 @@ class _ErrorView extends StatelessWidget {
 
 // ── Review ────────────────────────────────────────────────────────────────────
 
-class _ReviewView extends StatelessWidget {
+class _ReviewView extends StatefulWidget {
   final MesoImportData data;
   final TextEditingController nameController;
   final SGPalette palette;
   final VoidCallback onChanged;
   final VoidCallback onImport;
+  final Future<MesoImportData> Function(
+    MesoImportData currentData,
+    List<PlanAdvisory> advisories,
+    void Function(String reasoningDelta) onReasoning,
+  )? fixProducer;
+  final bool useExternalApi;
+  final VoidCallback onFixRequested;
 
   const _ReviewView({
     required this.data,
@@ -767,11 +834,23 @@ class _ReviewView extends StatelessWidget {
     required this.palette,
     required this.onChanged,
     required this.onImport,
+    this.fixProducer,
+    required this.useExternalApi,
+    required this.onFixRequested,
   });
 
   @override
+  State<_ReviewView> createState() => _ReviewViewState();
+}
+
+class _ReviewViewState extends State<_ReviewView> {
+  @override
   Widget build(BuildContext context) {
-    final p = palette;
+    final data = widget.data;
+    final p = widget.palette;
+    final onChanged = widget.onChanged;
+    final onImport = widget.onImport;
+
     final newCount = data.days
         .expand((d) => d.exercises)
         .where((e) => !e.isExistingInDb)
@@ -793,7 +872,7 @@ class _ReviewView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextField(
-                  controller: nameController,
+                  controller: widget.nameController,
                   style: SGText.display(20, color: p.text),
                   decoration: InputDecoration(
                     hintText: 'Plan name',
@@ -833,7 +912,14 @@ class _ReviewView extends StatelessWidget {
                 if (data.advisories.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    child: _AdvisoryCallout(advisories: data.advisories, palette: p),
+                    child: _AdvisoryCallout(
+                      advisories: data.advisories,
+                      palette: p,
+                      onFixRequested:
+                          widget.fixProducer != null || widget.useExternalApi
+                              ? widget.onFixRequested
+                              : null,
+                    ),
                   ),
                 _ImportTimelineView(
                   data: data,
@@ -888,7 +974,7 @@ class _ReviewView extends StatelessWidget {
               16, 12, 16, MediaQuery.of(context).padding.bottom + 20),
           child: SGButton.solid(
             label: 'Import Block',
-            color: palette.accent,
+            color: p.accent,
             fullWidth: true,
             onTap: onImport,
           ),
@@ -1241,52 +1327,111 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-class _AdvisoryCallout extends StatelessWidget {
+class _AdvisoryCallout extends StatefulWidget {
   final List<PlanAdvisory> advisories;
   final SGPalette palette;
+  final VoidCallback? onFixRequested;
 
-  const _AdvisoryCallout({required this.advisories, required this.palette});
+  const _AdvisoryCallout({
+    required this.advisories,
+    required this.palette,
+    this.onFixRequested,
+  });
+
+  @override
+  State<_AdvisoryCallout> createState() => _AdvisoryCalloutState();
+}
+
+class _AdvisoryCalloutState extends State<_AdvisoryCallout> {
+  final _dismissed = <int>{};
 
   @override
   Widget build(BuildContext context) {
-    final p = palette;
+    final p = widget.palette;
+    final visible = [
+      for (var i = 0; i < widget.advisories.length; i++)
+        if (!_dismissed.contains(i)) (i, widget.advisories[i]),
+    ];
+
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    final hasWarn = visible.any((r) => r.$2.severity == AdvisorySeverity.warn);
+    final headerColor = hasWarn ? p.warn : p.accent;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: p.warn.withValues(alpha: 0.08),
+        color: headerColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: p.warn.withValues(alpha: 0.3), width: 0.5),
+        border: Border.all(color: headerColor.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: advisories.length <= 3,
+          initiallyExpanded: visible.length <= 3,
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: p.warn, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                'Plan advisories (${advisories.length})',
-                style: SGText.body(13, color: p.warn, weight: FontWeight.w600),
+              Icon(
+                hasWarn ? Icons.warning_amber_rounded : Icons.info_outline,
+                color: headerColor,
+                size: 16,
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Plan advisories (${visible.length})',
+                  style: SGText.body(13, color: headerColor, weight: FontWeight.w600),
+                ),
+              ),
+              if (widget.onFixRequested != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: SGButton.ghost(
+                    label: 'Fix with AI',
+                    leadingIcon: Icon(Icons.auto_awesome, size: 14, color: p.warn),
+                    color: p.warn,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    onTap: widget.onFixRequested,
+                  ),
+                ),
             ],
           ),
-          children: advisories
-              .map((a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('• ', style: SGText.mono(12, color: p.textDim)),
-                        Expanded(
-                          child: Text(a.message,
-                              style: SGText.mono(12, color: p.textDim)),
+          children: visible
+              .map((record) {
+                final (idx, a) = record;
+                final isWarn = a.severity == AdvisorySeverity.warn;
+                final dotColor = isWarn ? p.warn : p.accent;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Icon(
+                          isWarn ? Icons.warning_amber_rounded : Icons.info_outline,
+                          size: 12,
+                          color: dotColor,
                         ),
-                      ],
-                    ),
-                  ))
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(a.message,
+                            style: SGText.mono(12, color: p.textDim)),
+                      ),
+                      GestureDetector(
+                        onTap: () => setState(() => _dismissed.add(idx)),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Icon(Icons.close, size: 14, color: p.textFaint),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              })
               .toList(),
         ),
       ),
