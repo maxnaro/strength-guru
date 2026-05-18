@@ -234,6 +234,7 @@ class LlmService {
     String experienceLevel = 'intermediate',
     String goal = 'mix',
     String sportContext = '',
+    String description = '',
     List<({String name, String group})> exerciseLibrary = const [],
     void Function(String reasoningDelta)? onReasoning,
   }) async {
@@ -300,7 +301,7 @@ SCHEMA: {"name":"<name>","numWeeks":${data.numWeeks},"days":[{"dayIdx":0,"label"
           experienceLevel: experienceLevel, goal: goal);
       final criticAdvisories = await _critiquePlan(
         fixed,
-        'Fixing plan',
+        description.trim().isEmpty ? data.name : description,
         fixed.numWeeks,
         experienceLevel,
         goal,

@@ -93,6 +93,7 @@ class _GenerateProgramScreenState extends ConsumerState<GenerateProgramScreen> {
             experienceLevel: exp,
             goal: goalStr,
             sportContext: sport,
+            description: desc,
             exerciseLibrary: exerciseLibrary,
             onReasoning: onReasoning,
           ),
