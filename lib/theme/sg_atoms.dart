@@ -50,6 +50,7 @@ class SGButton extends StatelessWidget {
   final Color? color;
   final VoidCallback? onTap;
   final bool fullWidth;
+  final EdgeInsets? padding;
 
   const SGButton({
     super.key,
@@ -60,6 +61,7 @@ class SGButton extends StatelessWidget {
     this.color,
     this.onTap,
     this.fullWidth = false,
+    this.padding,
   });
 
   const SGButton.solid({
@@ -70,6 +72,7 @@ class SGButton extends StatelessWidget {
     this.color,
     this.onTap,
     this.fullWidth = false,
+    this.padding,
   }) : variant = ButtonVariant.solid;
 
   const SGButton.soft({
@@ -80,6 +83,7 @@ class SGButton extends StatelessWidget {
     this.color,
     this.onTap,
     this.fullWidth = false,
+    this.padding,
   }) : variant = ButtonVariant.soft;
 
   const SGButton.ghost({
@@ -90,6 +94,7 @@ class SGButton extends StatelessWidget {
     this.color,
     this.onTap,
     this.fullWidth = false,
+    this.padding,
   }) : variant = ButtonVariant.ghost;
 
   @override
@@ -128,7 +133,7 @@ class SGButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(SGRadius.btn),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          padding: padding ?? const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(SGRadius.btn),
             border: Border.all(color: border, width: 0),
