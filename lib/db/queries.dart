@@ -281,6 +281,44 @@ extension WeekTargetQueries on AppDatabase {
       );
     }
   }
+
+  Future<void> applyExerciseProgression({
+    required String mesoId,
+    required int numWeeks,
+    required String slotId,
+    required List<({int baseReps, int baseRir, int repsPerWeek, int rirPerWeek})> sets,
+    Set<int> deloadWeeks = const {},
+  }) async {
+    await transaction(() async {
+      // Counts non-deload weeks elapsed; deload weeks don't advance progression.
+      var progressionIdx = 0;
+      for (var w = 0; w < numWeeks; w++) {
+        final isDeload = deloadWeeks.contains(w);
+        final prevWasDeload = w > 0 && deloadWeeks.contains(w - 1);
+        final preIdx = (progressionIdx - 1).clamp(0, numWeeks);
+        final repsIdx = isDeload ? preIdx : progressionIdx;
+
+        await upsertWeekTarget(
+          mesoId: mesoId,
+          weekIdx: w,
+          slotId: slotId,
+          reps: sets
+              .map<int>((s) =>
+                  (s.baseReps + repsIdx * s.repsPerWeek).clamp(1, 99))
+              .toList(),
+          rir: sets.map<int>((s) {
+            if (isDeload) return 4;
+            if (prevWasDeload) {
+              return (s.baseRir + preIdx * s.rirPerWeek).clamp(0, 5);
+            }
+            return (s.baseRir + progressionIdx * s.rirPerWeek).clamp(0, 5);
+          }).toList(),
+        );
+
+        if (!isDeload) progressionIdx++;
+      }
+    });
+  }
 }
 
 // ── DayOverride queries ───────────────────────────────────────────────────────

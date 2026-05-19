@@ -15,7 +15,9 @@ import '../widgets/day_program_editor.dart';
 import '../widgets/exercise_picker.dart';
 import '../widgets/about_sheet.dart';
 import '../widgets/timeline_cell.dart';
+import '../widgets/progression_wizard_sheet.dart';
 import '../widgets/volume_validation_sheet.dart';
+
 
 enum _MesoViz { calendar, timeline }
 
@@ -732,7 +734,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
                               highlightedWeekIdx: _highlightedWeekIdx,
                               highlightAnimation: _highlightAnimation,
                               onNameTap: () =>
-                                  _programSwap(context, ref, group, item, dayIdx),
+                                  _showExerciseActions(context, ref, group, item, dayIdx, allTargets[0]),
                               onCellTap: (weekIdx, target) => _editCell(
                                 context,
                                 ref,
@@ -854,6 +856,72 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
     if (targetIdx != null) {
       await _handleSwap(ref, mesoId, sourceIdx, targetIdx);
     }
+  }
+
+  void _showExerciseActions(
+    BuildContext context,
+    WidgetRef ref,
+    MuscleGroup group,
+    ExerciseSlotWithExercise item,
+    int dayIdx,
+    Map<String, WeekTarget>? week0Targets,
+  ) {
+    final p = pal(context);
+    showSGSheet(
+      context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [
+            SGGroupDot(group, size: 8),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(item.name,
+                  style: SGText.display(18, color: p.text)),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.trending_up, color: p.text, size: 20),
+            title: Text('Set progression arc',
+                style: SGText.body(15, color: p.text)),
+            subtitle: Text('Define per-set reps & weekly change',
+                style: SGText.body(12, color: p.textDim)),
+            onTap: () {
+              Navigator.pop(context);
+              showExerciseProgressionWizard(
+                context,
+                mesoId: widget.meso.id,
+                numWeeks: widget.meso.numWeeks,
+                slotId: item.slot.id,
+                exerciseName: item.name,
+                group: group,
+                initialTarget: week0Targets?[item.slot.id],
+                deloadWeeks: widget.meso.deloadWeeks
+                    .split(',')
+                    .where((s) => s.isNotEmpty)
+                    .map(int.parse)
+                    .toSet(),
+              );
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.swap_horiz, color: p.text, size: 20),
+            title: Text('Swap exercise',
+                style: SGText.body(15, color: p.text)),
+            subtitle: Text('Replace with a different exercise',
+                style: SGText.body(12, color: p.textDim)),
+            onTap: () {
+              Navigator.pop(context);
+              _programSwap(context, ref, group, item, dayIdx);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _programSwap(BuildContext context, WidgetRef ref, MuscleGroup group,
