@@ -39,35 +39,36 @@ void showExerciseProgressionWizard(
 // ── Per-set config ────────────────────────────────────────────────────────────
 
 class _SetConfig {
-  int baseReps;
-  int baseRir;
-  int repsPerWeek;
-  int rirPerWeek;
+  int startReps;
+  int startRir;
+  int endReps;
+  int endRir;
 
   _SetConfig({
-    required this.baseReps,
-    required this.baseRir,
-    this.repsPerWeek = 0,
-    this.rirPerWeek = 0,
-  });
+    required this.startReps,
+    required this.startRir,
+    int? endReps,
+    int? endRir,
+  })  : endReps = endReps ?? startReps,
+        endRir = endRir ?? startRir;
 
   _SetConfig copyWith({
-    int? baseReps,
-    int? baseRir,
-    int? repsPerWeek,
-    int? rirPerWeek,
+    int? startReps,
+    int? startRir,
+    int? endReps,
+    int? endRir,
   }) =>
       _SetConfig(
-        baseReps: baseReps ?? this.baseReps,
-        baseRir: baseRir ?? this.baseRir,
-        repsPerWeek: repsPerWeek ?? this.repsPerWeek,
-        rirPerWeek: rirPerWeek ?? this.rirPerWeek,
+        startReps: startReps ?? this.startReps,
+        startRir: startRir ?? this.startRir,
+        endReps: endReps ?? this.endReps,
+        endRir: endRir ?? this.endRir,
       );
 }
 
-// ── RIR helper ────────────────────────────────────────────────────────────────
+// ── Preview helpers ───────────────────────────────────────────────────────────
 
-// Number of non-deload weeks before weekIdx — mirrors progressionIdx in queries.
+// Counts non-deload weeks before weekIdx — mirrors progressionIdx in queries.
 int _progIdx(int weekIdx, Set<int> deloadWeeks) {
   var idx = 0;
   for (var w = 0; w < weekIdx; w++) {
@@ -76,21 +77,36 @@ int _progIdx(int weekIdx, Set<int> deloadWeeks) {
   return idx;
 }
 
-int _effectiveReps(_SetConfig config, int weekIdx, Set<int> deloadWeeks) {
-  final isDeload = deloadWeeks.contains(weekIdx);
-  final pIdx = _progIdx(weekIdx, deloadWeeks);
-  final repsIdx = isDeload ? (pIdx - 1).clamp(0, 9999) : pIdx;
-  return (config.baseReps + repsIdx * config.repsPerWeek).clamp(1, 99);
+int _lerp(int start, int end, int idx, int n, int lo, int hi) {
+  if (n <= 1) return start.clamp(lo, hi);
+  return (start + idx * (end - start) / (n - 1)).round().clamp(lo, hi);
 }
 
-int _effectiveRir(_SetConfig config, int weekIdx, Set<int> deloadWeeks) {
-  if (deloadWeeks.contains(weekIdx)) return 4;
+int _repsAt(int startR, int endR, int progIdx, int numRepsWeeks) =>
+    _lerp(startR, endR, progIdx ~/ 2 + 1, numRepsWeeks + 1, 1, 99);
+
+int _rirAt(int startR, int endR, int progIdx, int numRirWeeks) {
+  if (numRirWeeks == 0) return startR.clamp(0, 5);
+  return _lerp(startR, endR, (progIdx + 1) ~/ 2, numRirWeeks + 1, 0, 5);
+}
+
+int _effectiveReps(
+    _SetConfig config, int weekIdx, Set<int> deloadWeeks, int numActive) {
+  final numRepsWeeks = (numActive + 1) ~/ 2;
+  final isDeload = deloadWeeks.contains(weekIdx);
   final pIdx = _progIdx(weekIdx, deloadWeeks);
-  if (weekIdx > 0 && deloadWeeks.contains(weekIdx - 1)) {
-    return (config.baseRir + (pIdx - 1).clamp(0, 9999) * config.rirPerWeek)
-        .clamp(0, 5);
-  }
-  return (config.baseRir + pIdx * config.rirPerWeek).clamp(0, 5);
+  final progIdx = isDeload ? (pIdx - 1).clamp(0, numActive - 1) : pIdx;
+  return _repsAt(config.startReps, config.endReps, progIdx, numRepsWeeks);
+}
+
+int _effectiveRir(
+    _SetConfig config, int weekIdx, Set<int> deloadWeeks, int numActive) {
+  if (deloadWeeks.contains(weekIdx)) return 4;
+  final numRirWeeks = numActive - (numActive + 1) ~/ 2;
+  final pIdx = _progIdx(weekIdx, deloadWeeks);
+  final prevWasDeload = weekIdx > 0 && deloadWeeks.contains(weekIdx - 1);
+  final progIdx = prevWasDeload ? (pIdx - 1).clamp(0, numActive - 1) : pIdx;
+  return _rirAt(config.startRir, config.endRir, progIdx, numRirWeeks);
 }
 
 // ── Sheet ─────────────────────────────────────────────────────────────────────
@@ -125,6 +141,16 @@ class _ExerciseProgressionSheetState
   late List<_SetConfig> _sets;
   bool _applying = false;
 
+  int get _numActive =>
+      (widget.numWeeks - widget.deloadWeeks.length).clamp(1, widget.numWeeks);
+
+  int get _lastActiveWeek {
+    for (var w = widget.numWeeks - 1; w >= 0; w--) {
+      if (!widget.deloadWeeks.contains(w)) return w + 1;
+    }
+    return 1;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -133,12 +159,12 @@ class _ExerciseProgressionSheetState
       _sets = List.generate(
         t.reps.length,
         (i) => _SetConfig(
-          baseReps: t.reps[i],
-          baseRir: t.rir.length > i ? t.rir[i] : 3,
+          startReps: t.reps[i],
+          startRir: t.rir.length > i ? t.rir[i] : 3,
         ),
       );
     } else {
-      _sets = [_SetConfig(baseReps: 8, baseRir: 3)];
+      _sets = [_SetConfig(startReps: 8, startRir: 3)];
     }
   }
 
@@ -152,10 +178,10 @@ class _ExerciseProgressionSheetState
         slotId: widget.slotId,
         sets: _sets
             .map((s) => (
-                  baseReps: s.baseReps,
-                  baseRir: s.baseRir,
-                  repsPerWeek: s.repsPerWeek,
-                  rirPerWeek: s.rirPerWeek,
+                  startReps: s.startReps,
+                  startRir: s.startRir,
+                  endReps: s.endReps,
+                  endRir: s.endRir,
                 ))
             .toList(),
         deloadWeeks: widget.deloadWeeks,
@@ -186,8 +212,7 @@ class _ExerciseProgressionSheetState
               style: SGText.mono(11, color: p.textDim, ls: 1.0)),
         ]),
         const SizedBox(height: 6),
-        Text(widget.exerciseName,
-            style: SGText.display(20, color: p.text)),
+        Text(widget.exerciseName, style: SGText.display(20, color: p.text)),
         const SizedBox(height: 20),
 
         // ── Per-set configs ──────────────────────────────────────
@@ -201,6 +226,7 @@ class _ExerciseProgressionSheetState
                   _SetRow(
                     index: i,
                     config: _sets[i],
+                    lastActiveWeek: _lastActiveWeek,
                     groupColor: groupColor,
                     palette: p,
                     canDelete: _sets.length > 1,
@@ -214,8 +240,10 @@ class _ExerciseProgressionSheetState
                   color: p.textDim,
                   onTap: () => setState(() => _sets.add(
                         _SetConfig(
-                          baseReps: _sets.last.baseReps,
-                          baseRir: _sets.last.baseRir,
+                          startReps: _sets.last.startReps,
+                          startRir: _sets.last.startRir,
+                          endReps: _sets.last.endReps,
+                          endRir: _sets.last.endRir,
                         ),
                       )),
                 ),
@@ -230,6 +258,7 @@ class _ExerciseProgressionSheetState
                 const SizedBox(height: 8),
                 _ProgressionPreview(
                   numWeeks: widget.numWeeks,
+                  numActive: _numActive,
                   sets: _sets,
                   groupColor: groupColor,
                   palette: p,
@@ -257,6 +286,7 @@ class _ExerciseProgressionSheetState
 class _SetRow extends StatelessWidget {
   final int index;
   final _SetConfig config;
+  final int lastActiveWeek;
   final Color groupColor;
   final SGPalette palette;
   final bool canDelete;
@@ -266,6 +296,7 @@ class _SetRow extends StatelessWidget {
   const _SetRow({
     required this.index,
     required this.config,
+    required this.lastActiveWeek,
     required this.groupColor,
     required this.palette,
     required this.canDelete,
@@ -294,70 +325,71 @@ class _SetRow extends StatelessWidget {
             if (canDelete)
               GestureDetector(
                 onTap: onDelete,
-                child:
-                    Icon(Icons.close, size: 16, color: palette.textFaint),
+                child: Icon(Icons.close, size: 16, color: palette.textFaint),
               ),
           ]),
           const SizedBox(height: 10),
 
-          // W1 reps + RIR
+          // Start (W1)
+          Text('START  W1', style: SGText.mono(9, color: palette.textFaint)),
+          const SizedBox(height: 6),
           Row(children: [
             Expanded(
               child: SGStepper(
-                value: config.baseReps,
+                value: config.startReps,
                 min: 1,
                 max: 99,
                 step: 1,
-                label: 'W1 REPS',
+                label: 'REPS',
                 accentColor: groupColor,
                 onChanged: (v) =>
-                    onChanged(config.copyWith(baseReps: v.toInt())),
+                    onChanged(config.copyWith(startReps: v.toInt())),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: SGStepper(
-                value: config.baseRir,
+                value: config.startRir,
                 min: 0,
                 max: 5,
                 step: 1,
-                label: 'W1 RIR',
+                label: 'RIR',
                 accentColor: groupColor,
                 onChanged: (v) =>
-                    onChanged(config.copyWith(baseRir: v.toInt())),
+                    onChanged(config.copyWith(startRir: v.toInt())),
               ),
             ),
           ]),
           const SizedBox(height: 10),
 
-          // Progression per week
-          Text('WEEKLY CHANGE',
+          // End (final active week)
+          Text('FINISH  W$lastActiveWeek',
               style: SGText.mono(9, color: palette.textFaint)),
           const SizedBox(height: 6),
           Row(children: [
             Expanded(
               child: SGStepper(
-                value: config.repsPerWeek,
-                min: -5,
-                max: 5,
+                value: config.endReps,
+                min: 1,
+                max: 99,
                 step: 1,
-                label: 'REPS/WK',
+                label: 'REPS',
                 accentColor: groupColor,
                 onChanged: (v) =>
-                    onChanged(config.copyWith(repsPerWeek: v.toInt())),
+                    onChanged(config.copyWith(endReps: v.toInt())),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: SGStepper(
-                value: config.rirPerWeek,
-                min: -3,
-                max: 3,
+                value: config.endRir,
+                min: 0,
+                max: 5,
                 step: 1,
-                label: 'RIR/WK',
+                label: 'RIR',
                 accentColor: groupColor,
                 onChanged: (v) =>
-                    onChanged(config.copyWith(rirPerWeek: v.toInt())),
+                    onChanged(config.copyWith(endRir: v.toInt())),
               ),
             ),
           ]),
@@ -371,6 +403,7 @@ class _SetRow extends StatelessWidget {
 
 class _ProgressionPreview extends StatelessWidget {
   final int numWeeks;
+  final int numActive;
   final List<_SetConfig> sets;
   final Color groupColor;
   final SGPalette palette;
@@ -378,6 +411,7 @@ class _ProgressionPreview extends StatelessWidget {
 
   const _ProgressionPreview({
     required this.numWeeks,
+    required this.numActive,
     required this.sets,
     required this.groupColor,
     required this.palette,
@@ -427,6 +461,7 @@ class _ProgressionPreview extends StatelessWidget {
                     setIdx: i,
                     weekIdx: w,
                     config: sets[i],
+                    numActive: numActive,
                     groupColor: groupColor,
                     palette: palette,
                     deloadWeeks: deloadWeeks,
@@ -445,6 +480,7 @@ class _WeekSetChip extends StatelessWidget {
   final int setIdx;
   final int weekIdx;
   final _SetConfig config;
+  final int numActive;
   final Color groupColor;
   final SGPalette palette;
   final Set<int> deloadWeeks;
@@ -453,6 +489,7 @@ class _WeekSetChip extends StatelessWidget {
     required this.setIdx,
     required this.weekIdx,
     required this.config,
+    required this.numActive,
     required this.groupColor,
     required this.palette,
     this.deloadWeeks = const {},
@@ -460,10 +497,11 @@ class _WeekSetChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reps = _effectiveReps(config, weekIdx, deloadWeeks);
-    final rir = _effectiveRir(config, weekIdx, deloadWeeks);
+    final reps = _effectiveReps(config, weekIdx, deloadWeeks, numActive);
+    final rir = _effectiveRir(config, weekIdx, deloadWeeks, numActive);
     final isDeload = deloadWeeks.contains(weekIdx);
-    final hasProgression = config.repsPerWeek != 0 || config.rirPerWeek != 0;
+    final hasProgression =
+        config.startReps != config.endReps || config.startRir != config.endRir;
     final valueColor = isDeload
         ? palette.warn
         : (hasProgression ? groupColor : palette.textDim);
