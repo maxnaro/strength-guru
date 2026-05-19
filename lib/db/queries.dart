@@ -281,6 +281,63 @@ extension WeekTargetQueries on AppDatabase {
       );
     }
   }
+
+  Future<void> applyExerciseProgression({
+    required String mesoId,
+    required int numWeeks,
+    required String slotId,
+    required List<({int startReps, int startRir, int endReps, int endRir})> sets,
+    Set<int> deloadWeeks = const {},
+  }) async {
+    final numActive = (numWeeks - deloadWeeks.length).clamp(1, numWeeks);
+    // Even active-week indices advance reps; odd advance RIR.
+    // numRirWeeks == 0 means only 1 active week — fall through to simultaneous lerp.
+    final numRepsWeeks = (numActive + 1) ~/ 2;
+    final numRirWeeks = numActive - numRepsWeeks;
+
+    int lerp(int start, int end, int idx, int n, int lo, int hi) => n <= 1
+        ? start.clamp(lo, hi)
+        : (start + idx * (end - start) / (n - 1)).round().clamp(lo, hi);
+
+    // Reps advance every 2 active weeks (indices 0, 2, 4, …).
+    // idx +1 offset ensures startReps is never shown — the arc starts moving immediately.
+    int repsAt(int startR, int endR, int progIdx) =>
+        lerp(startR, endR, progIdx ~/ 2 + 1, numRepsWeeks + 1, 1, 99);
+
+    // RIR advances on odd active-week indices (1, 3, 5, …).
+    // (progIdx + 1) ~/ 2 maps: 0→0 (no change yet), 1→1, 2→1 (hold), 3→2, …
+    // Index 0 resolves to startRir; index numRirWeeks resolves to endRir.
+    int rirAt(int startR, int endR, int progIdx) {
+      if (numRirWeeks == 0) return startR.clamp(0, 5);
+      return lerp(startR, endR, (progIdx + 1) ~/ 2, numRirWeeks + 1, 0, 5);
+    }
+
+    await transaction(() async {
+      var progressionIdx = 0;
+      for (var w = 0; w < numWeeks; w++) {
+        final isDeload = deloadWeeks.contains(w);
+        final prevWasDeload = w > 0 && deloadWeeks.contains(w - 1);
+        final preIdx = (progressionIdx - 1).clamp(0, numActive - 1);
+
+        await upsertWeekTarget(
+          mesoId: mesoId,
+          weekIdx: w,
+          slotId: slotId,
+          reps: sets
+              .map<int>((s) => repsAt(
+                  s.startReps, s.endReps, isDeload ? preIdx : progressionIdx))
+              .toList(),
+          rir: sets.map<int>((s) {
+            if (isDeload) return 4;
+            return rirAt(s.startRir, s.endRir,
+                prevWasDeload ? preIdx : progressionIdx);
+          }).toList(),
+        );
+
+        if (!isDeload) progressionIdx++;
+      }
+    });
+  }
 }
 
 // ── DayOverride queries ───────────────────────────────────────────────────────
