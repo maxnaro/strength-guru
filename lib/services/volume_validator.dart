@@ -109,6 +109,11 @@ class VolumeValidator {
       final isSecondary = _secondaryMajor.contains(g);
       final skipSecondary = isSecondary && experienceLevel == 'beginner';
 
+      // 20% tolerance before flagging: compound lifts (deadlift, RDL, squat, row)
+      // stimulate secondary muscles beyond their tagged group, so tagged set counts
+      // understate true stimulus. Only warn when clearly deficient.
+      final mevThreshold = (mev * 0.8).round();
+
       final zeroWeeks = <int>{};
       final belowMevWeeks = <int>{};
       final aboveMrvWeeks = <int>{};
@@ -117,7 +122,7 @@ class VolumeValidator {
         final sets = weekSets[w][g] ?? 0;
         if (sets == 0 && (isMajor || (isSecondary && !skipSecondary))) {
           zeroWeeks.add(w);
-        } else if (sets > 0 && sets < mev) {
+        } else if (sets > 0 && sets < mevThreshold) {
           belowMevWeeks.add(w);
         } else if (sets > mrv) {
           aboveMrvWeeks.add(w);
@@ -137,9 +142,9 @@ class VolumeValidator {
         final sets = weekSets[belowMevWeeks.first][g]!;
         final suffix = _formatWeeks(belowMevWeeks, numWeeks);
         advisories.add(PlanAdvisory(
-          severity: AdvisorySeverity.warn,
+          severity: AdvisorySeverity.info,
           scope: g.name,
-          message: '${g.label}: $sets sets — below MEV (~$mev)$suffix.',
+          message: '${g.label}: $sets sets — low relative to MEV (~$mev); compound overlap may cover the gap$suffix.',
           source: 'volume',
         ));
       }
