@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       ipa_size: ${{ steps.size.outputs.size }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Extract version from pubspec
         id: version
@@ -128,7 +128,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/download-artifact@v4
         with:
