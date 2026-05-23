@@ -35,12 +35,12 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
   Widget build(BuildContext context) {
     final p = pal(context);
     final mesosAsync = ref.watch(allMesosProvider);
-    final activeMeso = ref.watch(activeMesoProvider).valueOrNull;
+    final activeMeso = ref.watch(activeMesoProvider).value;
 
     if (_creating) {
       return _CreationForm(
         controller: _nameController,
-        mesosCount: mesosAsync.valueOrNull?.length ?? 0,
+        mesosCount: mesosAsync.value?.length ?? 0,
         palette: p,
         onCreate: _handleCreate,
         onCancel: () => setState(() => _creating = false),
@@ -195,7 +195,7 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
   }
 
   Future<void> _handleImportCsv() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
       withData: true,

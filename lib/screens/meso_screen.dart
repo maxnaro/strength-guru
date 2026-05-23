@@ -325,7 +325,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
     final p = pal(context);
     final todayKey = ref.watch(todayKeyProvider);
     final sessionLogsAsync = ref.watch(mesoSessionLogsProvider(widget.meso.id));
-    final sessionLogs = sessionLogsAsync.valueOrNull ?? [];
+    final sessionLogs = sessionLogsAsync.value ?? [];
 
     final now = DateTime.now();
     final todayDayIdx = (now.weekday - 1) % 7;
@@ -391,7 +391,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                     ..._dayIndices.map((dayIdx) {
                       final groupAsync = ref.watch(
                           dayGroupProvider(DayKey(widget.meso.id, weekIdx, dayIdx)));
-                      final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
+                      final group = groupAsync.value ?? MuscleGroup.rest;
                       final isRest = group == MuscleGroup.rest;
                       final isToday = isCurrentWeek && dayIdx == todayDayIdx;
                       final isPast =
@@ -482,13 +482,13 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
             for (var d = 0; d < 7; d++) {
               final groupAsync =
                   ref.watch(dayGroupProvider(DayKey(widget.meso.id, 0, d)));
-              final group = groupAsync.valueOrNull;
+              final group = groupAsync.value;
 
               if (group != null && group != MuscleGroup.rest) {
                 final daySettingsAsync = ref.watch(
                     programDayProvider(ProgramDayKey(widget.meso.id, d)));
                 final labelText =
-                    daySettingsAsync.valueOrNull?.label ?? group.label;
+                    daySettingsAsync.value?.label ?? group.label;
 
                 if (!usedSplits.containsKey(labelText)) {
                   usedSplits[labelText] = group.color;
@@ -610,7 +610,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
     final allTargets = <int, Map<String, WeekTarget>>{};
     for (var w = 0; w < widget.meso.numWeeks; w++) {
       final t = ref.watch(weekTargetsProvider(WeekKey(widget.meso.id, w)));
-      allTargets[w] = t.valueOrNull ?? {};
+      allTargets[w] = t.value ?? {};
     }
 
     return Stack(
@@ -666,12 +666,12 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
               ..._trainingDays.map((dayIdx) {
                 final groupAsync =
                     ref.watch(dayGroupProvider(DayKey(widget.meso.id, 0, dayIdx)));
-                final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
+                final group = groupAsync.value ?? MuscleGroup.rest;
                 final itemsAsync = ref.watch(
                     programDayExercisesProvider(ProgramDayKey(widget.meso.id, dayIdx)));
                 final daySettingsAsync = ref
                     .watch(programDayProvider(ProgramDayKey(widget.meso.id, dayIdx)));
-                final customLabel = daySettingsAsync.valueOrNull?.label;
+                final customLabel = daySettingsAsync.value?.label;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -819,7 +819,7 @@ class _TimelineViewState extends ConsumerState<_TimelineView>
             return Consumer(builder: (context, ref, _) {
               final daySettingsAsync =
                   ref.watch(programDayProvider(ProgramDayKey(mesoId, i)));
-              final label = daySettingsAsync.valueOrNull?.label;
+              final label = daySettingsAsync.value?.label;
               final hasLabel = label != null && label.isNotEmpty;
 
               return ListTile(
@@ -1203,7 +1203,7 @@ class _DayActionMenu extends ConsumerWidget {
           ...restDays.map((idx) => Consumer(builder: (context, ref, _) {
                 final daySettingsAsync = ref.watch(
                     programDayProvider(ProgramDayKey(meso.id, idx)));
-                final label = daySettingsAsync.valueOrNull?.label;
+                final label = daySettingsAsync.value?.label;
                 final hasLabel = label != null && label.isNotEmpty;
 
                 return ListTile(

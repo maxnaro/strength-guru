@@ -62,7 +62,7 @@ class _ExercisePickerState extends ConsumerState<ExercisePicker> {
     final exercisesAsync = ref.watch(allExercisesProvider);
 
     final query = _nameCtrl.text.trim().toLowerCase();
-    final allExercises = exercisesAsync.valueOrNull ?? [];
+    final allExercises = exercisesAsync.value ?? [];
     final isDuplicate = allExercises.any((e) => e.name.toLowerCase() == query);
 
     return Column(

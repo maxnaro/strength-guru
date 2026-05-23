@@ -121,7 +121,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
           body: Center(child: CircularProgressIndicator(color: p.accent)));
     }
 
-    final meso = mesoAsync.valueOrNull;
+    final meso = mesoAsync.value;
     if (meso == null || effective == null) {
       return Scaffold(
         backgroundColor: p.bg,
@@ -157,15 +157,15 @@ class _LogScreenState extends ConsumerState<LogScreen> {
       body: Column(
         children: [
           _SessionHeader(
-            group: ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest,
+            group: ref.watch(dayGroupProvider(effective)).value ?? MuscleGroup.rest,
             title: ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.dayIdx)))
-                    .valueOrNull
+                    .value
                     ?.label ??
-                '${(ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest).label} Session',
+                '${(ref.watch(dayGroupProvider(effective)).value ?? MuscleGroup.rest).label} Session',
             plateLabel: (ref.watch(programDayProvider(ProgramDayKey(meso.id, effective.dayIdx)))
-                        .valueOrNull
+                        .value
                         ?.label ??
-                    (ref.watch(dayGroupProvider(effective)).valueOrNull ?? MuscleGroup.rest).label)
+                    (ref.watch(dayGroupProvider(effective)).value ?? MuscleGroup.rest).label)
                 .toUpperCase(),
             meso: meso,
             effective: effective,
@@ -220,7 +220,7 @@ class _LogScreenState extends ConsumerState<LogScreen> {
                   locallySkippedSetKeys: pageKey == effective ? _locallySkippedSetKeys : {},
                   onLogSet: (exId, slotId, si, w, r, ri) => _logSet(
                     effective: pageKey,
-                    sessionId: ref.read(sessionLogProvider(pageKey)).valueOrNull?.id,
+                    sessionId: ref.read(sessionLogProvider(pageKey)).value?.id,
                     exerciseId: exId,
                     slotId: slotId,
                     setIndex: si,
@@ -296,13 +296,13 @@ class _DayView extends ConsumerWidget {
     final targetsAsync =
         ref.watch(weekTargetsProvider(WeekKey(meso.id, dayKey.weekIdx)));
     final sessionAsync = ref.watch(sessionLogProvider(dayKey));
-    final sessionLog = sessionAsync.valueOrNull;
+    final sessionLog = sessionAsync.value;
 
-    final items = planAsync.valueOrNull ?? [];
-    final targets = targetsAsync.valueOrNull ?? {};
+    final items = planAsync.value ?? [];
+    final targets = targetsAsync.value ?? {};
 
     final entriesList = sessionLog != null
-        ? ref.watch(setsForLogProvider(sessionLog.id)).valueOrNull ?? []
+        ? ref.watch(setsForLogProvider(sessionLog.id)).value ?? []
         : <SetEntry>[];
 
     final filteredEntries = entriesList
@@ -338,7 +338,7 @@ class _DayView extends ConsumerWidget {
                 final exGroup = MuscleGroupX.fromString(ex.group);
                 final exEntries = entriesBySlot[item.slot.id] ?? [];
                 final suggestedW =
-                    ref.watch(suggestedWeightProvider(ex.id)).valueOrNull;
+                    ref.watch(suggestedWeightProvider(ex.id)).value;
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: _ExerciseCard(
@@ -545,7 +545,7 @@ class _DayPickerStripState extends ConsumerState<_DayPickerStrip> {
     final active = widget.effective.dayIdx == dayIdx;
     final groupAsync = ref.watch(dayGroupProvider(
         DayKey(widget.meso.id, widget.effective.weekIdx, dayIdx)));
-    final group = groupAsync.valueOrNull ?? MuscleGroup.rest;
+    final group = groupAsync.value ?? MuscleGroup.rest;
     const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return GestureDetector(

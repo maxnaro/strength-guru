@@ -21,16 +21,16 @@ class BackupService {
       throw Exception('Database file not found at ${file.path}');
     }
 
-    // Use share_plus to export the file.
-    // ignore: deprecated_member_use
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'StrengthGuru Backup',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'StrengthGuru Backup',
+      ),
     );
   }
 
   static Future<bool> restore(WidgetRef ref) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.any,
     );
 

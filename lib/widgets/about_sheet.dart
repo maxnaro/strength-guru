@@ -117,6 +117,8 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
 
   Future<void> _handleRestore(BuildContext context) async {
     final p = pal(context);
+    final sm = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -147,16 +149,12 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
       final success = await BackupService.restore(ref);
       if (!mounted) return;
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data restored successfully')),
-        );
-        Navigator.pop(context); // Close the sheet
+        sm.showSnackBar(const SnackBar(content: Text('Data restored successfully')));
+        nav.pop();
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Restore failed: $e')),
-      );
+      sm.showSnackBar(SnackBar(content: Text('Restore failed: $e')));
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }

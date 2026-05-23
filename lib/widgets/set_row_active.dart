@@ -73,7 +73,7 @@ class _SetRowActiveState extends ConsumerState<SetRowActive> {
     final suggKey = PrevSetKey(
         widget.exerciseId, 0, widget.sessionId);
     final suggAsync = ref.watch(suggestedSetProvider(suggKey));
-    final sugg = suggAsync.valueOrNull;
+    final sugg = suggAsync.value;
 
     final hintWeight = sugg?.weight != null ? _fmt(sugg!.weight!) : null;
     final hintReps = sugg?.reps?.toString();
