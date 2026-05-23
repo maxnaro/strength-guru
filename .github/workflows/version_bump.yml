@@ -18,6 +18,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Check version change
         id: check
