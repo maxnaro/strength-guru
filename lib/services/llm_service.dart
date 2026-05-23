@@ -778,7 +778,7 @@ ONLY if the description explicitly names a specific protocol (e.g. a named exerc
 ═══ BRIEFS (required in output) ═══
 For every training day (skip Rest days) emit a brief that divides the weekly volume across the split. Rules:
 - "muscles": list of muscle groups trained that day.
-- "setBudget": per-muscle weekly set target for **week 0** (the starting week). Aim for ~MAV per muscle across the week; never below MEV. Distribute across days — do NOT assign the full weekly allocation to a single day. The day-gen step will progress sets upward toward MRV by the final training week.
+- "setBudget": per-muscle weekly set target for **week 0** (the starting week). Aim for roughly MAV per muscle across the week — MEV/MAV/MRV are approximate guides, not hard floors. Compound lifts (deadlift, squat, RDL, row) stimulate secondary muscles beyond their tagged group; do not force extra sets onto secondary muscles purely to hit a number. Distribute across days — do NOT assign the full weekly allocation to a single day. The day-gen step will progress sets upward toward MRV by the final training week.
 - "primaryCompounds": 1–2 specific compound names for this day. Each compound must appear in exactly one day's primaryCompounds across the whole week — no shared primary compounds between days.
 
 Example — Push day in a 4-day upper/lower, intermediate, hypertrophy:
@@ -826,19 +826,19 @@ All other weekIdx values are normal training weeks.''';
           'BEGINNER (< 1 year of consistent training)',
           '2–3 sets',
           '1–2 sets',
-          'MEV ~4 sets/muscle/week (floor), target MAV ~6 by week 0, approach MRV ~8 in the final training week. Prioritise technique; set count grows slowly.',
+          'Target roughly MAV (~6 sets/muscle/week) by week 0, trend toward ~8 in the final training week. These are approximate — prioritise technique over hitting exact numbers.',
         ),
       'advanced' => (
           'ADVANCED (4+ years of consistent training)',
           '3–5 sets',
           '3–4 sets',
-          'MEV ~12 sets/muscle/week (floor), target MAV ~16 by week 0, approach MRV ~20 in the final training week.',
+          'Target roughly MAV (~16 sets/muscle/week) by week 0, trend toward ~20 in the final training week. MEV/MRV are approximate guides — compound overlap often covers secondary muscles.',
         ),
       _ => (
           'INTERMEDIATE (1–4 years of consistent training)',
           '3–4 sets',
           '2–3 sets',
-          'MEV ~8 sets/muscle/week (floor), target MAV ~11 by week 0, approach MRV ~15 in the final training week. Train each muscle group ≥2×/wk.',
+          'Target roughly MAV (~11 sets/muscle/week) by week 0, trend toward ~15 in the final training week. MEV/MRV are guides not hard targets — compound lifts cover secondary muscles beyond their tagged group. Train each muscle group ≥2×/wk where the split allows.',
         ),
     };
 
@@ -952,6 +952,8 @@ Source description: "$description"
 
 ═══ EXERCISE SELECTION ═══
 - 4–6 exercises total. Compounds first, isolations last.
+- Each session must include ≥2 compound lifts covering at least 3 distinct muscle groups. This is the minimum stimulus floor — do not replace compounds with isolation work.
+- Compound lifts cover multiple muscles. A row covers back AND biceps; an RDL covers hamstrings AND glutes; a squat covers quads AND glutes. If a compound already trains a muscle across 3+ sets, that muscle does NOT need dedicated isolation work unless there is a specific weak-point reason.
 - Use specific names: "Barbell Back Squat" not "Squat", "Seated Cable Row" not "Row".
 - "group" must be exactly one of: chest | back | shoulders | biceps | triceps | forearms | quads | hamstrings | glutes | abs | calves | other.
 ${exerciseLibrary.isEmpty ? '' : 'EXERCISE LIBRARY (prefer these exact names — only invent a name if no match exists):\n${exerciseLibrary.join('\n')}'}
@@ -966,18 +968,18 @@ Accessory & isolation (curls, lateral raises, tricep work, leg curl, leg extensi
 - Rep target: $isoReps.
 
 WEEKLY VOLUME: $weeklyVolume
-- Use the per-muscle "remaining" set budget from the DAY BRIEF above. Do not assign more sets than the budget allows for muscles trained on multiple days.
+- Use the per-muscle "remaining" set budget from the DAY BRIEF as a rough guide, not a hard target.
+- COMPOUND OVERLAP RULE: if a pulling compound (row, pull-up, chin-up) covers back across 3+ sets this week, biceps DO NOT need dedicated curls unless there is a specific gap. If an RDL or squat covers hamstrings/glutes across 3+ sets, do not force leg curls or hip thrusts on the same day. Add isolation only for muscles with a genuine stimulus gap after compounds are placed.
 
-═══ RIR PROGRESSION ═══
-RIR = reps in reserve (0 = failure, 1 = one rep left).
+═══ RIR PROGRESSION — PRIMARY DRIVER ═══
+RIR = reps in reserve (0 = failure, 1 = one rep left). Proximity to failure is the primary hypertrophy driver — the RIR arc across weeks is more important than hitting a specific set count.
 $rirNote
 Progressive overload: each week show a rep increase OR an RIR decrease (or both). NEVER keep reps AND rir identical across consecutive normal weeks — progression is mandatory.
 Accessories should always have equal or lower RIR than compounds in the same week.
 
 SET PROGRESSION (volume accumulation):
-Across normal training weeks, add 1 set to 1–2 exercises per day every 1–2 weeks so the per-muscle weekly total grows from ~MAV (week 0) toward ~MRV by the final non-deload week.
+Add 1 set to 1–2 exercises (not all exercises) across the mesocycle — typically the primary compound and one lagging muscle accessory. Most exercises should stay at their week-0 set count and progress via RIR/reps alone.
 Encode set count in the length of the reps/rir arrays — emit a longer array for a week with more sets (e.g. week 0: [8,8,8], week 3: [8,8,8,8]).
-Floor: never fewer sets than week 0 in any normal week.
 $deloadNote
 
 ═══ MANDATORY FORMAT RULES ═══
