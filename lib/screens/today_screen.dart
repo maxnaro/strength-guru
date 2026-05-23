@@ -137,7 +137,7 @@ class _DayView extends ConsumerWidget {
     final brightness = Theme.of(context).brightness;
 
     final planAsync = ref.watch(dayPlanProvider(heroKey));
-    final items = planAsync.valueOrNull ?? [];
+    final items = planAsync.value ?? [];
     final group = MuscleGroupX.primaryFromGroups(
         items.map((e) => e.group).toList());
     final isRest = items.isEmpty;
@@ -264,11 +264,11 @@ class _HeroCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = pal(context);
-    final items = planAsync.valueOrNull ?? [];
-    final targets = targetsAsync.valueOrNull ?? {};
-    final session = sessionAsync.valueOrNull;
+    final items = planAsync.value ?? [];
+    final targets = targetsAsync.value ?? {};
+    final session = sessionAsync.value;
     final daySettingsAsync = ref.watch(programDayProvider(ProgramDayKey(meso.id, heroKey.dayIdx)));
-    final customLabel = daySettingsAsync.valueOrNull?.label;
+    final customLabel = daySettingsAsync.value?.label;
     final isDeloadWeek = ref.watch(isDeloadWeekProvider(WeekKey(meso.id, heroKey.weekIdx)));
 
     final todayKey = ref.watch(todayKeyProvider);
@@ -277,7 +277,7 @@ class _HeroCard extends ConsumerWidget {
     final setsAsync = session != null
         ? ref.watch(setsForLogProvider(session.id))
         : const AsyncData<List<SetEntry>>([]);
-    final allEntries = setsAsync.valueOrNull ?? [];
+    final allEntries = setsAsync.value ?? [];
     final doneCount = allEntries.where((e) => e.done).length;
 
     final totalSets = items.fold<int>(
@@ -464,14 +464,14 @@ class _PlanList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = pal(context);
     final brightness = Theme.of(context).brightness;
-    final items = planAsync.valueOrNull ?? [];
-    final targets = targetsAsync.valueOrNull ?? {};
-    final session = sessionAsync.valueOrNull;
+    final items = planAsync.value ?? [];
+    final targets = targetsAsync.value ?? {};
+    final session = sessionAsync.value;
 
     final setsAsync = session != null
         ? ref.watch(setsForLogProvider(session.id))
         : const AsyncData<List<SetEntry>>([]);
-    final allEntries = setsAsync.valueOrNull ?? [];
+    final allEntries = setsAsync.value ?? [];
 
     if (items.isEmpty) {
       return Padding(

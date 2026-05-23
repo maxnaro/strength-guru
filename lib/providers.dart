@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'db/database.dart';
 import 'db/queries.dart';
@@ -119,7 +120,7 @@ final programDayProvider =
 
 final isDeloadWeekProvider = Provider.family<bool, WeekKey>((ref, k) {
   final mesoAsync = ref.watch(activeMesoProvider);
-  final meso = mesoAsync.valueOrNull;
+  final meso = mesoAsync.value;
   if (meso == null) return false;
   final deloads =
       meso.deloadWeeks.split(',').where((s) => s.isNotEmpty).toSet();
