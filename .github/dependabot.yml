@@ -12,6 +12,9 @@ updates:
     ignore:
       # Pin must stay in lockstep with xcframework URL + cache key in .github/workflows/publish.yml
       - dependency-name: "llama_cpp_dart"
+      # v6 broke ClipRRect + swipe-down Transform on the YouTube player (PlatformView TLHC mode)
+      - dependency-name: "youtube_player_iframe"
+        versions: [">=6.0.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
