@@ -70,7 +70,7 @@ void main() {
           isEmpty);
     });
 
-    test('chest below MEV emits below-MEV advisory', () {
+    test('chest well below MEV emits low-volume advisory', () {
       final day = _trainingDay(0, [
         _exercise('Bench Press', 'chest', 4, 8, 2),
         _exercise('Squat', 'quads', 10, 5, 3),
@@ -81,8 +81,8 @@ void main() {
           experienceLevel: 'intermediate', goal: 'mix');
       final chestAdvisory = result.where((a) => a.scope == 'chest').firstOrNull;
       expect(chestAdvisory, isNotNull);
-      expect(chestAdvisory!.message, contains('below MEV'));
-      expect(chestAdvisory.severity, AdvisorySeverity.warn);
+      expect(chestAdvisory!.message, contains('low relative to MEV'));
+      expect(chestAdvisory.severity, AdvisorySeverity.info);
     });
 
     test('back above MRV emits above-MRV advisory', () {
@@ -143,9 +143,10 @@ void main() {
       expect(chestAdvisory, isNull);
     });
 
-    test('intermediate: 6 chest sets triggers below-MEV (MEV=8)', () {
+    test('intermediate: 5 chest sets triggers low-volume advisory (MEV=8, threshold=6)', () {
+      // threshold = round(8 * 0.8) = 6; 5 < 6 fires advisory
       final day = _trainingDay(0, [
-        _exercise('Bench', 'chest', 6, 8, 2),
+        _exercise('Bench', 'chest', 5, 8, 2),
         _exercise('Squat', 'quads', 10, 8, 2),
         _exercise('Row', 'back', 12, 8, 2),
       ]);
@@ -214,7 +215,7 @@ void main() {
       expect(chestAdvisory.message, isNot(contains('week 1')));
     });
 
-    test('all weeks below MEV: no week qualifier in message', () {
+    test('all weeks low volume: no week qualifier in message', () {
       // Chest 4 sets every week in a 3-week plan → "below MEV" with no suffix
       final ex = _exerciseMultiWeek('Bench', 'chest', [
         (4, 8, 2), (4, 8, 1), (4, 8, 1),
@@ -234,7 +235,7 @@ void main() {
           experienceLevel: 'intermediate', goal: 'mix');
       final chestAdvisory = result.where((a) => a.scope == 'chest').firstOrNull;
       expect(chestAdvisory, isNotNull);
-      expect(chestAdvisory!.message, contains('below MEV'));
+      expect(chestAdvisory!.message, contains('low relative to MEV'));
       // No week qualifier when all weeks affected
       expect(chestAdvisory.message, isNot(contains('week')));
     });
