@@ -37,7 +37,10 @@ dependencies:
   background_downloader: ^9.5.4
   wakelock_plus: ^1.6.1
   youtube_explode_dart: ^3.1.0
-  youtube_player_iframe: ^6.0.0
+  # Pinned to 5.x: v6 switched webview_flutter to TLHC composition mode, which
+  # breaks ClipRRect rounded corners and ancestor Transform tracking during
+  # bottom-sheet swipe-down dismiss on both Android and iOS.
+  youtube_player_iframe: ^5.2.1
   url_launcher: ^6.3.0
   package_info_plus: ^10.1.0
   share_plus: ^13.1.0
