@@ -13,12 +13,12 @@ dependencies:
   cupertino_icons: ^1.0.6
 
   # State
-  flutter_riverpod: ^3.3.1
+  flutter_riverpod: ^3.3.2
 
   # DB
-  drift: ^2.33.0
+  drift: ^2.34.0
   drift_flutter: ^0.3.0
-  sqlite3: ^3.3.1
+  sqlite3: ^3.3.3
   sqlite3_flutter_libs: ^0.6.0+eol
   path_provider: ^2.1.5
   path: ^1.9.1
@@ -34,7 +34,7 @@ dependencies:
   string_similarity: ^2.0.0
   file_picker: ^12.0.0-beta.4
   llama_cpp_dart: 0.9.0-dev.6
-  background_downloader: ^9.5.4
+  background_downloader: ^9.5.5
   wakelock_plus: ^1.6.1
   youtube_explode_dart: ^3.1.0
   # Pinned to 5.x: v6 switched webview_flutter to TLHC composition mode, which
@@ -53,7 +53,7 @@ dev_dependencies:
   build_runner: ^2.15.0
   drift_dev: ^2.33.0
   flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.0
+  flutter_native_splash: ^2.4.8
 
 flutter_launcher_icons:
   android: "launcher_icon"
