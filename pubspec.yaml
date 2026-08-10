@@ -13,47 +13,47 @@ dependencies:
   cupertino_icons: ^1.0.6
 
   # State
-  flutter_riverpod: ^3.3.1
+  flutter_riverpod: ^3.4.2
 
   # DB
-  drift: ^2.33.0
-  drift_flutter: ^0.3.0
+  drift: ^2.34.3
+  drift_flutter: ^0.3.1
   sqlite3: ^3.3.1
   sqlite3_flutter_libs: ^0.6.0+eol
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   path: ^1.9.1
 
   # Fonts
-  google_fonts: ^8.1.0
+  google_fonts: ^8.2.1
 
   # Utils
   collection: ^1.19.1
-  intl: ^0.20.2
-  uuid: ^4.5.3
+  intl: ^0.20.3
+  uuid: ^4.6.0
   http: ^1.6.0
   string_similarity: ^2.0.0
   file_picker: ^12.0.0-beta.4
   llama_cpp_dart: 0.9.0-dev.6
-  background_downloader: ^9.5.4
-  wakelock_plus: ^1.6.1
+  background_downloader: ^9.5.7
+  wakelock_plus: ^1.7.0
   youtube_explode_dart: ^3.1.0
   # Pinned to 5.x: v6 switched webview_flutter to TLHC composition mode, which
   # breaks ClipRRect rounded corners and ancestor Transform tracking during
   # bottom-sheet swipe-down dismiss on both Android and iOS.
   youtube_player_iframe: ^5.2.1
   url_launcher: ^6.3.0
-  package_info_plus: ^10.1.0
-  share_plus: ^13.1.0
+  package_info_plus: ^10.2.1
+  share_plus: ^13.3.0
   flutter_markdown: ^0.7.7+1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  build_runner: ^2.15.0
+  build_runner: ^2.15.1
   drift_dev: ^2.33.0
   flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.0
+  flutter_native_splash: ^2.4.8
 
 flutter_launcher_icons:
   android: "launcher_icon"
