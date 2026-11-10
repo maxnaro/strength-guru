@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +72,9 @@ class SGPalette {
 }
 
 SGPalette pal(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.light ? SGPalette.light : SGPalette.dark;
+    Theme.of(context).brightness == Brightness.light
+    ? SGPalette.light
+    : SGPalette.dark;
 
 // ── Typography ────────────────────────────────────────────────────────────────
 
@@ -84,40 +85,37 @@ class SGText {
     double ls = -0.4,
     double? lh,
     Color? color,
-  }) =>
-      GoogleFonts.archivo(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: ls,
-        height: lh,
-        color: color,
-      );
+  }) => TextStyle(fontFamily: 'Archivo',
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: ls,
+    height: lh,
+    color: color,
+  );
 
   static TextStyle body(
     double size, {
     FontWeight weight = FontWeight.w400,
     Color? color,
     FontStyle style = FontStyle.normal,
-  }) =>
-      GoogleFonts.interTight(
-        fontSize: size,
-        fontWeight: weight,
-        color: color,
-        fontStyle: style,
-      );
+  }) => TextStyle(fontFamily: 'InterTight',
+    fontSize: size,
+    fontWeight: weight,
+    color: color,
+    fontStyle: style,
+  );
 
   static TextStyle mono(
     double size, {
     FontWeight weight = FontWeight.w600,
     double ls = 0.5,
     Color? color,
-  }) =>
-      GoogleFonts.jetBrainsMono(
-        fontSize: size,
-        fontWeight: weight,
-        letterSpacing: ls,
-        color: color,
-      );
+  }) => TextStyle(fontFamily: 'JetBrainsMono',
+    fontSize: size,
+    fontWeight: weight,
+    letterSpacing: ls,
+    color: color,
+  );
 }
 
 // ── Radii ─────────────────────────────────────────────────────────────────────
@@ -156,7 +154,9 @@ ThemeData buildTheme(Brightness brightness) {
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(SGRadius.sheet)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(SGRadius.sheet),
+        ),
       ),
       modalBarrierColor: const Color(0x59000000),
     ),

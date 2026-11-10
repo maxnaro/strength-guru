@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:strength_guru_core/sync/client.dart';
+import 'db/open.dart';
+import 'services/api.dart';
+import 'platform/lifecycle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -79,7 +84,9 @@ class ProgramDayKey {
 
   @override
   bool operator ==(Object other) =>
-      other is ProgramDayKey && mesoId == other.mesoId && dayIdx == other.dayIdx;
+      other is ProgramDayKey &&
+      mesoId == other.mesoId &&
+      dayIdx == other.dayIdx;
 
   @override
   int get hashCode => Object.hash(mesoId, dayIdx);
@@ -88,7 +95,7 @@ class ProgramDayKey {
 // ── Core providers ────────────────────────────────────────────────────────────
 
 final dbProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
+  final db = openDatabase();
   ref.onDispose(db.close);
   return db;
 });
@@ -113,8 +120,10 @@ final allExercisesProvider = FutureProvider<List<Exercise>>((ref) {
   return ref.watch(dbProvider).allExercises();
 });
 
-final programDayProvider =
-    StreamProvider.family<ProgramDay?, ProgramDayKey>((ref, k) {
+final programDayProvider = StreamProvider.family<ProgramDay?, ProgramDayKey>((
+  ref,
+  k,
+) {
   return ref.watch(dbProvider).watchProgramDay(k.mesoId, k.dayIdx);
 });
 
@@ -122,8 +131,10 @@ final isDeloadWeekProvider = Provider.family<bool, WeekKey>((ref, k) {
   final mesoAsync = ref.watch(activeMesoProvider);
   final meso = mesoAsync.value;
   if (meso == null) return false;
-  final deloads =
-      meso.deloadWeeks.split(',').where((s) => s.isNotEmpty).toSet();
+  final deloads = meso.deloadWeeks
+      .split(',')
+      .where((s) => s.isNotEmpty)
+      .toSet();
   return deloads.contains(k.weekIdx.toString());
 });
 
@@ -140,8 +151,8 @@ DayKey? _computeTodayKey(Mesocycle meso) {
   final now = DateTime.now();
   final start = meso.startDate;
   // Normalize to date-only (no time component) for day difference calc.
-  final startDay = DateTime(start.year, start.month, start.day);
-  final today = DateTime(now.year, now.month, now.day);
+  final startDay = DateTime.utc(start.year, start.month, start.day);
+  final today = DateTime.utc(now.year, now.month, now.day);
   final daysSince = today.difference(startDay).inDays;
   if (daysSince < 0) return null; // meso hasn't started yet
   final weekIdx = daysSince ~/ 7;
@@ -162,84 +173,112 @@ final heroKeyProvider = Provider<DayKey?>((ref) {
 // ── Day plan provider ─────────────────────────────────────────────────────────
 
 final dayPlanProvider =
-    FutureProvider.family<List<ExerciseSlotWithExercise>, DayKey>((ref, key) async {
-  final db = ref.read(dbProvider);
-  var override = await db.getDayOverride(key.mesoId, key.weekIdx, key.dayIdx);
-  override ??= await db.getDayOverride(key.mesoId, -1, key.dayIdx);
-  if (override != null) {
-    final slotIds = override.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
-    final slots = await db.getSlotsByIds(slotIds);
-    final exIds = slots.map((s) => s.exerciseId).toList();
-    final exs = await db.exercisesByIds(exIds);
+    FutureProvider.family<List<ExerciseSlotWithExercise>, DayKey>((
+      ref,
+      key,
+    ) async {
+      final db = ref.read(dbProvider);
+      var override = await db.getDayOverride(
+        key.mesoId,
+        key.weekIdx,
+        key.dayIdx,
+      );
+      override ??= await db.getDayOverride(key.mesoId, -1, key.dayIdx);
+      if (override != null) {
+        final slotIds = override.exerciseIdsCsv
+            .split(',')
+            .where((s) => s.isNotEmpty)
+            .toList();
+        final slots = await db.getSlotsByIds(slotIds);
+        final exIds = slots.map((s) => s.exerciseId).toList();
+        final exs = await db.exercisesByIds(exIds);
 
-    final slotMap = {for (final s in slots) s.id: s};
-    final exMap = {for (final e in exs) e.id: e};
+        final slotMap = {for (final s in slots) s.id: s};
+        final exMap = {for (final e in exs) e.id: e};
 
-    return [
-      for (final sId in slotIds)
-        if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
-          ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
-    ];
-  }
-  return [];
-});
+        return [
+          for (final sId in slotIds)
+            if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
+              ExerciseSlotWithExercise(
+                slotMap[sId]!,
+                exMap[slotMap[sId]!.exerciseId]!,
+              ),
+        ];
+      }
+      return [];
+    });
 
-final dayGroupProvider =
-    FutureProvider.family<MuscleGroup, DayKey>((ref, key) async {
+final dayGroupProvider = FutureProvider.family<MuscleGroup, DayKey>((
+  ref,
+  key,
+) async {
   final items = await ref.watch(dayPlanProvider(key).future);
-  return MuscleGroupX.primaryFromGroups(
-      items.map((e) => e.group).toList());
+  return MuscleGroupX.primaryFromGroups(items.map((e) => e.group).toList());
 });
 
 final programDayExercisesProvider =
-    FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((ref, k) async {
-  final db = ref.read(dbProvider);
-  var ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
-  if (ov == null) {
-    final allOvs = await db.getOverridesForDay(k.mesoId, k.dayIdx);
-    if (allOvs.isEmpty) return [];
-    final counts = <String, int>{};
-    for (final o in allOvs) {
-      if (o.weekIdx >= 0) {
-        counts[o.exerciseIdsCsv] = (counts[o.exerciseIdsCsv] ?? 0) + 1;
+    FutureProvider.family<List<ExerciseSlotWithExercise>, ProgramDayKey>((
+      ref,
+      k,
+    ) async {
+      final db = ref.read(dbProvider);
+      var ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
+      if (ov == null) {
+        final allOvs = await db.getOverridesForDay(k.mesoId, k.dayIdx);
+        if (allOvs.isEmpty) return [];
+        final counts = <String, int>{};
+        for (final o in allOvs) {
+          if (o.weekIdx >= 0) {
+            counts[o.exerciseIdsCsv] = (counts[o.exerciseIdsCsv] ?? 0) + 1;
+          }
+        }
+        if (counts.isNotEmpty) {
+          final bestCsv = counts.entries
+              .reduce((a, b) => a.value >= b.value ? a : b)
+              .key;
+          ov = allOvs.firstWhere((o) => o.exerciseIdsCsv == bestCsv);
+        }
       }
-    }
-    if (counts.isNotEmpty) {
-      final bestCsv = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-      await db.setDayOverride(k.mesoId, -1, k.dayIdx, bestCsv.split(','));
-      ov = await db.getDayOverride(k.mesoId, -1, k.dayIdx);
-    }
-  }
-  if (ov != null) {
-    final slotIds = ov.exerciseIdsCsv.split(',').where((s) => s.isNotEmpty).toList();
-    final slots = await db.getSlotsByIds(slotIds);
-    final exIds = slots.map((s) => s.exerciseId).toList();
-    final exs = await db.exercisesByIds(exIds);
+      if (ov != null) {
+        final slotIds = ov.exerciseIdsCsv
+            .split(',')
+            .where((s) => s.isNotEmpty)
+            .toList();
+        final slots = await db.getSlotsByIds(slotIds);
+        final exIds = slots.map((s) => s.exerciseId).toList();
+        final exs = await db.exercisesByIds(exIds);
 
-    final slotMap = {for (final s in slots) s.id: s};
-    final exMap = {for (final e in exs) e.id: e};
+        final slotMap = {for (final s in slots) s.id: s};
+        final exMap = {for (final e in exs) e.id: e};
 
-    return [
-      for (final sId in slotIds)
-        if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
-          ExerciseSlotWithExercise(slotMap[sId]!, exMap[slotMap[sId]!.exerciseId]!)
-    ];
-  }
-  return [];
-});
+        return [
+          for (final sId in slotIds)
+            if (slotMap[sId] != null && exMap[slotMap[sId]!.exerciseId] != null)
+              ExerciseSlotWithExercise(
+                slotMap[sId]!,
+                exMap[slotMap[sId]!.exerciseId]!,
+              ),
+        ];
+      }
+      return [];
+    });
 
 // ── Session log provider ──────────────────────────────────────────────────────
 
-final sessionLogProvider =
-    FutureProvider.family<SessionLog?, DayKey>((ref, key) async {
+final sessionLogProvider = FutureProvider.family<SessionLog?, DayKey>((
+  ref,
+  key,
+) async {
   final db = ref.read(dbProvider);
   return db.getSessionLog(key.mesoId, key.weekIdx, key.dayIdx);
 });
 
 // ── Set entries stream (keyed by session ID) ──────────────────────────────────
 
-final setsForLogProvider =
-    StreamProvider.family<List<SetEntry>, String>((ref, sessionId) {
+final setsForLogProvider = StreamProvider.family<List<SetEntry>, String>((
+  ref,
+  sessionId,
+) {
   return ref.watch(dbProvider).watchSetsForSession(sessionId);
 });
 
@@ -247,21 +286,27 @@ final setsForLogProvider =
 
 final weekTargetsProvider =
     FutureProvider.family<Map<String, WeekTarget>, WeekKey>((ref, key) async {
-  final db = ref.read(dbProvider);
-  return db.getWeekTargets(key.mesoId, key.weekIdx);
-});
+      final db = ref.read(dbProvider);
+      return db.getWeekTargets(key.mesoId, key.weekIdx);
+    });
 
 // ── Suggested weight (first set of last completion) ───────────────────────────
 
-final suggestedSetProvider =
-    StreamProvider.family<SetEntry?, PrevSetKey>((ref, key) {
+final suggestedSetProvider = StreamProvider.family<SetEntry?, PrevSetKey>((
+  ref,
+  key,
+) {
   final db = ref.read(dbProvider);
-  return db.watchLastCompletionFirstSet(key.exerciseId,
-      excludingSessionId: key.excludingSessionId);
+  return db.watchLastCompletionFirstSet(
+    key.exerciseId,
+    excludingSessionId: key.excludingSessionId,
+  );
 });
 
-final suggestedWeightProvider =
-    StreamProvider.family<double?, String>((ref, exerciseId) {
+final suggestedWeightProvider = StreamProvider.family<double?, String>((
+  ref,
+  exerciseId,
+) {
   final db = ref.read(dbProvider);
   return db
       .watchLastCompletionFirstSet(exerciseId)
@@ -270,19 +315,40 @@ final suggestedWeightProvider =
 
 // ── Previous set entry (for placeholder hint text) ────────────────────────────
 
-final prevSetProvider =
-    StreamProvider.family<SetEntry?, PrevSetKey>((ref, key) {
+final prevSetProvider = StreamProvider.family<SetEntry?, PrevSetKey>((
+  ref,
+  key,
+) {
   final db = ref.read(dbProvider);
-  return db.watchLastCompletionFirstSet(key.exerciseId,
-      excludingSessionId: key.excludingSessionId);
+  return db.watchLastCompletionFirstSet(
+    key.exerciseId,
+    excludingSessionId: key.excludingSessionId,
+  );
 });
 
 // ── All session logs for a meso (powers calendar done-indicators) ─────────────
 
-final mesoSessionLogsProvider =
-    FutureProvider.family<List<SessionLog>, String>((ref, mesoId) async {
-  final db = ref.read(dbProvider);
-  return (db.select(db.sessionLogs)
-        ..where((t) => t.mesocycleId.equals(mesoId)))
-      .get();
+final mesoSessionLogsProvider = FutureProvider.family<List<SessionLog>, String>(
+  (ref, mesoId) async {
+    final db = ref.read(dbProvider);
+    return (db.select(
+      db.sessionLogs,
+    )..where((t) => t.mesocycleId.equals(mesoId))).get();
+  },
+);
+
+final syncClientProvider = Provider<SyncClient?>((ref) {
+  if (!kIsWeb) return null;
+  final sync = SyncClient(ref.watch(dbProvider), appApi);
+  final stop = watchConnectivity(() {
+    sync.synchronize(afterCurrent: true).catchError((Object _) {});
+  });
+  ref.onDispose(() {
+    stop();
+    sync.close();
+  });
+  return sync;
 });
+final activateUpdateProvider = Provider<void Function()>(
+  (ref) => activateUpdate,
+);

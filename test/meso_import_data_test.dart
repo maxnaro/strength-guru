@@ -2,9 +2,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strength_guru/models/meso_import_data.dart';
 
 void main() {
+  test('server result preserves skipped-day warnings for import review', () {
+    final data = MesoImportData.fromJson({
+      'name': 'Partial import',
+      'numWeeks': 4,
+      'days': [],
+      'skippedDayLabels': ['Lower B'],
+    });
+    expect(data.skippedDayLabels, ['Lower B']);
+  });
   group('ImportWeekTarget round-trip', () {
     test('toJson → fromJson preserves values', () {
-      const original = ImportWeekTarget(weekIdx: 1, reps: [8, 8, 8], rir: [2, 2, 2]);
+      const original = ImportWeekTarget(
+        weekIdx: 1,
+        reps: [8, 8, 8],
+        rir: [2, 2, 2],
+      );
       final json = original.toJson();
       final restored = ImportWeekTarget.fromJson(json);
       expect(restored.weekIdx, original.weekIdx);
@@ -42,7 +55,11 @@ void main() {
             name: 'Squat',
             muscleGroup: 'legs',
             weekTargets: [
-              const ImportWeekTarget(weekIdx: 0, reps: [5, 5, 5, 5], rir: [2, 2, 2, 2]),
+              const ImportWeekTarget(
+                weekIdx: 0,
+                reps: [5, 5, 5, 5],
+                rir: [2, 2, 2, 2],
+              ),
             ],
           ),
         ],
@@ -69,9 +86,21 @@ void main() {
                 name: 'Bench Press',
                 muscleGroup: 'chest',
                 weekTargets: [
-                  const ImportWeekTarget(weekIdx: 0, reps: [8, 8, 8], rir: [2, 2, 2]),
-                  const ImportWeekTarget(weekIdx: 1, reps: [8, 8, 8], rir: [1, 1, 1]),
-                  const ImportWeekTarget(weekIdx: 2, reps: [8, 8, 8], rir: [1, 1, 1]),
+                  const ImportWeekTarget(
+                    weekIdx: 0,
+                    reps: [8, 8, 8],
+                    rir: [2, 2, 2],
+                  ),
+                  const ImportWeekTarget(
+                    weekIdx: 1,
+                    reps: [8, 8, 8],
+                    rir: [1, 1, 1],
+                  ),
+                  const ImportWeekTarget(
+                    weekIdx: 2,
+                    reps: [8, 8, 8],
+                    rir: [1, 1, 1],
+                  ),
                 ],
               ),
             ],

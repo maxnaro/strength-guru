@@ -4,13 +4,16 @@ publish_to: none
 version: 0.2.4+15
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.19.0"
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+
+  strength_guru_core:
+    path: packages/strength_guru_core
 
   # State
   flutter_riverpod: ^3.3.1
@@ -19,28 +22,23 @@ dependencies:
   drift: ^2.33.0
   drift_flutter: ^0.3.0
   sqlite3: ^3.3.1
-  sqlite3_flutter_libs: ^0.6.0+eol
   path_provider: ^2.1.5
   path: ^1.9.1
 
   # Fonts
-  google_fonts: ^8.1.0
 
   # Utils
   collection: ^1.19.1
   intl: ^0.20.2
   uuid: ^4.5.3
+  web: ^1.1.1
   http: ^1.6.0
   string_similarity: ^2.0.0
   file_picker: ^12.0.0-beta.4
-  llama_cpp_dart: 0.9.0-dev.6
-  background_downloader: ^9.5.4
   wakelock_plus: ^1.6.1
-  youtube_explode_dart: ^3.1.0
   # Pinned to 5.x: v6 switched webview_flutter to TLHC composition mode, which
   # breaks ClipRRect rounded corners and ancestor Transform tracking during
   # bottom-sheet swipe-down dismiss on both Android and iOS.
-  youtube_player_iframe: ^5.2.1
   url_launcher: ^6.3.0
   package_info_plus: ^10.1.0
   share_plus: ^13.1.0
@@ -74,3 +72,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo.ttf
+    - family: InterTight
+      fonts:
+        - asset: assets/fonts/InterTight.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf

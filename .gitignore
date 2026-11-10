@@ -54,3 +54,9 @@ app.*.map.json
 # Native LLM binaries — fetched at build time
 ios/Frameworks/llama.xcframework/
 android/app/libs/
+# Web/server build artifacts and deployment configuration
+.env
+**/build/
+web/drift_worker.dart.js*
+server/.dart_tool/
+packages/*/.dart_tool/

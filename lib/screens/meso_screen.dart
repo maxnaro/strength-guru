@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' show Value;
 
 import '../db/database.dart';
 import '../db/queries.dart';
@@ -201,8 +200,7 @@ class _MesoScreenState extends ConsumerState<MesoScreen> {
 
   Future<void> _addWeek(Mesocycle meso) async {
     final db = ref.read(dbProvider);
-    await (db.update(db.mesocycles)..where((t) => t.id.equals(meso.id)))
-        .write(MesocyclesCompanion(numWeeks: Value(meso.numWeeks + 1)));
+    await db.setMesoNumWeeks(meso.id, meso.numWeeks + 1);
     ref.invalidate(activeMesoProvider);
   }
 }

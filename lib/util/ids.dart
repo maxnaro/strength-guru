@@ -1,4 +1,1 @@
-import 'package:uuid/uuid.dart';
-
-const _uuid = Uuid();
-String newId() => _uuid.v4();
+export 'package:strength_guru_core/util/ids.dart';

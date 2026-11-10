@@ -76,8 +76,12 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
           children: [
             Expanded(
               child: SGButton.soft(
-                label: 'Backup',                
-                leadingIcon: Icon(Icons.backup_outlined, size: 18, color: p.accent),
+                label: 'Backup',
+                leadingIcon: Icon(
+                  Icons.backup_outlined,
+                  size: 18,
+                  color: p.accent,
+                ),
                 fullWidth: true,
                 onTap: _isWorking ? null : _handleBackup,
               ),
@@ -86,7 +90,11 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
             Expanded(
               child: SGButton.soft(
                 label: 'Restore',
-                leadingIcon: Icon(Icons.settings_backup_restore, size: 18, color: p.accent),
+                leadingIcon: Icon(
+                  Icons.settings_backup_restore,
+                  size: 18,
+                  color: p.accent,
+                ),
                 fullWidth: true,
                 onTap: _isWorking ? null : () => _handleRestore(context),
               ),
@@ -104,52 +112,28 @@ class _AboutSheetState extends ConsumerState<AboutSheet> {
   Future<void> _handleBackup() async {
     setState(() => _isWorking = true);
     try {
-      await BackupService.backup();
+      await BackupService.backup(ref);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Backup failed: $e')));
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
   }
 
   Future<void> _handleRestore(BuildContext context) async {
-    final p = pal(context);
     final sm = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: p.surface,
-        title: Text('Restore Data?', style: SGText.display(20, color: p.text)),
-        content: Text(
-          'This will overwrite all current workout data with the backup file. This cannot be undone.',
-          style: SGText.body(15, color: p.textDim),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: SGText.body(14, color: p.textDim)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Restore',
-                style: SGText.body(14, color: p.accent, weight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
     setState(() => _isWorking = true);
     try {
       final success = await BackupService.restore(ref);
       if (!mounted) return;
       if (success) {
-        sm.showSnackBar(const SnackBar(content: Text('Data restored successfully')));
+        sm.showSnackBar(
+          const SnackBar(content: Text('Data restored successfully')),
+        );
         nav.pop();
       }
     } catch (e) {

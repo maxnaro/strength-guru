@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -206,7 +205,7 @@ class _MesoSwitcherState extends ConsumerState<MesoSwitcher> {
     String csvContent;
 
     try {
-      final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
+      final bytes = file.bytes;
       if (bytes == null) return;
       
       try {
