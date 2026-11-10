@@ -1,0 +1,13 @@
+.git
+.agents
+.aws
+.codex
+.pub-cache
+**/.dart_tool
+**/build
+.env
+android
+ios
+windows
+web/drift_worker.dart.js*
+docs

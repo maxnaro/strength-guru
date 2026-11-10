@@ -1,0 +1,59 @@
+name: strength-guru
+services:
+  app:
+    build: .
+    image: strength-guru:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    environment:
+      APP_ORIGIN: ${APP_ORIGIN:?Set the HTTPS origin of your existing private proxy}
+      LLM_BASE_URL: http://inference:8080
+      LLM_MODEL: strength-guru
+      TZ: ${TZ:-Europe/London}
+    volumes:
+      - training-data:/data
+    # App startup deliberately does not depend on inference readiness.
+    stop_grace_period: 15s
+  model-download:
+    image: strength-guru:local
+    build: .
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/download-model.sh"]
+    volumes:
+      - models:/models
+      - ./tool/download-model.sh:/download-model.sh:ro
+    restart: "no"
+  inference:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:a361e47e28e8801e290f3c855292e0f25047e5d8e998b0d101431f54db68e008
+    restart: unless-stopped
+    depends_on:
+      model-download:
+        condition: service_completed_successfully
+    command:
+      - --model
+      - /models/gemma-4-E2B-it-Q3_K_M.gguf
+      - --alias
+      - strength-guru
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --ctx-size
+      - "8192"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - "99"
+    volumes:
+      - models:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+volumes:
+  training-data:
+  models:
