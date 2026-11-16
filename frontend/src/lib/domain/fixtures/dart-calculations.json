@@ -1,0 +1,6304 @@
+{
+  "source": "Dart Queries.applyExerciseProgression and util/rep_calc.dart",
+  "progression": [
+    {
+      "weeks": 1,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 1,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        1
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        1
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        1
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0,
+        1
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0,
+        1
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 2,
+      "deloads": [
+        0,
+        1
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0,
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0,
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 3,
+      "deloads": [
+        0,
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        3
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        3
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        3
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 4,
+      "deloads": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            11
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            8
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            8
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            34
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            66
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            66
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        4
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        4
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        4
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 5,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            11
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            8
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            8
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            34
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            66
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            66
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            11
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            8
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            8
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            34
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            34
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            66
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            66
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        5
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            11
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        5
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            8
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            8
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        5
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            34
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            66
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            66
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            50
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 6,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            11
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            12
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            13
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            13
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            8
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            8
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            5
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            26
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            26
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            75
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            75
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            99
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            10
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            11
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            11
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            13
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            13
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            13
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            8
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            8
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            26
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            26
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            26
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            50
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            75
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            75
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        7
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            11
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            11
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        7
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            13
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            13
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            10
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            10
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            8
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            8
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        7
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            26
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            26
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            50
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            50
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            75
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            75
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            9
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            9
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            9
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            11
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            11
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            12
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            0
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            8
+          ],
+          "rir": [
+            1
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            8
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            5
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        1,
+        2
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            34
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            34
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            34
+          ],
+          "rir": [
+            5
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            66
+          ],
+          "rir": [
+            3
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            66
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            99
+          ],
+          "rir": [
+            2
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            99
+          ],
+          "rir": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "config": [
+        {
+          "startReps": 8,
+          "startRir": 3,
+          "endReps": 12,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            12
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "config": [
+        {
+          "startReps": 15,
+          "startRir": 0,
+          "endReps": 5,
+          "endRir": 4
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            5
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": 8,
+      "deloads": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "config": [
+        {
+          "startReps": 1,
+          "startRir": 5,
+          "endReps": 99,
+          "endRir": 0
+        }
+      ],
+      "expected": [
+        {
+          "weekIdx": 0,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 1,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 2,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 3,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 4,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 5,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 6,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        },
+        {
+          "weekIdx": 7,
+          "reps": [
+            99
+          ],
+          "rir": [
+            4
+          ]
+        }
+      ]
+    }
+  ],
+  "repCalculations": [
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 42.5,
+      "targetWeight": 42.5,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 45.333333333333336,
+      "targetWeight": 42.5,
+      "suggestedReps": 2
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 49.583333333333336,
+      "targetWeight": 42.5,
+      "suggestedReps": 5
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 43.91666666666667,
+      "targetWeight": 42.5,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 46.75000000000001,
+      "targetWeight": 42.5,
+      "suggestedReps": 3
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 51.0,
+      "targetWeight": 42.5,
+      "suggestedReps": 6
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 53.83333333333333,
+      "targetWeight": 42.5,
+      "suggestedReps": 8
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 56.666666666666664,
+      "targetWeight": 42.5,
+      "suggestedReps": 10
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 60.916666666666664,
+      "targetWeight": 42.5,
+      "suggestedReps": 13
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 93.50000000000001,
+      "targetWeight": 42.5,
+      "suggestedReps": 36
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 96.33333333333333,
+      "targetWeight": 42.5,
+      "suggestedReps": 38
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 100.58333333333333,
+      "targetWeight": 42.5,
+      "suggestedReps": 41
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 94.91666666666667,
+      "targetWeight": 42.5,
+      "suggestedReps": 37
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 97.74999999999999,
+      "targetWeight": 42.5,
+      "suggestedReps": 39
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 102.0,
+      "targetWeight": 42.5,
+      "suggestedReps": 42
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 113.33333333333334,
+      "targetWeight": 42.5,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 116.16666666666667,
+      "targetWeight": 42.5,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "epley",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 120.41666666666666,
+      "targetWeight": 42.5,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 100.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 106.66666666666667,
+      "targetWeight": 100.0,
+      "suggestedReps": 2
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 116.66666666666667,
+      "targetWeight": 100.0,
+      "suggestedReps": 5
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 103.33333333333334,
+      "targetWeight": 100.0,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 110.00000000000001,
+      "targetWeight": 100.0,
+      "suggestedReps": 3
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 120.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 6
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 126.66666666666666,
+      "targetWeight": 100.0,
+      "suggestedReps": 8
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 133.33333333333331,
+      "targetWeight": 99.99999999999999,
+      "suggestedReps": 10
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 143.33333333333334,
+      "targetWeight": 100.0,
+      "suggestedReps": 13
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 220.00000000000003,
+      "targetWeight": 100.0,
+      "suggestedReps": 36
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 226.66666666666666,
+      "targetWeight": 100.0,
+      "suggestedReps": 38
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 236.66666666666666,
+      "targetWeight": 100.0,
+      "suggestedReps": 41
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 223.33333333333334,
+      "targetWeight": 100.0,
+      "suggestedReps": 37
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 229.99999999999997,
+      "targetWeight": 100.0,
+      "suggestedReps": 39
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 240.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 42
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 266.6666666666667,
+      "targetWeight": 100.0,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 273.3333333333333,
+      "targetWeight": 99.99999999999999,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "epley",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 283.3333333333333,
+      "targetWeight": 100.0,
+      "suggestedReps": 50
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 0.0,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 0.0,
+      "targetWeight": -0.0,
+      "suggestedReps": 0
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 42.5,
+      "targetWeight": 43.68055555555556,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 43.714285714285715,
+      "targetWeight": 42.5,
+      "suggestedReps": 2
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 47.8125,
+      "targetWeight": 42.5,
+      "suggestedReps": 5
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 42.5,
+      "targetWeight": 42.5,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 45.0,
+      "targetWeight": 42.5,
+      "suggestedReps": 3
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 49.354838709677416,
+      "targetWeight": 42.5,
+      "suggestedReps": 6
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 52.758620689655174,
+      "targetWeight": 42.5,
+      "suggestedReps": 8
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 56.666666666666664,
+      "targetWeight": 42.5,
+      "suggestedReps": 10
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 63.75,
+      "targetWeight": 42.5,
+      "suggestedReps": 13
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 1530.0,
+      "targetWeight": 42.5,
+      "suggestedReps": 36
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 42.5,
+      "targetWeight": -1.1805555555555556,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 42.5,
+      "targetWeight": -4.722222222222222,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 42.5,
+      "targetWeight": 0.0,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 42.5,
+      "targetWeight": -2.361111111111111,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 42.5,
+      "targetWeight": -5.902777777777778,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 42.5,
+      "targetWeight": -15.347222222222221,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 42.5,
+      "targetWeight": -17.708333333333332,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 42.5,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 42.5,
+      "targetWeight": -21.25,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 0,
+      "oneRm": 100.0,
+      "targetWeight": 102.77777777777777,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 2,
+      "oneRm": 102.85714285714286,
+      "targetWeight": 100.0,
+      "suggestedReps": 2
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 0,
+      "rir": 5,
+      "oneRm": 112.5,
+      "targetWeight": 100.0,
+      "suggestedReps": 5
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 0,
+      "oneRm": 100.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 2,
+      "oneRm": 105.88235294117646,
+      "targetWeight": 100.0,
+      "suggestedReps": 3
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 1,
+      "rir": 5,
+      "oneRm": 116.12903225806451,
+      "targetWeight": 100.0,
+      "suggestedReps": 6
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 0,
+      "oneRm": 124.13793103448276,
+      "targetWeight": 100.0,
+      "suggestedReps": 8
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 2,
+      "oneRm": 133.33333333333334,
+      "targetWeight": 100.00000000000001,
+      "suggestedReps": 10
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 8,
+      "rir": 5,
+      "oneRm": 150.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 13
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 0,
+      "oneRm": 3600.0,
+      "targetWeight": 100.0,
+      "suggestedReps": 36
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 2,
+      "oneRm": 100.0,
+      "targetWeight": -2.7777777777777777,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 36,
+      "rir": 5,
+      "oneRm": 100.0,
+      "targetWeight": -11.11111111111111,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 0,
+      "oneRm": 100.0,
+      "targetWeight": 0.0,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 2,
+      "oneRm": 100.0,
+      "targetWeight": -5.555555555555555,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 37,
+      "rir": 5,
+      "oneRm": 100.0,
+      "targetWeight": -13.88888888888889,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 0,
+      "oneRm": 100.0,
+      "targetWeight": -36.111111111111114,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 2,
+      "oneRm": 100.0,
+      "targetWeight": -41.666666666666664,
+      "suggestedReps": 1
+    },
+    {
+      "formula": "brzycki",
+      "weight": 100.0,
+      "reps": 50,
+      "rir": 5,
+      "oneRm": 100.0,
+      "targetWeight": -50.0,
+      "suggestedReps": 1
+    }
+  ]
+}
