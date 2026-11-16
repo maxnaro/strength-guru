@@ -1,16 +1,12 @@
-FROM ghcr.io/cirruslabs/flutter@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8 AS build
-WORKDIR /source
-COPY pubspec.yaml pubspec.lock ./
-COPY packages ./packages
-COPY lib ./lib
-COPY assets ./assets
-COPY web ./web
-COPY tool/prepare_web.py tool/verify_assets.py tool/asset-checksums.json ./tool/
-RUN flutter pub get --enforce-lockfile \
- && python3 tool/verify_assets.py \
- && dart compile js -O4 web/drift_worker.dart -o web/drift_worker.dart.js \
- && flutter build web --wasm --no-web-resources-cdn --pwa-strategy=none \
- && python3 tool/prepare_web.py
+FROM node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS build
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+WORKDIR /source/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run check && npm test && npm run build
+
 FROM ghcr.io/cirruslabs/flutter@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8 AS server-build
 WORKDIR /source
 COPY packages ./packages
@@ -25,7 +21,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
  && mkdir -p /data /app && chown -R 65532:65532 /data /app
 WORKDIR /app
 COPY --from=server-build --chown=65532:65532 /source/server/build/bundle/ ./
-COPY --from=build --chown=65532:65532 /source/build/web/ ./web/
+COPY --from=build --chown=65532:65532 /source/frontend/build/ ./web/
 COPY --chown=65532:65532 LICENSE assets/fonts/*-OFL.txt ./web/licenses/
 USER 65532:65532
 ENV DATA_DIR=/data WEB_ROOT=/app/web PORT=8080 TZ=Europe/London

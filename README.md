@@ -3,9 +3,10 @@
 A private strength tracker focused on RIR-based progression, offline workout logging and server GPU inference.
 
 ## Stack
-- **Framework:** Flutter
-- **Database:** Drift (SQLite on server and in a browser worker)
-- **State Management:** Riverpod
+- **Web frontend:** SvelteKit 3 / Svelte 5 / TypeScript (static, semantic DOM)
+- **Native app:** Flutter
+- **Database:** Drift/SQLite on server; IndexedDB replica and durable offline queue in browser
+- **State:** Svelte stores on web; Riverpod in native app
 - **Server:** Dart Shelf, durable AI jobs, incremental synchronization
 - **Deployment:** Docker Compose, NVIDIA CUDA inference, existing VPN + HTTPS proxy
 
@@ -21,14 +22,19 @@ docker compose up --build -d
 
 ## Development checks
 
-Use the pinned Flutter toolchain from the Dockerfile, or a compatible local SDK:
+Web checks use Node 24.22.3; API checks use Dart 3.14.0:
 
 ```sh
-flutter pub get --enforce-lockfile
-flutter test
-cd server
+cd frontend
+npm ci
+npm run check
+npm test
+npm run build
+cd ../server
 dart pub get --enforce-lockfile
 dart test
 ```
 
-Build the full app with Docker Compose so the web client and API share one origin. The native platform directories are retained; web/container checks are now the default CI path.
+Native regression checks remain `flutter pub get --enforce-lockfile` and `flutter test` from the repository root with the pinned Flutter toolchain.
+
+Build the full app with Docker Compose so the web client and API share one origin. CI checks the static frontend, three browser engines and the Dart API; native regression checks remain a separate job. See [parity and measured performance](docs/frontend-parity.md) for release evidence and remaining device checks.

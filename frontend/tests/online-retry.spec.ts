@@ -21,10 +21,12 @@ test('retrying an import after losing its acknowledgement does not duplicate the
   await expect.poll(async()=>{const r=await (await request.get('/api/v1/sync')).json();return r.snapshot.mesocycles.filter((m:any)=>m.name===name).length;}).toBe(1);
   await page.locator('.sync-banner').click();
   await page.getByRole('button',{name:'Retry sync',exact:true}).click();
-  await expect(page.locator('.sync-banner')).toContainText('Synced');
+  await expect(page.locator('.sync-banner')).toContainText('need review');
+  await expect.poll(async()=>(await replica(page)).outbox.length).toBe(0);
   await page.getByRole('button',{name:'Close dialog'}).click();
   await page.getByRole('button',{name:'Import Block',exact:true}).click();
   await expect(page).toHaveURL(/\/meso/);
+  await expect(page.locator('.sync-banner')).toContainText('Synced');
   const snapshot=(await (await request.get('/api/v1/sync')).json()).snapshot;
   expect(snapshot.mesocycles.filter((m:any)=>m.name===name)).toHaveLength(1);
   expect((await replica(page)).outbox).toEqual([]);

@@ -1,6 +1,6 @@
 # Self-hosting Strength Guru
 
-The web app and Dart API share one origin. Training data lives in SQLite on the server; the browser keeps a replica and a durable queue for offline set logging. Program editing and AI require connectivity. There is one private training profile and no application login: restrict access with your existing VPN/proxy.
+The SvelteKit static web app and Dart API share one origin. The browser renders semantic HTML; Flutter sources remain available for native development. Training data lives in SQLite on the server; the browser keeps an IndexedDB replica and a durable queue for offline set logging. Program editing and AI require connectivity. There is one private training profile and no application login: restrict access with your existing VPN/proxy.
 
 ## Start
 
@@ -17,7 +17,7 @@ The first run downloads the pinned 2.54 GB GGUF model and checks its SHA-256. Do
 
 Forward your private HTTPS origin to `http://127.0.0.1:8080`. Only this loopback port is published; inference has no published port. If your proxy is itself containerized, connect it to the app's Docker network and forward to `app:8080`. Keep that network private. Retain the same hostname: browser data and its offline queue are scoped to the origin.
 
-The proxy must preserve the app's `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers and serve `.wasm` with `application/wasm`. Disable buffering/compression for `/api/v1/jobs/*/events`; allow at least a 10-minute stream timeout. Allow backup uploads up to 64 MiB. Terminate trusted HTTPS even on the VPN: service workers and persistent browser features require a secure origin.
+The proxy must preserve the app's security and cache headers. Keep `/api/v1` and the web frontend on the same origin. The Dart static handler serves `index.html` for extensionless app routes, while missing compiled assets and unknown `/api/` URLs remain 404. Disable buffering/compression for `/api/v1/jobs/*/events`; allow at least a 10-minute stream timeout. Allow backup uploads up to 64 MiB. Terminate trusted HTTPS even on the VPN: service workers and persistent browser features require a secure origin.
 
 On iPhone, open the private HTTPS URL in Safari and use **Share → Add to Home Screen**. Open it online once and allow the application cache to finish installing before relying on offline startup. The first visit requires the server. Later launches render cached data immediately and synchronize in the background. iOS may remove website data; the server remains the durable copy of synchronized records.
 
@@ -54,20 +54,54 @@ docker compose up -d
 
 Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, run the previous application image with its matching pre-upgrade backup. Keep the native app and its original backup until web parity is verified; it does not share live data with the server.
 
-## Verification
+## Development and verification
 
-The pinned Flutter image can run `flutter test`, the server's `dart test`, and the production build without a host SDK. CI performs these checks and uploads a web artifact; it does not publish a public site or deploy your server. Native IPA packaging is retained as a manual workflow.
-
-Physical-device release checks remain necessary: iOS 18+ Safari and Home Screen mode, keyboard/safe-area behaviour, cached offline reload, suspension during AI generation, and an offline set that survives termination and later synchronizes. Target an interactive Today screen within 5 seconds cold / 2 seconds cached at 10 Mbps and 50 ms RTT, with p95 local-save feedback below 100 ms. These are acceptance targets, not measured claims.
-
-### Automated browser smoke check
-
-With a local app instance running on port 18765:
+The production frontend lives in `frontend/`, using Node 24.22.3, Svelte 5, SvelteKit 3, TypeScript and the static adapter. Its `index.html` fallback is served by the existing Dart API process. No Node process runs in the production container.
 
 ```sh
-npm install --prefix /tmp/sg-browser-check playwright
-PLAYWRIGHT_BROWSERS_PATH=/tmp/sg-browsers node /tmp/sg-browser-check/node_modules/playwright/cli.js install chromium
-NODE_PATH=/tmp/sg-browser-check/node_modules PLAYWRIGHT_BROWSERS_PATH=/tmp/sg-browsers node tool/browser_smoke.cjs
+cd frontend
+npm ci
+npm run check
+npm test
+npm run build
+cd ../server
+dart pub get --enforce-lockfile
+dart run tool/browser_fixtures.dart --check
+dart analyze
+dart test
 ```
 
-The check verifies offline startup, an offline set across reload and reconnection, API origin checks and correct Wasm serving. It supplements the physical iPhone checks. Set `APP_ORIGIN` to test another local instance. Repeat with `FORCE_CANVASKIT=1` to exercise the JavaScript fallback; run these checks sequentially because each logs a set in the test profile.
+Use Dart 3.14.0 for server checks. `server/tool/browser_fixtures.dart` generates the checked-in browser calculation fixtures by invoking the native progression queries against an in-memory database and the existing rep calculation functions. Review and regenerate those fixtures deliberately when domain behavior changes.
+
+For frontend development, start the API with disposable data and a matching `APP_ORIGIN`, then run `npm run dev` from `frontend/`. Vite proxies `/api` and `/guide` to port 18765. Production builds are served by Dart from `frontend/build`; `npm run preview` alone has no API.
+
+### Automated browser checks
+
+```sh
+cd frontend
+npx playwright install chromium
+npm run build
+npm run test:browser
+npm run test:perf
+# Optional other engines after installing their browsers/dependencies:
+TEST_BROWSER=firefox npm run test:browser
+TEST_BROWSER=webkit npm run test:browser
+```
+
+The Playwright runner starts the real Dart server on loopback port 18765 with a new temporary training directory and disabled inference. It refuses to reuse an existing server and deletes its temporary data on exit. It never connects to the deployed training profile. Set `DART_BIN` if Dart is outside `PATH`, `PLAYWRIGHT_BROWSERS_PATH` for an isolated browser cache, or `TEST_PORT` to use a different free port.
+
+The suite covers direct route loads, semantic controls and accessibility, offline cache startup, queued logging across page closure/reload, reconnect deduplication, concurrent tabs, lost acknowledgements, origin rejection, missing-asset 404s and dialogs. Browser traces/screenshots are retained on failure. `npm run test:perf` seeds 103 weeks of history in a disposable dataset (4,635 sets), then repeats the performance scenario five times and writes a median/p95 summary under `test-results/performance/`. Performance checks emulate a mobile viewport at 10 Mbps and 50 ms latency, recording cold/cached readiness, actual DOM feedback time for 20 local saves, and raw/gzip/Brotli artifact sizes. Results are written to Playwright's test output with an offline screenshot. `frontend/build/build-metrics.json` also records build artifact sizes; compressed sizes are estimates, not a promise of the proxy's transfer encoding.
+
+CI installs all three browser engines and their Ubuntu dependencies, then runs Chromium, Firefox and WebKit checks separately. It also runs frontend checks, shared calculation fixtures, accessibility/performance tests and Dart API checks, and uploads the static site and browser results. Flutter analysis/tests remain a separate native regression job. CI does not deploy the private server. Native IPA packaging remains a manual workflow.
+
+### Service worker and release checks
+
+The built service worker remains at `/sw.js` with scope `/`, replacing the earlier Flutter worker at the same URL. App updates wait for explicit application in the sync panel; queued changes must be resolved first. Activation removes previous Strength Guru asset caches while leaving IndexedDB and OPFS untouched. The new browser replica uses a separate IndexedDB database, `strength-guru-replica`. This cutover assumes existing training data is already synchronized to the server; it does not import unsynchronized legacy Drift replicas. Keep the same public origin and export any legacy pending work before upgrading a browser that still contains it.
+
+Retain `no-cache` for HTML, the worker and manifests. Content-hashed `/_app/immutable/` assets may use long-lived immutable caching. The worker excludes API and external guide routes from asset caching. First installation must finish online before offline startup can work.
+
+Physical-device release checks remain necessary: iOS 18+ Safari and Home Screen mode, keyboard and safe areas, theme appearance, cached offline reload, full browser/app termination with an offline set, and reconnection without duplicate logging. Check scrolling and edit dialogs on a small device and a desktop. Record real RTX 2070 inference memory and generation timings separately; browser tests disable inference.
+
+Acceptance targets: interactive Today screen within 5 seconds cold / 2 seconds cached at 10 Mbps and 50 ms RTT, with p95 local-save feedback below 100 ms. Chromium emulation measurements do not establish iPhone performance.
+
+Measured local results and remaining release checks are recorded in [the frontend parity evidence](frontend-parity.md).
