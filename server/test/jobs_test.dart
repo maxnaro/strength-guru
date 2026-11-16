@@ -6,6 +6,8 @@ import 'package:drift/native.dart';
 import 'package:strength_guru_core/db/database.dart';
 import 'package:strength_guru_server/store.dart';
 import 'package:strength_guru_server/jobs.dart';
+import 'package:strength_guru_core/sync/storage.dart';
+import 'package:strength_guru_core/sync/protocol.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -135,5 +137,69 @@ void main() {
     );
     await jobs.start();
     expect((await finish('bad'))['state'], 'failed');
+  });
+
+  test(
+    'job IDs retry without duplicate work and reject different input',
+    () async {
+      final body = {
+        'id': 'same-id',
+        'kind': 'csv',
+        'input': {'csv': 'Bench Press,3,8,8'},
+      };
+      final first = await jobs.create(body);
+      final result = await finish(first['id'] as String);
+      expect(result['state'], 'complete');
+      await inference.close(force: true);
+      expect((await jobs.create(body))['id'], 'same-id');
+      await expectLater(
+        jobs.create({
+          ...body,
+          'input': {'csv': 'Different'},
+        }),
+        throwsA(anything),
+      );
+      expect((await jobs.list())['jobs'], hasLength(1));
+      expect(requests, 1);
+    },
+  );
+  test('jobs reject a stale dataset and paginate equal timestamps', () async {
+    final epoch = (await readMeta(db, 'epoch'))!;
+    await expectLater(
+      jobs.create({
+        'id': 'stale',
+        'epoch': '$epoch-old',
+        'kind': 'csv',
+        'input': {'csv': 'x'},
+      }),
+      throwsA(
+        isA<ProtocolException>().having(
+          (e) => e.code,
+          'code',
+          'dataset_changed',
+        ),
+      ),
+    );
+    for (var i = 0; i < 101; i++) {
+      await db.customStatement(
+        'INSERT INTO sg_jobs (id, kind, request, state, created_at) VALUES (?, ?, ?, ?, ?)',
+        [
+          'job-${i.toString().padLeft(3, '0')}',
+          'csv',
+          '{}',
+          'complete',
+          'same',
+        ],
+      );
+    }
+    final first = await jobs.list();
+    expect(first['jobs'], hasLength(100));
+    final cursor = first['nextCursor'] as Map;
+    final second = await jobs.list(
+      beforeCreated: cursor['createdAt'] as String,
+      beforeId: cursor['id'] as String,
+    );
+    expect(second['jobs'], hasLength(1));
+    expect(second['nextCursor'], isNull);
   });
 }

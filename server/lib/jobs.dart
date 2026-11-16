@@ -7,6 +7,7 @@ import 'package:strength_guru_core/models/meso_import_data.dart';
 import 'package:strength_guru_core/models/plan_advisory.dart';
 import 'package:strength_guru_core/services/llm_service.dart';
 import 'package:strength_guru_core/sync/protocol.dart';
+import 'package:strength_guru_core/sync/storage.dart';
 import 'package:uuid/uuid.dart';
 
 class Jobs {
@@ -45,6 +46,49 @@ class Jobs {
 
   Future<Map<String, dynamic>> create(Map<String, dynamic> body) async {
     final kind = body['kind'];
+    final id = body['id'] ?? const Uuid().v4();
+    if (id is! String || id.isEmpty || id.length > 100) {
+      throw const ProtocolException(
+        'invalid_job',
+        'A valid job ID is required.',
+      );
+    }
+    final input = body['input'];
+    final epoch = body['epoch'];
+    Future<void> checkEpoch() async {
+      if (epoch != null &&
+          (epoch is! String || epoch != await readMeta(db, 'epoch'))) {
+        throw const ProtocolException(
+          'dataset_changed',
+          'The server database was restored. Review the job before creating it.',
+          409,
+        );
+      }
+    }
+
+    await checkEpoch();
+    Future<Map<String, dynamic>?> existing() async {
+      final row = await db
+          .customSelect(
+            'SELECT kind, request, dataset_epoch FROM sg_jobs WHERE id = ?',
+            variables: [Variable(id)],
+          )
+          .getSingleOrNull();
+      if (row == null) return null;
+      if (row.read<String>('kind') != kind ||
+          row.read<String>('request') != jsonEncode(input) ||
+          row.readNullable<String>('dataset_epoch') != epoch) {
+        throw const ProtocolException(
+          'job_id_reused',
+          'This job ID was already used for different input.',
+          409,
+        );
+      }
+      return get(id);
+    }
+
+    final prior = await existing();
+    if (prior != null) return prior;
     if (!['csv', 'generate', 'fix'].contains(kind))
       throw const ProtocolException(
         'invalid_job',
@@ -56,7 +100,6 @@ class Jobs {
         'AI is unavailable. Workout logging still works.',
         503,
       );
-    final input = body['input'];
     if (input is! Map<String, dynamic>)
       throw const ProtocolException(
         'invalid_job',
@@ -84,25 +127,63 @@ class Jobs {
         'invalid_job',
         'Provide a plan and its advisories.',
       );
-    final id = const Uuid().v4();
-    await db.customStatement(
-      'INSERT INTO sg_jobs (id, kind, request, state, created_at) VALUES (?, ?, ?, ?, ?)',
-      [
-        id,
-        kind,
-        jsonEncode(body['input']),
-        'queued',
-        DateTime.now().toUtc().toIso8601String(),
-      ],
-    );
-    unawaited(_drain());
+    final created = await db.transaction(() async {
+      await checkEpoch();
+      final prior = await existing();
+      if (prior != null) return false;
+      await db.customStatement(
+        'INSERT INTO sg_jobs (id, kind, request, state, created_at, dataset_epoch) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          kind,
+          jsonEncode(body['input']),
+          'queued',
+          DateTime.now().toUtc().toIso8601String(),
+          epoch,
+        ],
+      );
+      return true;
+    });
+    if (created) unawaited(_drain());
     return get(id);
+  }
+
+  Future<Map<String, dynamic>> list({
+    String? beforeCreated,
+    String? beforeId,
+  }) async {
+    if ((beforeCreated == null) != (beforeId == null))
+      throw const ProtocolException('invalid_cursor', 'Invalid job cursor.');
+    final rows = await db
+        .customSelect(
+          beforeCreated == null
+              ? 'SELECT id, created_at FROM sg_jobs ORDER BY created_at DESC, id DESC LIMIT 101'
+              : 'SELECT id, created_at FROM sg_jobs WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT 101',
+          variables: beforeCreated == null
+              ? []
+              : [
+                  Variable(beforeCreated),
+                  Variable(beforeCreated),
+                  Variable(beforeId!),
+                ],
+        )
+        .get();
+    final selected = rows.take(100).toList();
+    return {
+      'jobs': [for (final row in selected) await get(row.read<String>('id'))],
+      'nextCursor': rows.length > 100
+          ? {
+              'createdAt': selected.last.read<String>('created_at'),
+              'id': selected.last.read<String>('id'),
+            }
+          : null,
+    };
   }
 
   Future<Map<String, dynamic>> get(String id) async {
     final row = await db
         .customSelect(
-          'SELECT id, kind, state, progress, result, error, created_at FROM sg_jobs WHERE id = ?',
+          'SELECT id, kind, state, progress, result, error, created_at, dataset_epoch FROM sg_jobs WHERE id = ?',
           variables: [Variable(id)],
         )
         .getSingleOrNull();

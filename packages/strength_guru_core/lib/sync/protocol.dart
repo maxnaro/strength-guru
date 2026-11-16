@@ -1,6 +1,7 @@
 import '../db/database.dart';
 import '../db/queries.dart';
 import '../models/meso_import_data.dart';
+import '../seed/seeder.dart';
 
 const loggingCommands = {
   'getOrCreateSessionLog',
@@ -166,6 +167,8 @@ Future<dynamic> executeCommand(
       )).toJson();
     case 'wipeAllData':
       await db.wipeAllData();
+    case 'forceReseed':
+      await Seeder.forceReseed(db);
     case 'setSetting':
       if (s('key').startsWith('llm_')) return null;
       await db.setSetting(s('key'), s('value'));

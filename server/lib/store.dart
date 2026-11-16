@@ -22,6 +22,14 @@ class Store {
     await db.customStatement(
       'CREATE TABLE IF NOT EXISTS sg_jobs (id TEXT PRIMARY KEY, kind TEXT NOT NULL, request TEXT NOT NULL, state TEXT NOT NULL, progress TEXT NOT NULL DEFAULT \'Queued\', result TEXT, error TEXT, checkpoints TEXT NOT NULL DEFAULT \'{}\', created_at TEXT NOT NULL)',
     );
+    final jobColumns = await db
+        .customSelect('PRAGMA table_info(sg_jobs)')
+        .get();
+    if (!jobColumns.any((r) => r.read<String>('name') == 'dataset_epoch')) {
+      await db.customStatement(
+        'ALTER TABLE sg_jobs ADD COLUMN dataset_epoch TEXT',
+      );
+    }
     if (await readMeta(db, 'epoch') == null)
       await writeMeta(db, 'epoch', const Uuid().v4());
     for (final table in [...trainingKeys.keys, 'sg_revisions']) {
@@ -125,6 +133,23 @@ class Store {
       );
     }
     final type = body['type'] as String;
+    if (loggingCommands.contains(type)) {
+      final expectedProgram = body['expectedProgramRevision'];
+      if (expectedProgram is! int) {
+        throw const ProtocolException(
+          'upgrade_required',
+          'Update your app before logging workouts.',
+          400,
+        );
+      }
+      if (expectedProgram != await revisionFor(db, 'program')) {
+        throw const ProtocolException(
+          'program_changed',
+          'The program changed. Review this workout before saving it.',
+          409,
+        );
+      }
+    }
     final p = Map<String, dynamic>.from(body['payload'] as Map);
     _validate(type, p);
     final mesoId =

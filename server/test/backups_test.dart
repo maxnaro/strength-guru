@@ -27,6 +27,17 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test('restore rejects a stale expected dataset epoch', () async {
+    final before = await trainingSnapshot(db);
+    final snapshot = await backups.snapshot();
+    final preview = await backups.inspect(await snapshot.readAsBytes());
+    await expectLater(
+      backups.restore(preview['token'] as String, expectedEpoch: 'stale'),
+      throwsA(isA<Exception>()),
+    );
+    expect(await trainingSnapshot(db), before);
+  });
+
   test(
     'backup preview and restore preserve slots, arrays and logged history',
     () async {

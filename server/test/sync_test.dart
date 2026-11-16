@@ -326,4 +326,52 @@ void main() {
     expect(await client.db.getSetsForSession(session.id), isEmpty);
     expect(client.pending, 0);
   });
+
+  test(
+    'program guards reject stale logging but permit an accepted retry',
+    () async {
+      final meso = (await server.getActiveMesocycle())!;
+      final epoch = (await readMeta(server, 'epoch'))!;
+      final body = {
+        'operationId': 'session-once',
+        'epoch': epoch,
+        'type': 'getOrCreateSessionLog',
+        'payload': {'mesoId': meso.id, 'weekIdx': 1, 'dayIdx': 0},
+        'expectedRevision': 0,
+        'expectedProgramRevision': 0,
+      };
+      final first = await store.command(body);
+      await store.command({
+        'operationId': 'delete-week',
+        'epoch': epoch,
+        'type': 'deleteWeek',
+        'payload': {'mesoId': meso.id, 'weekIdx': 0},
+        'expectedRevision': 0,
+      });
+      expect(await store.command(body), first);
+      await expectLater(
+        store.command({...body, 'operationId': 'stale-session'}),
+        throwsA(
+          isA<ProtocolException>().having(
+            (e) => e.code,
+            'code',
+            'program_changed',
+          ),
+        ),
+      );
+      await expectLater(
+        store.command(
+          {...body, 'operationId': 'old-app'}
+            ..remove('expectedProgramRevision'),
+        ),
+        throwsA(
+          isA<ProtocolException>().having(
+            (e) => e.code,
+            'code',
+            'upgrade_required',
+          ),
+        ),
+      );
+    },
+  );
 }

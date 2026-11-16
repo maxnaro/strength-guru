@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+
 import '../db/database.dart';
 import '../db/queries.dart';
 import 'protocol.dart';
@@ -73,11 +75,13 @@ class SyncClient {
   String? message;
   Future<void>? _flight;
   bool _again = false;
+  bool _partialPull = false;
   Timer? _timer;
   SyncClient(this.db, this.api);
 
   Future<void> initialize() async {
     await initializeSyncStorage(db);
+    _partialPull = await readMeta(db, 'sync_incomplete') == '1';
     db.mutationDispatcher = dispatch;
     await refreshStatus();
     if (await readMeta(db, 'epoch') == null) {
@@ -103,6 +107,22 @@ class SyncClient {
 
   Future<dynamic> _dispatch(String type, Map<String, dynamic> payload) async {
     if (loggingCommands.contains(type)) {
+      // A program revision must describe the materialized program, not an
+      // acknowledgement or a partially applied multi-page pull.
+      final flight = _flight;
+      if (flight != null) {
+        try {
+          await flight;
+        } catch (_) {
+          // Offline edits may still be recorded against the last applied view.
+        }
+      }
+      if (_partialPull) {
+        throw const ProtocolException(
+          'sync_incomplete',
+          'Reconnect to finish updating the program before logging.',
+        );
+      }
       if (type == 'getOrCreateSessionLog') {
         final existing = await db.getSessionLog(
           payload['mesoId'] as String,
@@ -129,6 +149,7 @@ class SyncClient {
           'type': type,
           'payload': payload,
           'expectedRevision': await revisionFor(db, resource),
+          'expectedProgramRevision': await revisionFor(db, 'program'),
         };
         final result = await executeCommand(db, type, payload);
         await db.customStatement(
@@ -204,10 +225,12 @@ class SyncClient {
         try {
           final response = await api.json('POST', 'commands', body: body);
           await db.transaction(() async {
-            await upsertRawRow(db, 'sg_revisions', {
-              'resource': response['resource'],
-              'revision': response['revision'],
-            });
+            if (response['resource'] != 'program') {
+              await upsertRawRow(db, 'sg_revisions', {
+                'resource': response['resource'],
+                'revision': response['revision'],
+              });
+            }
             await db.customStatement('DELETE FROM sg_outbox WHERE id = ?', [
               row.read<String>('id'),
             ]);
@@ -281,7 +304,9 @@ class SyncClient {
       }
       if (page['snapshot'] == null && (page['changes'] as List? ?? []).isEmpty)
         continue;
+      _partialPull = true;
       await db.transaction(() async {
+        await writeMeta(db, 'sync_incomplete', '1');
         await applySyncPage(db, page);
         // Keep unsynced edits visible after server changes are materialized.
         for (final row
@@ -308,6 +333,10 @@ class SyncClient {
       });
       dataVersion++;
     } while (page['hasMore'] == true);
+    await db.customStatement(
+      "DELETE FROM sg_meta WHERE key = 'sync_incomplete'",
+    );
+    _partialPull = false;
   }
 
   Future<List<Map<String, dynamic>>> conflictRows() async => [
@@ -348,6 +377,13 @@ class SyncClient {
         'dataset_changed',
         'Export this edit before discarding it.',
       );
+    if (loggingCommands.contains(body['type']) &&
+        body['expectedProgramRevision'] != await revisionFor(db, 'program')) {
+      throw const ProtocolException(
+        'program_changed',
+        'The program changed. Export or discard this edit and review the workout.',
+      );
+    }
     body['operationId'] = const Uuid().v4();
     body['expectedRevision'] = await revisionFor(
       db,

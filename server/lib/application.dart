@@ -70,6 +70,15 @@ Handler application({
         jsonResponse(await jobs.create(await readJson(r)), 202),
   );
   router.get(
+    '/api/v1/jobs',
+    (Request r) async => jsonResponse(
+      await jobs.list(
+        beforeCreated: r.url.queryParameters['beforeCreated'],
+        beforeId: r.url.queryParameters['beforeId'],
+      ),
+    ),
+  );
+  router.get(
     '/api/v1/jobs/<id>',
     (Request r, String id) async => jsonResponse(await jobs.get(id)),
   );
@@ -128,7 +137,10 @@ Handler application({
         'confirmation_required',
         'Confirm the preview before restoring.',
       );
-    await backups.restore(body['token'] as String);
+    await backups.restore(
+      body['token'] as String,
+      expectedEpoch: body['expectedEpoch'] as String?,
+    );
     return jsonResponse({'ok': true});
   });
   router.get('/api/v1/guides', (Request r) async {
@@ -197,7 +209,10 @@ Handler application({
         });
       if (!request.url.path.startsWith('api/') &&
           !request.url.path.startsWith('guide/'))
-        headers['cache-control'] = 'no-cache';
+        headers['cache-control'] = response.statusCode == 200 &&
+                request.url.path.startsWith('_app/immutable/')
+            ? 'public, max-age=31536000, immutable'
+            : 'no-cache';
       return response.change(headers: headers);
     } on ProtocolException catch (e) {
       return jsonResponse({'code': e.code, 'message': e.message}, e.status);

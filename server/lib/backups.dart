@@ -69,7 +69,7 @@ class Backups {
     }
   }
 
-  Future<void> restore(String token) async {
+  Future<void> restore(String token, {String? expectedEpoch}) async {
     final staged = _staged.remove(token);
     if (staged == null ||
         DateTime.now().difference(staged.$2) > const Duration(hours: 1))
@@ -81,6 +81,14 @@ class Backups {
     try {
       await snapshot(); // A consistent recovery point before any replacement.
       await store.db.transaction(() async {
+        if (expectedEpoch != null &&
+            expectedEpoch != await readMeta(store.db, 'epoch')) {
+          throw const ProtocolException(
+            'dataset_changed',
+            'The server dataset changed. Inspect the backup again before restoring.',
+            409,
+          );
+        }
         for (final table in trainingKeys.keys.toList().reversed) {
           await store.db.customStatement('DELETE FROM "$table"');
         }
