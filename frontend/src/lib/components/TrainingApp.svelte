@@ -975,11 +975,16 @@
     {#if $training.ready && view === "/log"}
       <header class="session-header row" style={groupStyle(group)}>
         {#if effective}<Plate small label={split || title(group)} />{/if}
-        <h1 class="grow">{effective
-          ? split
-            ? `${split}${split.endsWith("Session") ? "" : " Session"}`
-            : `${title(group)} Session`
-          : "Log"}</h1>
+        <div class="grow">
+          <h1>
+            {effective
+              ? split
+                ? `${split}${split.endsWith("Session") ? "" : " Session"}`
+                : `${title(group)} Session`
+              : "Log"}
+          </h1>
+          {#if effective}<p class="eyebrow">WEEK {week + 1} · {days[day]}</p>{/if}
+        </div>
         <button class="soft rep-calculator" aria-label="Rep Calculator"
           on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
           ><Icon name="calculate_outlined" size={18} /> Rep calc</button>
@@ -1501,23 +1506,29 @@
         on:touchstart={beginSwipe}
         on:touchend={finishSwipe}
       >
-        <div class="session-controls row wrap">
-          <select aria-label="Week" value={String(week)}
-            on:change={(event) => chooseDay(Number(event.currentTarget.value), day, false)}>
-            {#each Array(meso!.num_weeks) as _, w}
-              <option value={String(w)}>Week {w + 1}</option>
-            {/each}
-          </select>
-          <select aria-label="Day" value={String(day)}
-            on:change={(event) => chooseDay(week, Number(event.currentTarget.value), false)}>
-            {#each days as weekday, index}
-              <option value={String(index)}>{weekday}</option>
-            {/each}
-          </select>
-          {#if today && (today.week !== week || today.day !== day)}
-            <button class="soft" on:click={resetToday}>Today</button>
-          {/if}
+        <div class="week-picker">
+          {#each Array(meso!.num_weeks) as _, w}<button
+              class:selected={w === week}
+              aria-pressed={w === week}
+              on:click={() => chooseDay(w, day, false)}>WEEK {w + 1}</button
+            >{/each}
         </div>
+        <div class="day-picker">
+          {#each days as d, di}{@const g = primary(
+              plan(tables, meso!.id, week, di),
+            )}<button
+              class:selected={day === di}
+              aria-pressed={day === di}
+              style={groupStyle(g)}
+              aria-label={d}
+              on:click={() => chooseDay(week, di, false)}>{d[0]}</button
+            >{/each}
+        </div>
+        {#if today && (today.week !== week || today.day !== day)}
+          <div class="session-controls row">
+            <button class="soft" on:click={resetToday}>Today</button>
+          </div>
+        {/if}
         {#if !items.length}<div class="empty">
             <h2>Recovery day.</h2>
             <p class="muted">Rest up.</p>

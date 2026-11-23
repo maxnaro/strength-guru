@@ -41,7 +41,7 @@ test('offline set survives browser page restart and synchronizes exactly once', 
   const reopened = await context.newPage();
   await reopened.goto('/log');
   await expect(reopened.locator('.sync-banner')).toContainText('pending sync');
-  await reopened.getByRole('combobox', {name:'Day',exact:true}).selectOption('0');
+  await reopened.getByRole('button', {name:'Monday',exact:true}).click();
   await expect(reopened.getByRole('button',{name:/Edit saved set/}).first()).toBeVisible();
   expect((await replica(reopened)).outbox.map((q:any)=>q.id)).toEqual(queued.outbox.map((q:any)=>q.id));
   await context.setOffline(false);
@@ -55,7 +55,7 @@ test('offline set survives browser page restart and synchronizes exactly once', 
 
 test('two tabs retain concurrent offline edits and recover a lost acknowledgement', async ({ page, context, request }) => {
   await ready(page); await monday(page); await offlineReady(page);
-  const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('combobox', {name:'Day',exact:true}).selectOption('1');
+  const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('button', {name:'Tuesday',exact:true}).click();
   const before = (await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length;
   await context.setOffline(true);
   await Promise.all([
@@ -159,14 +159,14 @@ test('changing weeks resets unsaved set inputs and direct session URLs survive r
   await ready(page);await monday(page);
   await page.getByRole('spinbutton',{name:'WEIGHT (KG)',exact:true}).fill('123.5');
   await page.getByRole('spinbutton',{name:'REPS',exact:true}).fill('47');
-  await page.getByRole('combobox',{name:'Week',exact:true}).selectOption('1');
+  await page.getByRole('button',{name:'WEEK 2',exact:true}).click();
   await expect(page).toHaveURL(/week=1/);
   await expect(page.getByRole('spinbutton',{name:'WEIGHT (KG)',exact:true})).not.toHaveValue('123.5');
   await expect(page.getByRole('spinbutton',{name:'REPS',exact:true})).not.toHaveValue('47');
   const url=page.url();await page.reload();
   await expect(page.locator('.sync-banner')).toContainText('Synced');
   expect(page.url()).toBe(url);
-  await expect(page.getByRole('combobox',{name:'Week',exact:true})).toHaveValue('1');
+  await expect(page.getByRole('button',{name:'WEEK 2',exact:true})).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('home and legacy Today bookmarks preserve the selected set', async ({page, request}) => {
@@ -188,8 +188,8 @@ test('day pager follows exercise cards and crosses week and mesocycle boundaries
   await ready(page, '/log?week=0&day=0');
   const previous = page.getByRole('button', {name: /Previous day/});
   const next = page.getByRole('button', {name: /Next day/});
-  const week = page.getByRole('combobox', {name: 'Week', exact: true});
-  const day = page.getByRole('combobox', {name: 'Day', exact: true});
+  const week = page.getByRole('button', {name: /^WEEK \d+$/});
+  const sunday = page.getByRole('button', {name: 'Sunday', exact: true});
   await expect(previous).toBeDisabled();
   await expect(next).toBeEnabled();
   const lastCard = (await page.locator('.exercise-card').last().boundingBox())!;
@@ -198,20 +198,19 @@ test('day pager follows exercise cards and crosses week and mesocycle boundaries
   expect(nextButton.height).toBeGreaterThanOrEqual(44);
   expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 
-  await day.selectOption('6');
+  await sunday.click();
   await expect(page.getByRole('heading', {name: /Recovery day/})).toBeVisible();
   await expect(page.getByRole('button', {name: 'Rep Calculator'})).toBeVisible();
   await next.click();
-  await expect(week).toHaveValue('1');
-  await expect(day).toHaveValue('0');
+  await expect(week.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', {name: 'Monday', exact: true})).toHaveAttribute('aria-pressed', 'true');
   await page.locator('.exercise-card').last().scrollIntoViewIfNeeded();
   await previous.click();
-  await expect(week).toHaveValue('0');
-  await expect(day).toHaveValue('6');
+  await expect(week.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  await expect(sunday).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
-  const lastWeek = await week.locator('option').last().getAttribute('value');
-  await week.selectOption(lastWeek!);
+  await week.last().click();
   await expect(next).toBeDisabled();
   await expect(previous).toBeEnabled();
 });
@@ -223,7 +222,7 @@ test('main screens meet automated WCAG checks in light and dark themes',async({p
     await page.emulateMedia({colorScheme});
     for(const path of ['/','/log','/meso','/generate','/import']){
       await ready(page,path);
-      if(path==='/log')await page.getByRole('combobox',{name:'Day',exact:true}).selectOption('0');
+      if(path==='/log')await page.getByRole('button', {name:'Monday',exact:true}).click();
       const results=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
       violations.push(...results.violations.map(v=>({path,colorScheme,id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})));
     }
