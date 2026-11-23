@@ -1,13 +1,13 @@
 # Web frontend parity and release evidence
 
-The static DOM frontend preserves the existing `/api/v1` service and the server's SQLite training data. Native Flutter sources remain in the repository. The browser replica is IndexedDB; it bootstraps from the authoritative server dataset.
+The static DOM frontend preserves the existing `/api/v1` service and the server's SQLite training data. The browser replica is IndexedDB; it bootstraps from the authoritative server dataset.
 
 | Area | Automated evidence | Release/device review |
 | --- | --- | --- |
-| Today, Log, Meso and import/generation direct URLs | Production-browser route checks, real Dart API | Compare information hierarchy and navigation with the native screens |
+| Today, Log, Meso and import/generation direct URLs | Production-browser route checks, real Dart API | Compare information hierarchy and navigation with the original app |
 | Offline sets and reconnect | Browser offline save, page and full browser-process restart, stable queued IDs, exactly-once server count | Terminate iOS Home Screen app with a pending set; reopen offline and reconnect |
 | Concurrent tabs / lost acknowledgements | Browser shared IndexedDB queue, two tabs, accepted response loss/retry, real conflict review/discard | Two physical devices, conflict resolution and pending export |
-| Progression arcs | 96 checked-in fixtures from native `applyExerciseProgression`, including short blocks and consecutive deloads | Inspect multi-set arc preview and apply behavior |
+| Progression arcs | 96 checked-in fixtures from the shared Dart `applyExerciseProgression`, including short blocks and consecutive deloads | Inspect multi-set arc preview and apply behavior |
 | Rep calculator | 108 Epley/Brzycki boundary fixtures | Keyboard entry, stepping and sheet presentation |
 | Program editing, swaps, targets and deloads | Dart command tests; browser label/target-forward/progression persistence | Exercise/day reorder, duplicate exercises, all swap scopes, target-forward overwrite confirmation |
 | Mesocycle lifecycle | Browser create/rename/duplicate/activate/delete plus Dart command tests | Length and current-week changes |

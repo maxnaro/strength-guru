@@ -36,7 +36,7 @@ class Backups {
         if (source.select('PRAGMA user_version').single.values.single != 8)
           throw const ProtocolException(
             'unsupported_schema',
-            'Export a schema-v8 backup using the current native app.',
+            'Export a schema-v8 SQLite backup.',
           );
         final counts = <String, int>{};
         for (final table in trainingKeys.keys) {

@@ -6,10 +6,6 @@
 **/.dart_tool
 **/build
 .env
-android
-ios
-windows
-web/drift_worker.dart.js*
 docs
 
 frontend/node_modules

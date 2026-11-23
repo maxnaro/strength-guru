@@ -1,6 +1,6 @@
 # Self-hosting Strength Guru
 
-The SvelteKit static web app and Dart API share one origin. The browser renders semantic HTML; Flutter sources remain available for native development. Training data lives in SQLite on the server; the browser keeps an IndexedDB replica and a durable queue for offline set logging. Program editing and AI require connectivity. There is one private training profile and no application login: restrict access with your existing VPN/proxy.
+The SvelteKit static web app and Dart API share one origin. The browser renders semantic HTML. Training data lives in SQLite on the server; the browser keeps an IndexedDB replica and a durable queue for offline set logging. Program editing and AI require connectivity. There is one private training profile and no application login: restrict access with your existing VPN/proxy.
 
 ## Start
 
@@ -23,7 +23,7 @@ On iPhone, open the private HTTPS URL in Safari and use **Share → Add to Home 
 
 ## Import and backup
 
-Export a SQLite backup from the current native app. In the web app's About sheet choose Restore, select the file, review the program/session/set counts, then confirm. Schema v8 is supported. Older backups must first be opened and re-exported with the current native version.
+Export a SQLite backup from a legacy native app that supports schema v8. In the web app's About sheet choose Restore, select the file, review the program/session/set counts, then confirm. Schema v8 is supported. Older backups must first be opened and re-exported with a legacy version that supports schema v8.
 
 Restore preserves training IDs, set targets, ordering and history, discards obsolete AI settings, and saves a recovery snapshot in `/data/backups` before replacing data. It changes the dataset generation. Other devices with pending edits retain those edits for export rather than applying them to the restored database.
 
@@ -52,7 +52,7 @@ docker compose build
 docker compose up -d
 ```
 
-Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, run the previous application image with its matching pre-upgrade backup. Keep the native app and its original backup until web parity is verified; it does not share live data with the server.
+Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, run the previous application image with its matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
 
 ## Development and verification
 
@@ -71,7 +71,7 @@ dart analyze
 dart test
 ```
 
-Use Dart 3.14.0 for server checks. `server/tool/browser_fixtures.dart` generates the checked-in browser calculation fixtures by invoking the native progression queries against an in-memory database and the existing rep calculation functions. Review and regenerate those fixtures deliberately when domain behavior changes.
+Use Dart 3.14.0 for server checks. `server/tool/browser_fixtures.dart` generates the checked-in browser calculation fixtures by invoking the shared Dart progression queries against an in-memory database and the existing rep calculation functions. Review and regenerate those fixtures deliberately when domain behavior changes.
 
 For frontend development, start the API with disposable data and a matching `APP_ORIGIN`, then run `npm run dev` from `frontend/`. Vite proxies `/api` and `/guide` to port 18765. Production builds are served by Dart from `frontend/build`; `npm run preview` alone has no API.
 
@@ -92,7 +92,7 @@ The Playwright runner starts the real Dart server on loopback port 18765 with a 
 
 The suite covers direct route loads, semantic controls and accessibility, offline cache startup, queued logging across page closure/reload, reconnect deduplication, concurrent tabs, lost acknowledgements, origin rejection, missing-asset 404s and dialogs. Browser traces/screenshots are retained on failure. `npm run test:perf` seeds 103 weeks of history in a disposable dataset (4,635 sets), then repeats the performance scenario five times and writes a median/p95 summary under `test-results/performance/`. Performance checks emulate a mobile viewport at 10 Mbps and 50 ms latency, recording cold/cached readiness, actual DOM feedback time for 20 local saves, and raw/gzip/Brotli artifact sizes. Results are written to Playwright's test output with an offline screenshot. `frontend/build/build-metrics.json` also records build artifact sizes; compressed sizes are estimates, not a promise of the proxy's transfer encoding.
 
-CI installs all three browser engines and their Ubuntu dependencies, then runs Chromium, Firefox and WebKit checks separately. It also runs frontend checks, shared calculation fixtures, accessibility/performance tests and Dart API checks, and uploads the static site and browser results. Flutter analysis/tests remain a separate native regression job. CI does not deploy the private server. Native IPA packaging remains a manual workflow.
+CI installs all three browser engines and their Ubuntu dependencies, then runs Chromium, Firefox and WebKit checks separately. It also runs frontend checks, shared calculation fixtures, accessibility/performance tests and Dart API checks, and uploads the static site and browser results. Deploy the private server with Docker Compose.
 
 ### Service worker and release checks
 

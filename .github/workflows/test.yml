@@ -67,12 +67,3 @@ jobs:
         working-directory: server
       - run: dart run tool/browser_fixtures.dart --check && dart analyze && dart test && dart build cli --target=bin/server.dart --output=build
         working-directory: server
-  native-regression:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/cirruslabs/flutter@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8
-    steps:
-      - uses: actions/checkout@v6
-      - run: flutter pub get --enforce-lockfile
-      - run: flutter analyze --no-fatal-infos
-      - run: flutter test

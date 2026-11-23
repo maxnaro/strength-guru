@@ -7,7 +7,7 @@ RUN npm ci
 COPY frontend ./
 RUN npm run check && npm test && npm run build
 
-FROM ghcr.io/cirruslabs/flutter@sha256:46691e311715845de03a3ba4753a475476936805b29431b1f00f1816981033f8 AS server-build
+FROM dart:3.14.0@sha256:c78970229c8944bd6076caf4e5977ef569ba66750d301a2149f63b41a6725cec AS server-build
 WORKDIR /source
 COPY packages ./packages
 COPY server ./server
@@ -22,7 +22,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 WORKDIR /app
 COPY --from=server-build --chown=65532:65532 /source/server/build/bundle/ ./
 COPY --from=build --chown=65532:65532 /source/frontend/build/ ./web/
-COPY --chown=65532:65532 LICENSE assets/fonts/*-OFL.txt ./web/licenses/
 USER 65532:65532
 ENV DATA_DIR=/data WEB_ROOT=/app/web PORT=8080 TZ=Europe/London
 EXPOSE 8080
