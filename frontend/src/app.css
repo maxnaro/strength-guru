@@ -481,7 +481,7 @@ main {
   font-size: 17px;
   overflow-wrap: anywhere;
 }
-.session-header .soft {
+.session-header button {
   padding-inline: 12px;
   flex-shrink: 0;
   white-space: nowrap;
@@ -543,7 +543,7 @@ main {
 .day-picker button.selected::after {
   width: 20px;
 }
-.session-header .soft,
+.session-header button,
 .session-pager .soft {
   min-height: 44px;
 }
