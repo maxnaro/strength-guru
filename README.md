@@ -12,6 +12,12 @@ Strength Guru is a private, self-hosted strength tracker built for your phone. P
 - Plan multiweek blocks with per-set targets and deload weeks.
 - Generate programs with optional AI inference on your own server.
 
+## Workflow demo
+
+Pick a session from the calendar, log a set, and see the session marked as started.
+
+<img src="docs/screenshots/workflow.gif" width="260" alt="Workflow demo showing how to open a planned session, enter a weight, log a set, and see the check mark on the calendar">
+
 ## Quick start
 
 With Docker and Compose installed, run this from the repository root to try workout tracking locally.

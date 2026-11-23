@@ -17,3 +17,5 @@ Do not include `Co-authored-by` trailers or any other attribution that identifie
 # README screenshots
 
 Refresh affected README screenshots in the same change whenever the GUI shown in them changes. Capture the running app in dark mode using the Playwright iPhone 16 profile with its viewport set to the full 393 × 852 portrait screen at 3× scale. Use the seeded demo program on the disposable server started by `frontend/scripts/test-server.mjs`. Log the first set of the week-one Monday session before capturing the workout log and mesocycle calendar. Save the viewport captures as 1179 × 2556 PNGs in `docs/screenshots/`.
+
+Refresh the README workflow GIF when changes affect the flow it shows. Use the same emulated iPhone 16 viewport and demo program. Show the calendar, open a planned session, log a set, and return to the calendar to show the check mark. Save the looping GIF at 393 × 852 pixels in `docs/screenshots/workflow.gif`.
