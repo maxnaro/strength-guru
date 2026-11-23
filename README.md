@@ -1,37 +1,23 @@
 # Strength Guru
 
-A private strength tracker focused on RIR-based progression, offline workout logging and server GPU inference.
+Strength Guru is a private, self-hosted strength tracker built for your phone. Plan training blocks, log sets at the gym, and use reps in reserve (RIR) to guide progression.
 
-## Stack
-- **Web frontend:** SvelteKit 3 / Svelte 5 / TypeScript (static, semantic DOM)
-- **Database:** Drift/SQLite on server; IndexedDB replica and durable offline queue in browser
-- **State:** Svelte stores
-- **Server:** Dart Shelf, durable AI jobs, incremental synchronization
-- **Deployment:** Docker Compose, NVIDIA CUDA inference, existing VPN + HTTPS proxy
+| Workout log | Mesocycle calendar |
+| --- | --- |
+| <a href="docs/screenshots/workout-log.png"><img src="docs/screenshots/workout-log.png" width="260" alt="Workout log showing a saved set and the next set's targets"></a> | <a href="docs/screenshots/mesocycle-calendar.png"><img src="docs/screenshots/mesocycle-calendar.png" width="260" alt="Mesocycle calendar showing training days, deload weeks, and a started session"></a> |
 
-## Self-hosted mobile web app
+*Screenshots from an emulated iPhone 16.*
 
-See [self-hosting instructions](docs/self-hosting.md) for Compose setup, native backup migration, offline use and GPU checks.
+- Log sets offline and sync them when you reconnect.
+- Plan multiweek blocks with per-set targets and deload weeks.
+- Generate programs with optional AI inference on your own server.
 
-```sh
-cp .env.example .env
-# Set your private HTTPS APP_ORIGIN in .env
-docker compose up --build -d
-```
+## Quick start
 
-## Development checks
-
-Web checks use Node 24.22.3; API checks use Dart 3.14.0:
+With Docker and Compose installed, run this from the repository root to try workout tracking locally.
 
 ```sh
-cd frontend
-npm ci
-npm run check
-npm test
-npm run build
-cd ../server
-dart pub get --enforce-lockfile
-dart test
+APP_PORT=8080 APP_ORIGIN=http://localhost:8080 docker compose up --build -d app
 ```
 
-Build the full app with Docker Compose so the web client and API share one origin. CI checks the static frontend, three browser engines and the Dart API. See [parity and measured performance](docs/frontend-parity.md) for release evidence and remaining device checks.
+Open [Strength Guru on localhost](http://localhost:8080). For private HTTPS access, iPhone Home Screen installation, and NVIDIA inference, see the [self-hosting guide](docs/self-hosting.md).
