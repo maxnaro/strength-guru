@@ -6,8 +6,14 @@
   export let wide = false;
   let dialog: HTMLDialogElement;
   onMount(() => {
+    const opener = document.activeElement;
     dialog.showModal();
-    return () => dialog.close();
+    return () => {
+      dialog.close();
+      if (opener instanceof HTMLElement && opener.isConnected) {
+        opener.focus({ preventScroll: true });
+      }
+    };
   });
 </script>
 
