@@ -996,7 +996,7 @@
             : "Log"}
         </h1>
         {#if today && (today.week !== week || today.day !== day)}
-          <button class="solid accent" on:click={resetToday}>Today</button>
+          <button class="soft today-shortcut" on:click={resetToday}>Today</button>
         {/if}
         <button class="soft rep-calculator" aria-label="Rep Calculator"
           on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
