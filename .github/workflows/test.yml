@@ -1,0 +1,69 @@
+name: Web and API
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.22.3'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.14.0'
+      - run: dart pub get --enforce-lockfile
+        working-directory: server
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run check && npm test && npm run build
+        working-directory: frontend
+        env:
+          GIT_SHA: ${{ github.sha }}
+      - run: npx playwright install --with-deps chromium firefox webkit
+        working-directory: frontend
+      - run: npm run test:browser -- --output=test-results/chromium
+        working-directory: frontend
+      - run: npm run test:browser -- --output=test-results/firefox
+        working-directory: frontend
+        env:
+          TEST_BROWSER: firefox
+      - run: npm run test:browser -- --output=test-results/webkit
+        working-directory: frontend
+        env:
+          TEST_BROWSER: webkit
+      - run: npm run test:perf
+        working-directory: frontend
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: strength-guru-browser-results
+          path: |
+            frontend/test-results
+            frontend/playwright-report
+      - uses: actions/upload-artifact@v7
+        with:
+          name: strength-guru-web
+          path: frontend/build
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.14.0'
+      - run: dart pub get --enforce-lockfile
+        working-directory: server
+      - run: dart run tool/browser_fixtures.dart --check && dart analyze && dart test && dart build cli --target=bin/server.dart --output=build
+        working-directory: server

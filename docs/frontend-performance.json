@@ -1,0 +1,102 @@
+{
+  "assets": {
+    "all": {
+      "rawBytes": 801651,
+      "gzipBytes": 615520,
+      "brotliBytes": 601605
+    },
+    "javascript": {
+      "rawBytes": 214315,
+      "gzipBytes": 76333,
+      "brotliBytes": 67328
+    },
+    "css": {
+      "rawBytes": 21585,
+      "gzipBytes": 5384,
+      "brotliBytes": 4736
+    },
+    "fonts": {
+      "rawBytes": 495472,
+      "gzipBytes": 495426,
+      "brotliBytes": 495487
+    }
+  },
+  "datasetCounts": {
+    "mesocycles": 1,
+    "exercises": 310,
+    "exercise_slots": 32,
+    "week_targets": 352,
+    "program_days": 7,
+    "day_overrides": 50,
+    "session_logs": 309,
+    "set_entries": 4635,
+    "settings": 0
+  },
+  "responseEncodings": [
+    "identity"
+  ],
+  "runs": 5,
+  "network": {
+    "mbps": 10,
+    "rttMs": 50
+  },
+  "coldReadyMs": {
+    "median": 2834,
+    "p95": 2860
+  },
+  "cachedReadyMs": {
+    "median": 518,
+    "p95": 532
+  },
+  "localSaveMs": {
+    "sampleCount": 100,
+    "median": 28.230000000447035,
+    "p95": 38.75500000268221
+  },
+  "rawBuildBytes": 801651,
+  "notes": "Chromium mobile emulation on this runner. Cold/cached readiness includes synchronization; save timing is browser click to saved-row DOM feedback. Physical iPhone validation remains required.",
+  "toolchain": {
+    "node": "24.22.3",
+    "dart": "3.14.0",
+    "playwright": "1.65.1",
+    "chromium": "159.0.8154.6"
+  },
+  "environment": "Local Linux workstation; Chromium mobile viewport and network emulation; no CPU throttling.",
+  "measurement": {
+    "readiness": "Page navigation to visible main heading and synchronized training state.",
+    "cached": "Reload after service-worker installation.",
+    "save": "Browser click event to durable saved-row DOM feedback, 20 saves per run. Offline is asserted on the same CDP session; no successful commands and unchanged server set counts.",
+    "percentile": "Nearest-rank p95; with five startup runs this is the largest sample. Save p95 spans 100 samples."
+  },
+  "limits": [
+    "Compressed artifact sizes are gzip/Brotli estimates. Actual measured static responses used identity encoding.",
+    "Physical iPhone Safari/Home Screen, WebKit runtime, GPU inference and Docker build were not established by these measurements.",
+    "No Flutter cold-start or memory baseline was measured."
+  ],
+  "verification": {
+    "chromium": {
+      "passed": 19,
+      "skipped": 0
+    },
+    "firefox": {
+      "version": "159.0",
+      "passed": 17,
+      "skipped": 2,
+      "skippedChecks": [
+        "Chromium CDP network performance",
+        "Chromium persistent-profile restart"
+      ]
+    },
+    "historyPerformance": {
+      "passed": 5
+    },
+    "dartAotSmoke": {
+      "healthStatus": 200,
+      "todayStatus": 200,
+      "data": "disposable",
+      "cleanShutdown": true
+    },
+    "webkit": "Launch blocked by missing local libraries; CI configured with Ubuntu dependencies.",
+    "containerAndNativeFlutter": "Local executables unavailable; no container or native Flutter build claimed."
+  }
+}

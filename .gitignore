@@ -1,0 +1,37 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+# Commit .vscode/settings.json (shared launch/task config), ignore the rest.
+.vscode/*
+!.vscode/settings.json
+
+# Dart and local build artifacts
+**/doc/api/
+.dart_tool/
+.pub-cache/
+.pub/
+**/build/
+
+# AI tooling
+.agents/rules/personal-*
+.agents/skills/personal-*
+.claude/
+
+# Deployment configuration
+.env
