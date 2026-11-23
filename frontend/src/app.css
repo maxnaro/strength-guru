@@ -481,25 +481,23 @@ main {
   font-size: 17px;
   overflow-wrap: anywhere;
 }
-.rep-calculator {
+.session-header .soft {
   padding-inline: 12px;
   flex-shrink: 0;
-  align-self: flex-start;
-}
-.session-controls {
-  padding: 4px 16px 12px;
-}
-.session-header .eyebrow {
-  font-size: 10px;
-  margin-top: 3px;
+  white-space: nowrap;
 }
 .week-picker {
   display: flex;
-  overflow: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 8px;
   padding: 8px 18px;
 }
+.week-picker::-webkit-scrollbar {
+  display: none;
+}
 .week-picker button {
+  flex-shrink: 0;
   border-radius: 999px;
   background: var(--chip);
   padding: 10px 20px;
@@ -521,23 +519,31 @@ main {
   padding: 4px 18px 8px;
 }
 .day-picker button {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--tint);
-  border: 0.5px solid var(--border);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  min-height: 44px;
   font:
     600 13px JetBrainsMono,
     monospace;
   color: var(--dim);
-  max-height: 64px;
+}
+.day-picker button::after {
+  content: "";
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--group);
 }
 .day-picker button.selected {
-  background: var(--group);
-  color: #000;
-  border-color: transparent;
+  color: var(--text);
+  font-weight: 800;
 }
-.session-controls .soft,
-.session-header .rep-calculator,
+.day-picker button.selected::after {
+  width: 20px;
+}
+.session-header .soft,
 .session-pager .soft {
   min-height: 44px;
 }

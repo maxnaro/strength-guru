@@ -1,12 +1,11 @@
 <script lang="ts">
   import metadata from "../../../package.json";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { goto, afterNavigate } from "$app/navigation";
   import { training } from "$lib/data";
   import { readDraft, writeDraft, listDrafts } from "$lib/domain/drafts";
   import Sheet from "./Sheet.svelte";
   import Stepper from "./Stepper.svelte";
-  import Plate from "./Plate.svelte";
   import Icon from "./Icon.svelte";
   import SetRow from "./SetRow.svelte";
   import {
@@ -266,9 +265,24 @@
     extra = {};
     goto(routeFor("/log"), { replaceState: true, reset: false });
   }
+  function revealSelectedWeek(picker: HTMLDivElement, weekIndex: number) {
+    async function reveal(index: number) {
+      await tick();
+      const button = picker.children[index];
+      if (!button || button.getAttribute("aria-pressed") !== "true") return;
+      const viewport = picker.getBoundingClientRect();
+      const bounds = button.getBoundingClientRect();
+      const left = bounds.left - viewport.left - 8;
+      const right = bounds.right - viewport.right + 8;
+      picker.scrollBy({ left: Math.min(0, left) + Math.max(0, right) });
+    }
+    void reveal(weekIndex);
+    return { update: reveal };
+  }
   function beginSwipe(event: TouchEvent) {
+    touchStart = null;
     const e = event.target as HTMLElement;
-    if (e.closest("button,input,a,select,textarea")) return;
+    if (e.closest(".week-picker,button,input,a,select,textarea")) return;
     touchStart = {
       x: event.changedTouches[0].clientX,
       y: event.changedTouches[0].clientY,
@@ -974,17 +988,16 @@
   <main id="main">
     {#if $training.ready && view === "/log"}
       <header class="session-header row" style={groupStyle(group)}>
-        {#if effective}<Plate small label={split || title(group)} />{/if}
-        <div class="grow">
-          <h1>
-            {effective
-              ? split
-                ? `${split}${split.endsWith("Session") ? "" : " Session"}`
-                : `${title(group)} Session`
-              : "Log"}
-          </h1>
-          {#if effective}<p class="eyebrow">WEEK {week + 1} · {days[day]}</p>{/if}
-        </div>
+        <h1 class="grow">
+          {effective
+            ? split
+              ? `${split}${split.endsWith("Session") ? "" : " Session"}`
+              : `${title(group)} Session`
+            : "Log"}
+        </h1>
+        {#if today && (today.week !== week || today.day !== day)}
+          <button class="soft" on:click={resetToday}>Today</button>
+        {/if}
         <button class="soft rep-calculator" aria-label="Rep Calculator"
           on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
           ><Icon name="calculate_outlined" size={18} /> Rep calc</button>
@@ -1505,8 +1518,9 @@
         style={groupStyle(group)}
         on:touchstart={beginSwipe}
         on:touchend={finishSwipe}
+        on:touchcancel={() => (touchStart = null)}
       >
-        <div class="week-picker">
+        <div class="week-picker" use:revealSelectedWeek={week}>
           {#each Array(meso!.num_weeks) as _, w}<button
               class:selected={w === week}
               aria-pressed={w === week}
@@ -1524,11 +1538,6 @@
               on:click={() => chooseDay(week, di, false)}>{d[0]}</button
             >{/each}
         </div>
-        {#if today && (today.week !== week || today.day !== day)}
-          <div class="session-controls row">
-            <button class="soft" on:click={resetToday}>Today</button>
-          </div>
-        {/if}
         {#if !items.length}<div class="empty">
             <h2>Recovery day.</h2>
             <p class="muted">Rest up.</p>

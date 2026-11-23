@@ -215,6 +215,42 @@ test('day pager follows exercise cards and crosses week and mesocycle boundaries
   await expect(previous).toBeEnabled();
 });
 
+test('Log keeps the selected week in view and offers Today in the header', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await ready(page, '/log?week=8&day=6');
+  const header = page.locator('.session-header');
+  const picker = page.locator('.week-picker');
+  const today = header.getByRole('button', {name: 'Today', exact: true});
+  const selectedWeek = picker.locator('button[aria-pressed="true"]');
+  const expectSelectedWeekInView = async () => {
+    await expect.poll(() => selectedWeek.evaluate(button => {
+      const viewport = button.parentElement!.getBoundingClientRect();
+      const bounds = button.getBoundingClientRect();
+      return bounds.left >= viewport.left && bounds.right <= viewport.right;
+    })).toBe(true);
+  };
+
+  await expect(header.locator('.plate, .eyebrow')).toHaveCount(0);
+  await expect(header.getByRole('button', {name: 'Rep Calculator'})).toBeVisible();
+  await expect(selectedWeek).toHaveText('WEEK 9');
+  await expectSelectedWeekInView();
+  await expect(picker).toHaveCSS('scrollbar-width', 'none');
+  expect(await picker.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+
+  await today.click();
+  await expect(today).toHaveCount(0);
+  await expect(selectedWeek).toHaveText('WEEK 1');
+  await expectSelectedWeekInView();
+
+  // Week 5 starts outside the initial viewport at this width.
+  await ready(page, '/log?week=3&day=6');
+  await expectSelectedWeekInView();
+  await page.getByRole('button', {name: /Next day/}).click();
+  await expect(selectedWeek).toHaveText('WEEK 5');
+  await expectSelectedWeekInView();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test('main screens meet automated WCAG checks in light and dark themes',async({page})=>{
   test.setTimeout(60_000);
   const violations:any[]=[];
