@@ -7,9 +7,10 @@ test('real API, direct URLs, semantic controls and missing assets', async ({ pag
   page.on('pageerror', e => errors.push(e.message));
   for (const path of ['/', '/today', '/log', '/meso', '/generate', '/import']) {
     await ready(page, path);
-    if(path==='/')await expect(page).toHaveURL(/\/today(?:\?|$)/);
+    if(path==='/' || path==='/today')await expect(page).toHaveURL(/\/log$/);
     await expect(page.getByRole('navigation', {name:'Main navigation'})).toBeVisible();
   }
+  await expect(page.getByRole('navigation', {name:'Main navigation'}).getByRole('link')).toHaveText(['LOG', 'MESO']);
   expect((await request.get('/missing-file.js')).status()).toBe(404);
   expect((await request.get('/api/v1/unknown')).status()).toBe(404);
   expect((await request.post('/api/v1/commands', { headers: {origin: 'https://untrusted.example'}, data: {} })).status()).toBe(403);
@@ -40,7 +41,7 @@ test('offline set survives browser page restart and synchronizes exactly once', 
   const reopened = await context.newPage();
   await reopened.goto('/log');
   await expect(reopened.locator('.sync-banner')).toContainText('pending sync');
-  await reopened.getByRole('button', {name:'Monday',exact:true}).click();
+  await reopened.getByRole('combobox', {name:'Day',exact:true}).selectOption('0');
   await expect(reopened.getByRole('button',{name:/Edit saved set/}).first()).toBeVisible();
   expect((await replica(reopened)).outbox.map((q:any)=>q.id)).toEqual(queued.outbox.map((q:any)=>q.id));
   await context.setOffline(false);
@@ -54,7 +55,7 @@ test('offline set survives browser page restart and synchronizes exactly once', 
 
 test('two tabs retain concurrent offline edits and recover a lost acknowledgement', async ({ page, context, request }) => {
   await ready(page); await monday(page); await offlineReady(page);
-  const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('button', {name:'Tuesday',exact:true}).click();
+  const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('combobox', {name:'Day',exact:true}).selectOption('1');
   const before = (await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length;
   await context.setOffline(true);
   await Promise.all([
@@ -78,10 +79,12 @@ test('two tabs retain concurrent offline edits and recover a lost acknowledgemen
 
 test('calculator, theme and native dialogs support keyboard focus', async ({page})=>{
   await ready(page);
-  await page.getByRole('button',{name:/Rep Calculator/}).click();
+  const calculator = page.getByRole('button',{name:'Rep Calculator'});
+  await calculator.press('Enter');
   const dialog=page.getByRole('dialog',{name:'Rep Calculator'});
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible();
+  await expect(calculator).toBeFocused();
   await page.getByRole('link',{name:'MESO',exact:true}).click();
   await page.getByRole('button',{name:'About, backup and restore'}).click();
   await expect(page.getByRole('dialog',{name:'About StrengthGuru'})).toBeVisible();
@@ -141,12 +144,12 @@ test('server restore preserves pending local operations for export and discard',
   expect((await download).suggestedFilename()).toBe('strength-guru-pending.json');
 });
 
-test('capture desktop Today and populated mobile Log evidence', async ({page,request},testInfo)=>{
+test('capture populated desktop and mobile Log evidence', async ({page,request},testInfo)=>{
   const snapshot=(await (await request.get('/api/v1/sync')).json()).snapshot;
   const meso=snapshot.mesocycles.find((m:any)=>m.is_active);
   await page.setViewportSize({width:1365,height:1000});
   await ready(page,`/?meso=${meso.id}&week=0&day=0`);
-  await page.screenshot({path:testInfo.outputPath('desktop-today.png'),fullPage:true,scale:'css'});
+  await page.screenshot({path:testInfo.outputPath('desktop-log.png'),fullPage:true,scale:'css'});
   await page.setViewportSize({width:390,height:844});
   await ready(page,`/log?meso=${meso.id}&week=0&day=0`);
   await page.screenshot({path:testInfo.outputPath('mobile-log.png'),fullPage:true,scale:'css'});
@@ -156,14 +159,61 @@ test('changing weeks resets unsaved set inputs and direct session URLs survive r
   await ready(page);await monday(page);
   await page.getByRole('spinbutton',{name:'WEIGHT (KG)',exact:true}).fill('123.5');
   await page.getByRole('spinbutton',{name:'REPS',exact:true}).fill('47');
-  await page.getByRole('button',{name:'WEEK 2',exact:true}).click();
+  await page.getByRole('combobox',{name:'Week',exact:true}).selectOption('1');
   await expect(page).toHaveURL(/week=1/);
   await expect(page.getByRole('spinbutton',{name:'WEIGHT (KG)',exact:true})).not.toHaveValue('123.5');
   await expect(page.getByRole('spinbutton',{name:'REPS',exact:true})).not.toHaveValue('47');
   const url=page.url();await page.reload();
   await expect(page.locator('.sync-banner')).toContainText('Synced');
   expect(page.url()).toBe(url);
-  await expect(page.getByRole('button',{name:'WEEK 2',exact:true})).toHaveClass(/selected/);
+  await expect(page.getByRole('combobox',{name:'Week',exact:true})).toHaveValue('1');
+});
+
+test('home and legacy Today bookmarks preserve the selected set', async ({page, request}) => {
+  const snapshot = (await (await request.get('/api/v1/sync')).json()).snapshot;
+  const meso = snapshot.mesocycles.find((m: any) => m.is_active);
+  const monday = snapshot.day_overrides.find((day: any) =>
+    day.mesocycle_id === meso.id && day.week_idx === 0 && day.day_idx === 0);
+  const slot = monday.exercise_ids_csv.split(',')[0];
+  const query = new URLSearchParams({meso: meso.id, week: '0', day: '0', slot: `${slot}:1`});
+  for (const path of ['/', '/today']) {
+    await ready(page, `${path}?${query}`);
+    await expect(page).toHaveURL(url =>
+      url.pathname === '/log' && [...query].every(([key, value]) => url.searchParams.get(key) === value));
+    await expect(page.locator('.active-set').getByText('Set 2', {exact: true})).toBeVisible();
+  }
+});
+
+test('day pager follows exercise cards and crosses week and mesocycle boundaries', async ({page}) => {
+  await ready(page, '/log?week=0&day=0');
+  const previous = page.getByRole('button', {name: /Previous day/});
+  const next = page.getByRole('button', {name: /Next day/});
+  const week = page.getByRole('combobox', {name: 'Week', exact: true});
+  const day = page.getByRole('combobox', {name: 'Day', exact: true});
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeEnabled();
+  const lastCard = (await page.locator('.exercise-card').last().boundingBox())!;
+  const nextButton = (await next.boundingBox())!;
+  expect(nextButton.y).toBeGreaterThanOrEqual(lastCard.y + lastCard.height);
+  expect(nextButton.height).toBeGreaterThanOrEqual(44);
+  expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+  await day.selectOption('6');
+  await expect(page.getByRole('heading', {name: /Recovery day/})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Rep Calculator'})).toBeVisible();
+  await next.click();
+  await expect(week).toHaveValue('1');
+  await expect(day).toHaveValue('0');
+  await page.locator('.exercise-card').last().scrollIntoViewIfNeeded();
+  await previous.click();
+  await expect(week).toHaveValue('0');
+  await expect(day).toHaveValue('6');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+  const lastWeek = await week.locator('option').last().getAttribute('value');
+  await week.selectOption(lastWeek!);
+  await expect(next).toBeDisabled();
+  await expect(previous).toBeEnabled();
 });
 
 test('main screens meet automated WCAG checks in light and dark themes',async({page})=>{
@@ -173,7 +223,7 @@ test('main screens meet automated WCAG checks in light and dark themes',async({p
     await page.emulateMedia({colorScheme});
     for(const path of ['/','/log','/meso','/generate','/import']){
       await ready(page,path);
-      if(path==='/log')await page.getByRole('button',{name:'Monday',exact:true}).click();
+      if(path==='/log')await page.getByRole('combobox',{name:'Day',exact:true}).selectOption('0');
       const results=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
       violations.push(...results.violations.map(v=>({path,colorScheme,id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})));
     }

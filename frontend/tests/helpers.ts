@@ -13,7 +13,7 @@ export async function offlineReady(page: Page) {
 export async function monday(page: Page) {
   await page.goto('/log');
   await expect(page.locator('.sync-banner')).toContainText('Synced');
-  await page.getByRole('button', { name: 'Monday', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Day', exact: true }).selectOption('0');
   await expect(page.locator('.exercise-card').first()).toBeVisible();
 }
 export async function replica(page: Page): Promise<any> {

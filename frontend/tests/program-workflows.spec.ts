@@ -28,7 +28,7 @@ test('create, rename, duplicate, activate and delete mesocycles', async ({page, 
   const initial = await snapshot(request);
   const original = initial.mesocycles.find((m: any) => m.is_active);
   await switcher(page);
-  await page.getByRole('button', { name: '+ New Mesocycle' }).click();
+  await page.getByRole('button', { name: /New Mesocycle/ }).click();
   await page.getByLabel('Mesocycle name').fill('Browser lifecycle');
   await page.getByRole('button', {name:'Save', exact:true}).click();
   await expect.poll(async () => (await snapshot(request)).mesocycles.some((m:any) => m.name === 'Browser lifecycle')).toBe(true);
@@ -61,7 +61,7 @@ test('create, rename, duplicate, activate and delete mesocycles', async ({page, 
   await page.goto('/meso');
   await expect(page.locator('.sync-banner')).toContainText('Synced');
   if (await page.locator('.meso-name').count()) await switcher(page);
-  else await page.getByRole('button', {name:'+ New Mesocycle'}).click();
+  else await page.getByRole('button', {name:/New Mesocycle/}).click();
   await page.getByRole('dialog',{name:'Mesocycles'}).getByRole('button', {name:new RegExp(original.name)}).first().click();
   await expect(page.locator('.meso-name')).toContainText(original.name);
 });
