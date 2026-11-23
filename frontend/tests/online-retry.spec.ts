@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {ready,replica} from './helpers';
+test.use({ serviceWorkers: 'block' });
+
 test('retrying an import after losing its acknowledgement does not duplicate the block',async({page,context,request})=>{
   const name=`Acknowledgement retry ${Date.now()}`;
   const plan={name,numWeeks:2,days:[{dayIdx:0,label:'Upper',exercises:[{name:'Retry Bench Press',muscleGroup:'chest',weekTargets:[{weekIdx:0,reps:[8,8],rir:[2,2]},{weekIdx:1,reps:[9,9],rir:[1,1]}]}]}],advisories:[]};
@@ -11,10 +13,18 @@ test('retrying an import after losing its acknowledgement does not duplicate the
   await page.getByRole('textbox',{name:'Program description'}).fill('A two-week upper block.');
   await page.getByRole('button',{name:'Generate Program →',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Review training block'})).toBeVisible();
-  let lost=false;
-  await context.route('**/api/v1/commands',async route=>{
-    if(route.request().postDataJSON().type==='importMesoFromPlan'&&!lost){lost=true;await route.fetch();await route.abort('failed');}
-    else await route.continue();
+  let intercepted = false;
+  let lost = false;
+  await context.route('**/api/v1/commands', async route => {
+    if (route.request().postDataJSON().type !== 'importMesoFromPlan' || intercepted) {
+      await route.continue();
+      return;
+    }
+    intercepted = true;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    await route.abort('failed');
+    lost = true;
   });
   await page.getByRole('button',{name:'Import Block',exact:true}).click();
   await expect.poll(()=>lost).toBe(true);

@@ -53,28 +53,40 @@ test('offline set survives browser page restart and synchronizes exactly once', 
   expect((await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length).toBe(beforeCount+1);
 });
 
-test('two tabs retain concurrent offline edits and recover a lost acknowledgement', async ({ page, context, request }) => {
-  await ready(page); await monday(page); await offlineReady(page);
-  const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('button', {name:'Tuesday',exact:true}).click();
-  const before = (await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length;
-  await context.setOffline(true);
-  await Promise.all([
-    page.getByRole('button', {name:/^Log set/}).first().click(),
-    other.getByRole('button', {name:/^Log set/}).first().click()
-  ]);
-  await expect.poll(async()=> (await replica(page)).outbox.filter((q:any)=>q.body.type==='upsertSetEntry').length).toBe(2);
-  let lost = false;
-  await context.route('**/api/v1/commands', async route => {
-    if (!lost) { lost=true; await route.fetch(); await route.abort('failed'); }
-    else await route.continue();
+test.describe('Network fault injection', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('two tabs retain concurrent offline edits and recover a lost acknowledgement', async ({ page, context, request }) => {
+    await ready(page); await monday(page);
+    const other = await context.newPage(); await ready(other); await monday(other); await other.getByRole('button', {name:'Tuesday',exact:true}).click();
+    const before = (await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length;
+    await context.setOffline(true);
+    await Promise.all([
+      page.getByRole('button', {name:/^Log set/}).first().click(),
+      other.getByRole('button', {name:/^Log set/}).first().click()
+    ]);
+    await expect.poll(async()=> (await replica(page)).outbox.filter((q:any)=>q.body.type==='upsertSetEntry').length).toBe(2);
+    let intercepted = false;
+    let lost = false;
+    await context.route('**/api/v1/commands', async route => {
+      if (intercepted) {
+        await route.continue();
+        return;
+      }
+      intercepted = true;
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      await route.abort('failed');
+      lost = true;
+    });
+    await context.setOffline(false);
+    await expect.poll(()=>lost).toBe(true);
+    await page.reload();
+    await expect(page.locator('.sync-banner')).toContainText('Synced', {timeout:30_000});
+    await expect(other.locator('.sync-banner')).toContainText('Synced', {timeout:30_000});
+    expect((await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length).toBe(before+2);
+    expect((await replica(page)).outbox).toEqual([]);
   });
-  await context.setOffline(false);
-  await expect.poll(()=>lost).toBe(true);
-  await page.reload();
-  await expect(page.locator('.sync-banner')).toContainText('Synced', {timeout:30_000});
-  await expect(other.locator('.sync-banner')).toContainText('Synced', {timeout:30_000});
-  expect((await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length).toBe(before+2);
-  expect((await replica(page)).outbox).toEqual([]);
 });
 
 test('calculator, theme and native dialogs support keyboard focus', async ({page})=>{

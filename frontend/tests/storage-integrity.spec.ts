@@ -38,28 +38,32 @@ test('a failed IndexedDB transaction never reports a successful local save', asy
   }
 });
 
-test('local logging does not wait for a stalled synchronization request', async ({ page, context }) => {
-  await ready(page);
-  await monday(page);
-  let release!: () => void;
-  let intercepted = false;
-  const gate = new Promise<void>(resolve => { release = resolve; });
-  await context.route('**/api/v1/sync**', async route => {
-    intercepted = true;
-    await gate;
-    await route.continue();
+test.describe('Network fault injection', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('local logging does not wait for a stalled synchronization request', async ({ page, context }) => {
+    await ready(page);
+    await monday(page);
+    let release!: () => void;
+    let intercepted = false;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await context.route('**/api/v1/sync**', async route => {
+      intercepted = true;
+      await gate;
+      await route.continue();
+    });
+    try {
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      await expect.poll(() => intercepted).toBe(true);
+      const started = Date.now();
+      await page.getByRole('button', { name: /^Log set/ }).first().click();
+      await expect(page.getByRole('button', { name: /Edit saved set/ }).first()).toBeVisible();
+      await expect.poll(async () => (await replica(page)).outbox.some((q: any) => q.body.type === 'upsertSetEntry')).toBe(true);
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect((await replica(page)).outbox.some((q: any) => q.body.type === 'upsertSetEntry')).toBe(true);
+    } finally {
+      release();
+    }
+    await expect(page.locator('.sync-banner')).toContainText('Synced', { timeout: 30_000 });
   });
-  try {
-    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-    await expect.poll(() => intercepted).toBe(true);
-    const started = Date.now();
-    await page.getByRole('button', { name: /^Log set/ }).first().click();
-    await expect(page.getByRole('button', { name: /Edit saved set/ }).first()).toBeVisible();
-    await expect.poll(async () => (await replica(page)).outbox.some((q: any) => q.body.type === 'upsertSetEntry')).toBe(true);
-    expect(Date.now() - started).toBeLessThan(1000);
-    expect((await replica(page)).outbox.some((q: any) => q.body.type === 'upsertSetEntry')).toBe(true);
-  } finally {
-    release();
-  }
-  await expect(page.locator('.sync-banner')).toContainText('Synced', { timeout: 30_000 });
 });
