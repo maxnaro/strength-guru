@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
   export let value: number;
   export let min = 0;
   export let max = 500;
@@ -12,7 +13,7 @@
       aria-label={`Decrease ${label}`}
       disabled={value <= min}
       on:click={() => (value = Math.max(min, +(value - step).toFixed(3)))}
-      >−</button
+      ><Icon name="remove" size={18} /></button
     ><input
       aria-label={label}
       type="number"
@@ -26,7 +27,7 @@
       aria-label={`Increase ${label}`}
       disabled={value >= max}
       on:click={() => (value = Math.min(max, +(value + step).toFixed(3)))}
-      >+</button
+      ><Icon name="add" size={18} /></button
     ></span
   ></label
 >

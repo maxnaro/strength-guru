@@ -230,23 +230,11 @@ fieldset {
   line-height: 1.5;
   text-transform: uppercase;
 }
-.section-label {
-  margin: 20px 0 8px;
-  letter-spacing: 1.2px;
-}
-.section-label .eyebrow {
-  color: var(--dim);
-}
 .warning {
   color: var(--warn-text);
 }
 .success-text {
   color: var(--success-text);
-}
-.accent-text {
-  color: var(--accent-text);
-  font-weight: 600;
-  font-size: 13px;
 }
 .hidden {
   display: none;
@@ -494,6 +482,7 @@ main {
   overflow-wrap: anywhere;
 }
 .rep-calculator {
+  padding-inline: 12px;
   flex-shrink: 0;
   align-self: flex-start;
 }
@@ -925,15 +914,6 @@ main {
   align-items: center;
   gap: 6px;
 }
-.highlighted {
-  background: color-mix(in srgb, var(--accent) 20%, transparent) !important;
-  animation: pulse 1.2s ease-in-out 2;
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.6;
-  }
-}
 .import-grid {
   margin-top: 20px;
 }
@@ -1301,9 +1281,6 @@ dialog::backdrop {
 [style*="--tint-light"] {
   --tint: var(--tint-light);
   --group-text: color-mix(in srgb, var(--group) 35%, var(--text));
-}
-.accent-text {
-  color: var(--accent-text);
 }
 @media (prefers-color-scheme: dark) {
   :root {

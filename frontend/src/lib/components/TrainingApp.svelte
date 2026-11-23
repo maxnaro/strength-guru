@@ -961,7 +961,7 @@
   <button
     class="sync-banner"
     on:click={() => open({ kind: "sync", title: "Sync and pending changes" })}
-    ><span aria-hidden="true">{$training.connected ? "☁" : "☁̸"}</span><span
+    ><Icon name={$training.connected ? "cloud_done_outlined" : "cloud_off"} size={16} /><span
       >{$training.conflicts.length
         ? `${$training.conflicts.length} changes need review`
         : $training.pending
@@ -969,7 +969,7 @@
           : $training.connected
             ? "Synced"
             : "Offline · saved on this device"}</span
-    ><span class="push">›</span></button
+    ><span class="push"><Icon name="chevron_right" size={16} /></span></button
   >
   <main id="main">
     {#if $training.ready && view === "/log"}
@@ -982,7 +982,7 @@
           : "Log"}</h1>
         <button class="soft rep-calculator" aria-label="Rep Calculator"
           on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
-          >Rep calc</button>
+          ><Icon name="calculate_outlined" size={18} /> Rep calc</button>
       </header>
     {/if}
     {#if !$training.ready}
@@ -997,7 +997,7 @@
     {:else if view === "/generate"}
       <div class="page narrow">
         <header class="page-heading">
-          <a class="icon" href="/meso" aria-label="Back to mesocycle">←</a>
+          <a class="icon" href="/meso" aria-label="Back to mesocycle"><Icon name="arrow_back" size={18} /></a>
           <h1>Generate Program</h1>
         </header>
         <section class="card form">
@@ -1074,7 +1074,7 @@
     {:else if view === "/import"}
       <div class="page">
         <header class="page-heading">
-          <a href="/meso" class="icon" aria-label="Back to mesocycle">←</a>
+          <a href="/meso" class="icon" aria-label="Back to mesocycle"><Icon name="arrow_back" size={18} /></a>
           <h1>{review ? "Review training block" : "Import training block"}</h1>
         </header>
         {#if job?.dataset_epoch && job.dataset_epoch !== $training.epoch}
@@ -1135,7 +1135,7 @@
                     on:click={() => {
                       review!.advisories.splice(i, 1);
                       reviewChanged();
-                    }}>✕</button
+                    }}><Icon name="close" size={18} /></button
                   >
                 </div>{/each}
             </section>{/if}
@@ -1155,7 +1155,7 @@
                       on:click={() => {
                         review!.days = move(review!.days, di, di - 1);
                         reviewChanged();
-                      }}>↑</button
+                      }}><Icon name="arrow_upward" size={18} /></button
                     ><button
                       class="icon"
                       disabled={di === review!.days.length - 1}
@@ -1163,7 +1163,7 @@
                       on:click={() => {
                         review!.days = move(review!.days, di, di + 1);
                         reviewChanged();
-                      }}>↓</button
+                      }}><Icon name="arrow_downward" size={18} /></button
                     ><input
                       aria-label={`Day ${di + 1} label`}
                       bind:value={d.label}
@@ -1173,14 +1173,14 @@
                       on:click={() => {
                         d.collapsed = !d.collapsed;
                         reviewChanged();
-                      }}>{d.collapsed ? "⌄" : "⌃"}</button
+                      }}><Icon name={d.collapsed ? "expand_more" : "expand_less"} size={18} /></button
                     ><button
                       class="icon"
                       aria-label={`Delete ${d.label}`}
                       on:click={() => {
                         review!.days.splice(di, 1);
                         reviewChanged();
-                      }}>✕</button
+                      }}><Icon name="close" size={18} /></button
                     >
                   </div>
                   {#if !d.collapsed}{#each d.exercises as e, ei}<div
@@ -1218,7 +1218,7 @@
                           on:click={() => {
                             d.exercises.splice(ei, 1);
                             reviewChanged();
-                          }}>✕</button
+                          }}><Icon name="close" size={18} /></button
                         >
                       </div>{/each}{/if}
                 </section>{/each}
@@ -1248,7 +1248,7 @@
             <p class="muted">Choose a CSV or describe a program to generate.</p>
             <button class="solid" on:click={() => importFile.click()}
               >Import CSV</button
-            ><a href="/generate" class="soft">Generate Program</a><button
+            ><a href="/generate" class="soft"><Icon name="auto_awesome_outlined" size={18} /> Generate Program</a><button
               class="ghost"
               on:click={showJobs}>AI jobs and saved results</button
             >{#if pendingJob}<button class="soft" on:click={retryJob}
@@ -1277,19 +1277,19 @@
           <button
             class="icon push"
             aria-label="Check program volume"
-            on:click={volume}>☑</button
+            on:click={volume}><Icon name="fact_check_outlined" size={18} /></button
           ><button
             class="icon"
             aria-label="About, backup and restore"
             on:click={() =>
-              open({ kind: "about", title: "About StrengthGuru" })}>ⓘ</button
+              open({ kind: "about", title: "About StrengthGuru" })}><Icon name="info_outlined" size={18} /></button
           >
         </div>
         <button
           class="meso-name full row"
           on:click={() => open({ kind: "switcher", title: "Mesocycles" })}
           ><h1>{meso!.name}</h1>
-          <span class="push muted">⌄</span></button
+          <span class="push muted"><Icon name="expand_more" size={18} /></span></button
         >
         <p class="muted">
           {meso!.num_weeks} weeks · started {dateValue(
@@ -1299,10 +1299,10 @@
         <div class="segmented viz">
           <button
             class:selected={viz === "calendar"}
-            on:click={() => (viz = "calendar")}>▦ Calendar</button
+            on:click={() => (viz = "calendar")}>Calendar</button
           ><button
             class:selected={viz === "timeline"}
-            on:click={() => (viz = "timeline")}>☷ Timeline</button
+            on:click={() => (viz = "timeline")}>Timeline</button
           >
         </div>
         {#if viz === "calendar"}<div class="calendar">
@@ -1330,7 +1330,7 @@
                     style={groupStyle(g)}
                     aria-label={`Week ${w + 1}, ${days[d]}, ${title(g)}${session(tables, meso!.id, w, d) ? ", session started" : ""}`}
                     on:click={() => chooseDay(w, d)}
-                    >{#if session(tables, meso!.id, w, d)}✓{:else if deloads.includes(w) && g !== "rest"}D{/if}</button
+                    >{#if session(tables, meso!.id, w, d)}<Icon name="check" size={16} />{:else if deloads.includes(w) && g !== "rest"}D{/if}</button
                   >{/each}<button
                   class="deload-toggle"
                   class:warning={deloads.includes(w)}
@@ -1352,11 +1352,11 @@
                       `Remove week ${w + 1} and its logs? Later weeks shift back.`,
                       () =>
                         command("deleteWeek", { mesoId: meso!.id, weekIdx: w }),
-                    )}>×</button
+                    )}><Icon name="delete_outlined" size={16} /></button
                 >
               </div>{/each}
             <div class="calendar-legend">
-              <span>□ Today</span><span>✓ Session started</span><span
+              <span>□ Today</span><span><Icon name="check" size={16} /> Session started</span><span
                 >D Deload</span
               >
             </div>
@@ -1365,7 +1365,6 @@
             <div class="timeline-grid" style={`--weeks:${meso!.num_weeks}`}>
               <div class="timeline-header">
                 <span></span>{#each Array(meso!.num_weeks) as _, w}<button
-                    id={`timeline-week-${w}`}
                     class:warning={deloads.includes(w)}
                     aria-label={`Toggle deload week ${w + 1}`}
                     on:click={() =>
@@ -1395,17 +1394,17 @@
                           title: `Swap ${d} with…`,
                           day: di,
                           action: "swap",
-                        })}>⇄</button
+                        })}><Icon name="swap_horiz" size={18} /></button
                     ><button
                       class="icon"
                       aria-label={`Edit ${d} program`}
-                      on:click={() => editProgram(di)}>✎</button
+                      on:click={() => editProgram(di)}><Icon name="edit" size={18} /></button
                     ><button
                       class="icon"
                       aria-label={`${d} actions`}
                       on:click={() =>
                         open({ kind: "day-actions", title: d, day: di })}
-                      >⋮</button
+                      ><Icon name="more_vert" size={18} /></button
                     >
                   </div>
                   {#each es as e}<div
@@ -1428,7 +1427,7 @@
                           e.slotId,
                         )}<button
                           class="timeline-cell"
-                                on:click={() => targetEditor(e, w)}
+                          on:click={() => targetEditor(e, w)}
                           ><b>{formatReps(t?.reps || [])}</b><small
                             >{formatRir(t?.rir || [])}</small
                           ></button
@@ -1465,10 +1464,10 @@
                   await command("forceReseed", {});
                   selected = null;
                 },
-              )}>↻ Re-seed</button
+              )}><Icon name="refresh" size={18} /> Re-seed</button
           ><button
             on:click={() => open({ kind: "week", title: "Set Current Week" })}
-            >◷ Set week</button
+            ><Icon name="calendar_today" size={18} /> Set week</button
           ><button
             class="warning"
             on:click={() =>
@@ -1479,7 +1478,7 @@
                   await command("wipeAllData", {});
                   selected = null;
                 },
-              )}>⌫ Wipe data</button
+              )}><Icon name="delete_outlined" size={18} /> Wipe data</button
           >
         </div>
       </div>
@@ -1543,7 +1542,7 @@
                     <button
                       class="icon push"
                       aria-label={`Exercise guide for ${e.name}`}
-                      on:click={() => showGuides(e)}>▷</button
+                      on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
                     >{#if es.length >= count}<span class="chip success-text"
                         >DONE</span
                       >{/if}<button
@@ -1556,7 +1555,7 @@
                           e,
                           day,
                           scope: "session",
-                        })}>⇄</button
+                        })}><Icon name="swap_horiz" size={18} /></button
                     >
                   </header>
                   {#if t}<p class="eyebrow target-description">
@@ -1587,9 +1586,9 @@
             </div>{/key}{/if}
         <footer class="session-pager two">
           <button class="soft" disabled={week === 0 && day === 0}
-            on:click={() => stepDay(-1)}><span aria-hidden="true">←</span> Previous day</button>
+            on:click={() => stepDay(-1)}><Icon name="arrow_back" size={18} /> Previous day</button>
           <button class="soft" disabled={week === meso!.num_weeks - 1 && day === days.length - 1}
-            on:click={() => stepDay(1)}>Next day <span aria-hidden="true">→</span></button>
+            on:click={() => stepDay(1)}>Next day <Icon name="arrow_forward" size={18} /></button>
         </footer>
       </div>
     {/if}
@@ -1599,12 +1598,12 @@
       href={routeFor("/log")}
       class:selected={view === "/log"}
       aria-current={view === "/log" ? "page" : undefined}
-      ><Icon name="dumbbell" /><small>LOG</small></a
+      ><Icon name={view === "/log" ? "fitness_center" : "fitness_center_outlined"} /><small>LOG</small></a
     ><a
       href={routeFor("/meso")}
       class:selected={view === "/meso"}
       aria-current={view === "/meso" ? "page" : undefined}
-      ><Icon name="repeat" /><small>MESO</small></a
+      ><Icon name={view === "/meso" ? "loop" : "loop_outlined"} /><small>MESO</small></a
     >
   </nav>
 </div>
@@ -1613,7 +1612,7 @@
     <span>{error}</span><button
       class="icon"
       aria-label="Dismiss error"
-      on:click={() => (error = "")}>✕</button
+      on:click={() => (error = "")}><Icon name="close" size={18} /></button
     >
   </div>{/if}
 {#if sheet}
@@ -1669,7 +1668,7 @@
               class="icon"
               aria-label={`Manage ${m.name}`}
               on:click={() => push({ kind: "meso-actions", title: m.name, m })}
-              >⋮</button
+              ><Icon name="more_vert" size={18} /></button
             >
           </div>{/each}
       </div>
@@ -1729,7 +1728,7 @@
                 on:click={() => {
                   sheet!.items = move(sheet!.items, i, i - 1);
                   sheet = sheet;
-                }}>↑</button
+                }}><Icon name="arrow_upward" size={18} /></button
               ><button
                 class="icon"
                 aria-label={`Move ${e.name} down`}
@@ -1737,7 +1736,7 @@
                 on:click={() => {
                   sheet!.items = move(sheet!.items, i, i + 1);
                   sheet = sheet;
-                }}>↓</button
+                }}><Icon name="arrow_downward" size={18} /></button
               >
             </div>
             <div class="grow">
@@ -1751,7 +1750,7 @@
                   (_: Row, j: number) => j !== i,
                 );
                 sheet = sheet;
-              }}>✕</button
+              }}><Icon name="close" size={18} /></button
             >
           </div>{/each}
       </div>
@@ -1804,7 +1803,7 @@
               ><button
                 class="icon"
                 aria-label={`Guide for ${e.name}`}
-                on:click={() => showGuides(e)}>▷</button
+                on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
               >
             </div>{/each}
           <p class="eyebrow">OTHER GROUPS</p>
@@ -1818,7 +1817,7 @@
               ><button
                 class="icon"
                 aria-label={`Guide for ${e.name}`}
-                on:click={() => showGuides(e)}>▷</button
+                on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
               >
             </div>{/each}
         </div>
@@ -1865,15 +1864,15 @@
       >
     {:else if sheet.kind === "exercise-actions"}<button
         class="soft full"
-        on:click={() => showArc(sheet!.e)}>↗ Set progression arc</button
+        on:click={() => showArc(sheet!.e)}><Icon name="trending_up" size={18} /> Set progression arc</button
       ><button
         class="soft full"
         on:click={() => {
           const s = sheet!;
           picker(s.e.group, (e) => swapExercise(s.e, s.day, "program", e));
-        }}>⇄ Swap exercise across all weeks</button
+        }}><Icon name="swap_horiz" size={18} /> Swap exercise across all weeks</button
       ><button class="ghost full" on:click={() => showGuides(sheet!.e)}
-        >▷ Exercise guide</button
+        ><Icon name="play_circle_outline" size={18} /> Exercise guide</button
       >
     {:else if sheet.kind === "target"}<h3>{sheet.e.name}</h3>
       <div class="row set-count">
@@ -1927,7 +1926,7 @@
                   (_: Row, j: number) => j !== i,
                 );
                 sheet = sheet;
-              }}>✕</button
+              }}><Icon name="close" size={18} /></button
             >
           </div>
           <p class="eyebrow">START · W1</p>
@@ -2106,7 +2105,7 @@
           class="soft full text-left"
           href={`/guide/${v.id}`}
           target="_blank"
-          rel="noreferrer">▷ {v.title} ↗</a
+          rel="noreferrer"><Icon name="play_circle_outline" size={18} /> {v.title} ↗</a
         >{/each}<a
         class="ghost full"
         href={`https://www.youtube.com/results?search_query=${encodeURIComponent(sheet.title + " exercise form tutorial")}`}
@@ -2149,12 +2148,12 @@
       >{#if sheet.advisories}{#if !sheet.advisories.length}<p
             class="success-text"
           >
-            ✓ No volume concerns found.
+            <Icon name="check_circle_outlined" size={20} /> No volume concerns found.
           </p>{:else}<div class="advisories">
             {#each sheet.advisories as a}<p
                 class:warning={a.severity === "warn"}
               >
-                {a.message}
+                <Icon name={a.severity === "warn" ? "warning_amber_rounded" : "info_outlined"} size={16} /> {a.message}
               </p>{/each}
           </div>
           <button
@@ -2189,14 +2188,14 @@
         class="soft full"
         href="https://github.com/maxnaro/strength-guru"
         target="_blank"
-        rel="noreferrer">GitHub Repository ↗</a
+        rel="noreferrer"><Icon name="code" size={18} /> GitHub Repository</a
       >
       <div class="two">
-        <button class="soft" disabled={busy} on:click={backup}>↓ Backup</button
+        <button class="soft" disabled={busy} on:click={backup}><Icon name="backup_outlined" size={18} /> Backup</button
         ><button
           class="soft"
           disabled={busy}
-          on:click={() => restoreFile.click()}>↶ Restore</button
+          on:click={() => restoreFile.click()}><Icon name="settings_backup_restore" size={18} /> Restore</button
         >
       </div>
       <p class="hint">Backups include all mesocycles and training logs.</p>
@@ -2245,7 +2244,7 @@
         class="soft full"
         disabled={$training.pending > 0}
         on:click={applyUpdate}
-        >Apply app update{updateReady ? " · ready" : ""}</button
+        ><Icon name="system_update_alt" size={18} /> Apply app update{updateReady ? " · ready" : ""}</button
       >{#if $training.pending}<p class="hint">
           Sync or export and resolve pending changes before updating.
         </p>{/if}<button class="ghost full" on:click={showJobs}
@@ -2343,7 +2342,7 @@
             ></button
           >{/each}
         <h3>Server jobs</h3>{/if}
-      <button class="soft full" on:click={showJobs}>↻ Refresh</button
+      <button class="soft full" on:click={showJobs}><Icon name="refresh" size={18} /> Refresh</button
       >{#if sheet.loading}<span class="spinner"
         ></span>{:else if !sheet.jobs.length}<p class="muted">
           Your AI jobs will appear here.
@@ -2359,7 +2358,7 @@
                 run(async () => {
                   await api(`jobs/${j.id}`, "DELETE");
                   await showJobs();
-                })}>✕</button
+                })}><Icon name="cancel_outlined" size={18} /></button
             >{/if}
         </div>{/each}{#if sheet.cursor}<button
           class="soft full"

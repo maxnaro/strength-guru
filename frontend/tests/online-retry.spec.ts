@@ -9,7 +9,7 @@ test('retrying an import after losing its acknowledgement does not duplicate the
   // AI output is a fixed fixture; the import command and persistence use the real Dart API.
   await ready(page,'/generate');
   await page.getByRole('textbox',{name:'Program description'}).fill('A two-week upper block.');
-  await page.getByRole('button',{name:'Generate Program →',exact:true}).click();
+  await page.getByRole('button',{name:'Generate Program',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Review training block'})).toBeVisible();
   let lost=false;
   await context.route('**/api/v1/commands',async route=>{

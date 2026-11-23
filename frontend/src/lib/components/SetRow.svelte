@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from "./Icon.svelte";
   import Stepper from "./Stepper.svelte";
   import type { Row } from "$lib/domain/training";
   export let index: number;
@@ -95,7 +96,7 @@
     ><span><small>REPS</small><b>{entry.reps ?? "—"}</b></span><span
       class:warning={entry.rir != null && entry.rir < rir}
       ><small>RIR</small><b>{entry.rir ?? "—"}</b></span
-    ><span class="push muted">✎</span></button
+    ><span class="push muted"><Icon name="edit_outlined" size={14} /></span></button
   >
 {:else}<button
     class="inactive-set row full"
