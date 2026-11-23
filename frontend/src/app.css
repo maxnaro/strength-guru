@@ -452,28 +452,6 @@ main {
     transform: rotate(360deg);
   }
 }
-.hero {
-  background: var(--tint);
-  border-radius: 28px;
-  padding: 22px;
-  margin-top: 0;
-}
-.hero-top {
-  align-items: flex-start;
-  gap: 14px;
-}
-.hero h1 {
-  font-size: 30px;
-  line-height: 1.05;
-  margin: 12px 0 5px;
-  overflow-wrap: anywhere;
-}
-.hero > .group-button {
-  margin-top: 16px;
-}
-.hero > .soft {
-  margin-top: 16px;
-}
 .plate {
   --size: 72px;
   flex-shrink: 0;
@@ -503,133 +481,6 @@ main {
     0 0 0 2px color-mix(in srgb, var(--group) 18%, transparent),
     inset 0 0 0 2px color-mix(in srgb, var(--group) 35%, transparent);
 }
-.progress-row {
-  margin-top: 12px;
-  gap: 10px;
-}
-.progress {
-  height: 6px;
-  background: var(--rail);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.progress span {
-  display: block;
-  height: 100%;
-  background: var(--group);
-  transition: width 0.24s;
-}
-.stats {
-  margin: 12px 0;
-}
-.stat {
-  border-radius: 16px;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.stat > span {
-  height: 28px;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--group);
-}
-.stat .eyebrow {
-  font-size: 9px;
-  color: var(--dim);
-}
-.stat strong {
-  font:
-    800 15px Archivo,
-    sans-serif;
-}
-.tool {
-  margin-top: 12px;
-  padding: 14px 16px;
-  min-height: 54px;
-  text-align: left;
-}
-.tool strong {
-  font-size: 14px;
-}
-.plan-list {
-  overflow: hidden;
-}
-.plan-item {
-  padding: 10px 16px;
-  gap: 6px;
-}
-.plan-item + .plan-item {
-  border-top: 0.5px solid var(--border);
-}
-.plan-link {
-  text-align: left;
-  padding: 0;
-  gap: 12px;
-}
-.number-tile {
-  width: 36px;
-  height: 36px;
-  background: var(--tint);
-  border-radius: 10px;
-  color: var(--group-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font:
-    800 13px Archivo,
-    sans-serif;
-}
-.plan-title {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 4px;
-}
-.plan-title strong {
-  font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.plan-title .eyebrow {
-  font-size: 10px;
-}
-.meso-strip {
-  display: flex;
-  gap: 6px;
-  overflow: auto;
-  padding-bottom: 8px;
-}
-.meso-strip button {
-  flex: 0 0 64px;
-  border-radius: 10px;
-  background: var(--chip);
-  padding: 8px 4px;
-}
-.meso-strip button.current {
-  background: var(--tint);
-  box-shadow: inset 0 0 0 1.5px var(--border-strong);
-}
-.meso-strip .past {
-  opacity: 0.55;
-}
-.meso-strip small {
-  font:
-    600 9px JetBrainsMono,
-    monospace;
-  color: var(--dim);
-  margin-bottom: 4px;
-}
-.meso-strip b {
-  font:
-    800 10px Archivo,
-    sans-serif;
-}
 .session-header {
   background: var(--tint);
   border: 0.5px solid var(--border-strong);
@@ -639,75 +490,28 @@ main {
   gap: 12px;
 }
 .session-header h1 {
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 430px;
+  font-size: 17px;
+  overflow-wrap: anywhere;
 }
-.session-header .eyebrow {
-  font-size: 10px;
-  margin-top: 3px;
+.rep-calculator {
+  flex-shrink: 0;
+  align-self: flex-start;
 }
-.session-header > div:not(.plate) {
-  min-width: 0;
+.session-controls {
+  padding: 4px 16px 12px;
 }
-.session-header .soft {
-  padding: 6px 10px;
-  min-height: 32px;
-  font-size: 11px;
-  color: var(--accent-text);
+.session-controls select {
+  width: auto;
+  font-size: 14px;
+  padding: 6px 8px;
 }
-.week-picker {
-  display: flex;
-  overflow: auto;
-  gap: 8px;
-  padding: 8px 18px;
-}
-.week-picker button {
-  border-radius: 999px;
-  background: var(--chip);
-  padding: 10px 20px;
-  white-space: nowrap;
-  font:
-    500 11px JetBrainsMono,
-    monospace;
-  color: var(--dim);
-}
-.week-picker .selected {
-  background: var(--text);
-  color: var(--bg);
-  font-weight: 700;
-}
-.day-picker {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-  padding: 4px 18px 8px;
-}
-.day-picker button {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--tint);
-  border: 0.5px solid var(--border);
-  font:
-    600 13px JetBrainsMono,
-    monospace;
-  color: var(--dim);
-  max-height: 64px;
-}
-.day-picker button.selected {
-  background: var(--group);
-  color: #000;
-  border-color: transparent;
+.session-controls .soft,
+.session-header .rep-calculator,
+.session-pager .soft {
+  min-height: 44px;
 }
 .session-pager {
-  padding: 0 16px 8px;
-}
-.session-pager .ghost {
-  font-size: 11px;
-  min-height: 32px;
-  padding: 4px;
+  padding: 4px 16px 12px;
 }
 .exercise-list {
   padding: 0 16px;
@@ -1455,15 +1259,6 @@ dialog::backdrop {
   }
   .page {
     padding: 24px;
-  }
-  .hero {
-    padding: 26px;
-  }
-  .hero h1 {
-    font-size: 34px;
-  }
-  .today-page {
-    padding-top: 20px;
   }
   .calendar-day {
     max-height: 85px;

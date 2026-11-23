@@ -47,7 +47,6 @@
   });
   let selected: { week: number; day: number } | null = null;
   let viz = "calendar";
-  let highlighted = -1;
   let activeSet = "";
   let parsedDay = "";
   let touchStart: { x: number; y: number } | null = null;
@@ -116,12 +115,6 @@
     tables.set_entries || [],
     meso && effective ? session(tables, meso.id, week, day)?.id : undefined,
   );
-  $: total = items.reduce(
-    (sum: number, e: Row) =>
-      sum + (target(tables, meso!.id, week, e.slotId)?.reps.length ?? 3),
-    0,
-  );
-  $: done = currentEntries.filter((e: Row) => truth(e.done)).length;
   $: view = routeUrl.pathname;
   $: conflicts = $training.conflicts;
   $: if ($training.ready && routeUrl) parseRoute();
@@ -197,8 +190,9 @@
     slot = "",
   ) {
     const u = new URL(path, location.origin);
-    if (meso && w !== undefined && d !== undefined) {
+    if (meso && (routeUrl.searchParams.has("meso") || (w !== undefined && d !== undefined)))
       u.searchParams.set("meso", meso.id);
+    if (meso && w !== undefined && d !== undefined) {
       u.searchParams.set("week", String(w));
       u.searchParams.set("day", String(d));
       if (slot) u.searchParams.set("slot", slot);
@@ -270,18 +264,7 @@
     selected = null;
     activeSet = "";
     extra = {};
-    goto(view, { replaceState: true, reset: false });
-  }
-  async function startLog() {
-    if (!meso || !effective) return;
-    await run(async () => {
-      await command("getOrCreateSessionLog", {
-        mesoId: meso!.id,
-        weekIdx: week,
-        dayIdx: day,
-      });
-      goto(routeFor("/log", week, day));
-    });
+    goto(routeFor("/log"), { replaceState: true, reset: false });
   }
   function beginSwipe(event: TouchEvent) {
     const e = event.target as HTMLElement;
@@ -297,10 +280,13 @@
       dy = event.changedTouches[0].clientY - touchStart.y;
     touchStart = null;
     if (Math.abs(dx) > 75 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      const next = week * 7 + day + (dx < 0 ? 1 : -1);
-      if (next >= 0 && next < meso.num_weeks * 7)
-        chooseDay(Math.floor(next / 7), next % 7, false);
+      stepDay(dx < 0 ? 1 : -1, false);
     }
+  }
+  function stepDay(offset: number, reset = true) {
+    const next = week * days.length + day + offset;
+    if (meso && next >= 0 && next < meso.num_weeks * days.length)
+      chooseDay(Math.floor(next / days.length), next % days.length, reset);
   }
   function nextActive() {
     for (const e of items) {
@@ -954,21 +940,6 @@
   function reviewChanged() {
     review = { ...review! };
   }
-  function scrollWeek(w: number) {
-    viz = "timeline";
-    highlighted = w;
-    goto(routeFor("/meso")).then(() =>
-      setTimeout(
-        () =>
-          document.getElementById(`timeline-week-${w}`)?.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-            inline: "center",
-          }),
-        50,
-      ),
-    );
-  }
 </script>
 
 <svelte:head><title>StrengthGuru</title></svelte:head>
@@ -1001,6 +972,19 @@
     ><span class="push">›</span></button
   >
   <main id="main">
+    {#if $training.ready && view === "/log"}
+      <header class="session-header row" style={groupStyle(group)}>
+        {#if effective}<Plate small label={split || title(group)} />{/if}
+        <h1 class="grow">{effective
+          ? split
+            ? `${split}${split.endsWith("Session") ? "" : " Session"}`
+            : `${title(group)} Session`
+          : "Log"}</h1>
+        <button class="soft rep-calculator" aria-label="Rep Calculator"
+          on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
+          >Rep calc</button>
+      </header>
+    {/if}
     {#if !$training.ready}
       <div class="empty">
         <span class="spinner"></span>
@@ -1274,7 +1258,7 @@
       </div>
     {:else if !meso}
       <div class="empty">
-        <h1>No active mesocycle.</h1>
+        {#if view === "/log"}<h2>No active mesocycle.</h2>{:else}<h1>No active mesocycle.</h1>{/if}
         <p class="muted">Create one in the Meso tab.</p>
         <button
           class="solid accent"
@@ -1382,7 +1366,6 @@
               <div class="timeline-header">
                 <span></span>{#each Array(meso!.num_weeks) as _, w}<button
                     id={`timeline-week-${w}`}
-                    class:highlighted={w === highlighted}
                     class:warning={deloads.includes(w)}
                     aria-label={`Toggle deload week ${w + 1}`}
                     on:click={() =>
@@ -1445,8 +1428,7 @@
                           e.slotId,
                         )}<button
                           class="timeline-cell"
-                          class:highlighted={w === highlighted}
-                          on:click={() => targetEditor(e, w)}
+                                on:click={() => targetEditor(e, w)}
                           ><b>{formatReps(t?.reps || [])}</b><small
                             >{formatRir(t?.rir || [])}</small
                           ></button
@@ -1467,11 +1449,12 @@
                 numWeeks: meso!.num_weeks + 1,
               }),
             )}>+ Add week</button
-        ><button
-          class="solid full"
-          on:click={() => goto(routeFor("/log", week, day))}
-          >Today's Session →</button
         >
+        {#if today}<button
+          class="solid full"
+          on:click={() => chooseDay(today!.week, today!.day)}
+          >Today's Session →</button
+        >{/if}
         <div class="settings-row">
           <button
             on:click={() =>
@@ -1502,11 +1485,11 @@
       </div>
     {:else if !effective}
       <div class="empty">
-        <h1>
+        <h2>
           {meso && dateValue(meso!.start_date) > new Date()
             ? "Your mesocycle starts soon."
             : "Mesocycle complete!"}
-        </h1>
+        </h2>
         <p class="muted">Choose a session or start your next block in Meso.</p>
         <a class="solid" href="/meso">Open Meso →</a>
       </div>
@@ -1519,52 +1502,22 @@
         on:touchstart={beginSwipe}
         on:touchend={finishSwipe}
       >
-        <header class="session-header row">
-          <Plate small label={split || title(group)} />
-          <div>
-            <h1>
-              {split
-                ? `${split}${split.endsWith("Session") ? "" : " Session"}`
-                : `${title(group)} Session`}
-            </h1>
-            <p class="eyebrow">WEEK {week + 1} · {days[day]}</p>
-          </div>
-          {#if selected}<button class="soft push" on:click={resetToday}
-              >Today</button
-            >{/if}
-        </header>
-        <div class="week-picker">
-          {#each Array(meso!.num_weeks) as _, w}<button
-              class:selected={w === week}
-              on:click={() => chooseDay(w, day, false)}>WEEK {w + 1}</button
-            >{/each}
-        </div>
-        <div class="day-picker">
-          {#each days as d, di}{@const g = primary(
-              plan(tables, meso!.id, week, di),
-            )}<button
-              class:selected={day === di}
-              style={groupStyle(g)}
-              aria-label={d}
-              on:click={() => chooseDay(week, di, false)}>{d[0]}</button
-            >{/each}
-        </div>
-        <div class="session-pager row">
-          <button
-            class="ghost"
-            disabled={week * 7 + day === 0}
-            on:click={() => {
-              const n = week * 7 + day - 1;
-              chooseDay(Math.floor(n / 7), n % 7, false);
-            }}>← Previous day</button
-          ><button
-            class="ghost push"
-            disabled={week * 7 + day === meso!.num_weeks * 7 - 1}
-            on:click={() => {
-              const n = week * 7 + day + 1;
-              chooseDay(Math.floor(n / 7), n % 7, false);
-            }}>Next day →</button
-          >
+        <div class="session-controls row wrap">
+          <select aria-label="Week" value={String(week)}
+            on:change={(event) => chooseDay(Number(event.currentTarget.value), day, false)}>
+            {#each Array(meso!.num_weeks) as _, w}
+              <option value={String(w)}>Week {w + 1}</option>
+            {/each}
+          </select>
+          <select aria-label="Day" value={String(day)}
+            on:change={(event) => chooseDay(week, Number(event.currentTarget.value), false)}>
+            {#each days as weekday, index}
+              <option value={String(index)}>{weekday}</option>
+            {/each}
+          </select>
+          {#if today && (today.week !== week || today.day !== day)}
+            <button class="soft" on:click={resetToday}>Today</button>
+          {/if}
         </div>
         {#if !items.length}<div class="empty">
             <h2>Recovery day.</h2>
@@ -1632,141 +1585,17 @@
                   >
                 </section>{/each}
             </div>{/key}{/if}
-      </div>
-    {:else}
-      <div class="page today-page" style={groupStyle(group)}>
-        <section class="hero">
-          <div class="row hero-top">
-            <div class="grow">
-              <div class="row wrap">
-                <span class="chip">WEEK {week + 1}</span><span class="chip"
-                  >{days[day].slice(0, 3).toUpperCase()}</span
-                >{#if deloads.includes(week)}<span class="chip warning"
-                    >DELOAD</span
-                  >{/if}
-              </div>
-              <h1>
-                {split ||
-                  (group === "rest"
-                    ? "Recovery day."
-                    : group === "other"
-                      ? "Workout day."
-                      : `${title(group)} day.`)}
-              </h1>
-              {#if !items.length}<p class="muted">Rest up.</p>{/if}
-            </div>
-            <Plate label={split || group} />
-          </div>
-          {#if items.length}<button
-              class="group-button full"
-              on:click={startLog}
-              >{done ? "Resume Log" : "Open Log"} <span>→</span></button
-            >{#if total}<div class="row progress-row">
-                <span class="eyebrow">{done} / {total} SETS</span>
-                <div class="progress grow">
-                  <span style={`width:${Math.min(100, (done / total) * 100)}%`}
-                  ></span>
-                </div>
-              </div>{/if}{/if}{#if selected && today}<button
-              class="soft full"
-              on:click={resetToday}>Go to Today</button
-            >{/if}
-        </section>
-        {#if items.length}<div class="two stats">
-            <section class="stat">
-              <span></span>
-              <div>
-                <p class="eyebrow">WEEK</p>
-                <strong>{week + 1}/{meso!.num_weeks}</strong>
-              </div>
-            </section>
-            <section class="stat">
-              <span></span>
-              <div>
-                <p class="eyebrow">STARTED</p>
-                <strong
-                  >{dateValue(meso!.start_date).toLocaleDateString("en-GB", {
-                    month: "short",
-                    day: "numeric",
-                  })}</strong
-                >
-              </div>
-            </section>
-          </div>{/if}
-        <button
-          class="card tool row full"
-          on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
-          ><span>▦</span><strong>Rep Calculator</strong><span class="push muted"
-            >›</span
-          ></button
-        >{#if items.length}<p class="eyebrow section-label">TODAY'S PLAN</p>
-          <section class="card plan-list">
-            {#each items as e, i}{@const t = target(
-                tables,
-                meso!.id,
-                week,
-                e.slotId,
-              )}{@const completed = currentEntries.filter(
-                (r: Row) => r.slot_id === e.slotId && truth(r.done),
-              ).length}
-              <div class="row plan-item" style={groupStyle(e.group)}>
-                <button
-                  class="plan-link row grow"
-                  on:click={() => goto(routeFor("/log", week, day))}
-                  ><span class="number-tile"
-                    >{String(i + 1).padStart(2, "0")}</span
-                  ><span class="plan-title"
-                    ><strong>{e.name}</strong>{#if t}<span class="eyebrow"
-                        >{formatReps(t.reps)} · {formatRir(t.rir)}</span
-                      >{/if}</span
-                  ></button
-                ><button
-                  class="icon"
-                  aria-label={`Exercise guide for ${e.name}`}
-                  on:click={() => showGuides(e)}>▷</button
-                >{#if t}<span
-                    class="eyebrow"
-                    class:success-text={completed >= t.reps.length}
-                    >{completed}/{t.reps.length}</span
-                  >{/if}
-              </div>{/each}
-          </section>{/if}
-        <div class="row section-label">
-          <p class="eyebrow">MESOCYCLE</p>
-          <a href="/meso" class="accent-text push">Edit →</a>
-        </div>
-        <div class="meso-strip">
-          {#each Array(meso!.num_weeks) as _, w}{@const ts = program(
-              tables,
-              meso!.id,
-              day,
-            )
-              .map((e: Row) => target(tables, meso!.id, w, e.slotId))
-              .filter(Boolean)}{@const rs = ts.flatMap(
-              (t: any) => t.rir,
-            )}<button
-              class:current={w === week}
-              class:past={w < week}
-              on:click={() => scrollWeek(w)}
-              ><small>W{w + 1}</small><b class:warning={deloads.includes(w)}
-                >{deloads.includes(w)
-                  ? "D"
-                  : rs.length
-                    ? formatRir([...new Set(rs)])
-                    : "—"}</b
-              ></button
-            >{/each}
-        </div>
+        <footer class="session-pager two">
+          <button class="soft" disabled={week === 0 && day === 0}
+            on:click={() => stepDay(-1)}><span aria-hidden="true">←</span> Previous day</button>
+          <button class="soft" disabled={week === meso!.num_weeks - 1 && day === days.length - 1}
+            on:click={() => stepDay(1)}>Next day <span aria-hidden="true">→</span></button>
+        </footer>
       </div>
     {/if}
   </main>
   <nav class="bottom-tabs" aria-label="Main navigation">
     <a
-      href={routeFor("/today")}
-      class:selected={view === "/today" || view === "/"}
-      aria-current={view === "/today" || view === "/" ? "page" : undefined}
-      ><Icon name="flame" /><small>TODAY</small></a
-    ><a
       href={routeFor("/log")}
       class:selected={view === "/log"}
       aria-current={view === "/log" ? "page" : undefined}
