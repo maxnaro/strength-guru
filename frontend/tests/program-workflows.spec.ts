@@ -57,6 +57,7 @@ test('create, rename, duplicate, activate and delete mesocycles', async ({page, 
   await page.getByRole('button', {name:'Delete mesocycle'}).click();
   await page.getByRole('button', {name:'Confirm',exact:true}).click();
   await expect.poll(async () => (await snapshot(request)).mesocycles.some((m:any) => m.name === 'Browser duplicate')).toBe(false);
+  await expect(page.locator('.sync-banner')).toContainText('Synced');
   // Restore the seeded active block for the following workflows.
   await page.goto('/meso');
   await expect(page.locator('.sync-banner')).toContainText('Synced');
