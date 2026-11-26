@@ -11,8 +11,39 @@ concurrency:
   group: web-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  frontend:
+  frontend-build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.web.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.22.3'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run check && npm test && npm run build
+        working-directory: frontend
+        env:
+          GIT_SHA: ${{ github.sha }}
+      - uses: actions/upload-artifact@v7
+        id: web
+        with:
+          name: strength-guru-web
+          path: frontend/build
+          if-no-files-found: error
+          overwrite: true
+  browser:
+    needs: frontend-build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      TEST_BROWSER: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -25,37 +56,47 @@ jobs:
           sdk: '3.14.0'
       - run: dart pub get --enforce-lockfile
         working-directory: server
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.frontend-build.outputs.artifact-id }}
+          path: frontend/build
       - run: npm ci
         working-directory: frontend
-      - run: npm run check && npm test && npm run build
+      - name: Install Playwright browser
+        run: |
+          if [[ "$TEST_BROWSER" == chromium ]]; then
+            npx playwright install --with-deps --only-shell chromium
+          else
+            npx playwright install --with-deps "$TEST_BROWSER"
+          fi
+        working-directory: frontend
+      - run: npm run test:browser -- --output="test-results/$TEST_BROWSER"
         working-directory: frontend
         env:
-          GIT_SHA: ${{ github.sha }}
-      - run: npx playwright install --with-deps chromium firefox webkit
-        working-directory: frontend
-      - run: npm run test:browser -- --output=test-results/chromium
-        working-directory: frontend
-      - run: npm run test:browser -- --output=test-results/firefox
-        working-directory: frontend
-        env:
-          TEST_BROWSER: firefox
-      - run: npm run test:browser -- --output=test-results/webkit
-        working-directory: frontend
-        env:
-          TEST_BROWSER: webkit
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/browser
       - run: npm run test:perf
+        if: matrix.browser == 'chromium'
         working-directory: frontend
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/performance
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: ${{ !cancelled() }}
         with:
-          name: strength-guru-browser-results
+          name: strength-guru-browser-results-${{ matrix.browser }}
           path: |
             frontend/test-results
             frontend/playwright-report
-      - uses: actions/upload-artifact@v7
-        with:
-          name: strength-guru-web
-          path: frontend/build
+          overwrite: true
+  frontend:
+    needs: [frontend-build, browser]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the frontend build and browser checks
+        env:
+          BUILD_RESULT: ${{ needs.frontend-build.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: test "$BUILD_RESULT" = success && test "$BROWSER_RESULT" = success
   api:
     runs-on: ubuntu-latest
     steps:
