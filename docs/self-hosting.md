@@ -62,11 +62,11 @@ docker compose up --pull always -d
 
 For a GPU-enabled deployment, use the two-file startup command above for updates.
 
-Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, set `APP_IMAGE=maxnaro/strength-guru:sha-<full-commit-sha>` in `.env`, rerun the startup command for your setup, and restore the matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
+Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, set `APP_IMAGE=macksmacks/strength-guru:sha-<full-commit-sha>` in `.env`, rerun the startup command for your setup, and restore the matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
 
 ## Publishing to Docker Hub
 
-Create the public `maxnaro/strength-guru` repository on Docker Hub. In GitHub Actions, set the repository variable `DOCKERHUB_USERNAME` and the repository secret `DOCKERHUB_TOKEN` to a Docker Hub access token with push permission. The **Web and API** workflow publishes after both checks pass on `main`. Run it manually on `main` to retry or publish a commit whose push did not trigger Actions.
+Create the public `macksmacks/strength-guru` repository on Docker Hub. In GitHub Actions, set the repository variable `DOCKERHUB_USERNAME` and the repository secret `DOCKERHUB_TOKEN` to a Docker Hub access token with push permission. The **Web and API** workflow publishes after both checks pass on `main`. Run it manually on `main` to retry or publish a commit whose push did not trigger Actions.
 
 ## Development and verification
 

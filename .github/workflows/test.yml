@@ -76,8 +76,8 @@ jobs:
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     env:
-      IMAGE_REPOSITORY: maxnaro/strength-guru
-      APP_IMAGE: maxnaro/strength-guru:sha-${{ github.sha }}
+      IMAGE_REPOSITORY: macksmacks/strength-guru
+      APP_IMAGE: macksmacks/strength-guru:sha-${{ github.sha }}
       APP_ORIGIN: http://localhost:8080
       COMPOSE_PROJECT_NAME: strength-guru-image-ci
     steps:
