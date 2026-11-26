@@ -28,7 +28,7 @@ test('real API, direct URLs, semantic controls and missing assets', async ({ pag
 });
 
 test('offline set survives browser page restart and synchronizes exactly once', async ({ page, context, request }) => {
-  await ready(page); await monday(page); await offlineReady(page);
+  await monday(page); await offlineReady(page);
   const before = await (await request.get('/api/v1/sync')).json();
   const beforeCount = before.snapshot.set_entries.length;
   await context.setOffline(true);
@@ -105,7 +105,7 @@ test('calculator, theme and native dialogs support keyboard focus', async ({page
 });
 
 test('conflicting edits retain local data until explicitly discarded', async ({page,context,browser,baseURL,request})=>{
-  await ready(page); await monday(page); await offlineReady(page);
+  await monday(page); await offlineReady(page);
   // Ensure this test works by itself as well as after the offline logging checks.
   if(!await page.getByRole('button',{name:/Edit saved set/}).count()) {
     await page.getByRole('button',{name:/^Log set/}).first().click();
@@ -136,7 +136,7 @@ test('conflicting edits retain local data until explicitly discarded', async ({p
 });
 
 test('server restore preserves pending local operations for export and discard', async ({page,context,request,baseURL})=>{
-  await ready(page); await monday(page); await offlineReady(page);
+  await monday(page); await offlineReady(page);
   const backup=await request.get('/api/v1/backups'); expect(backup.ok()).toBeTruthy();
   await context.setOffline(true);
   await page.getByRole('button',{name:/^Log set/}).first().click();

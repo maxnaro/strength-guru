@@ -27,7 +27,7 @@ Future<void> main() async {
   await Seeder.seedIfEmpty(db);
   final jobs = Jobs(
     db,
-    env['LLM_BASE_URL'] ?? 'http://inference:8080',
+    env['LLM_BASE_URL']?.trim(),
     env['LLM_MODEL'] ?? 'strength-guru',
   );
   await jobs.start();

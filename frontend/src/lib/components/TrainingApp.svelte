@@ -43,6 +43,8 @@
   afterNavigate(({ to }) => {
     routeUrl = to?.url || new URL(location.href);
     parseRoute();
+    if (["/generate", "/import"].includes(routeUrl.pathname))
+      void refreshAiAvailability();
   });
   let selected: { week: number; day: number } | null = null;
   let viz = "calendar";
@@ -68,6 +70,9 @@
   let jobBusy = false;
   let jobError = "";
   let jobStatus = "";
+  let aiAvailable: boolean | null = null;
+  let aiCheckPending = false;
+  let aiCheckVersion = 0;
   let lastJob: { kind: string; input: Row } | null = null;
   let taskVersion = 0;
   let description = "";
@@ -128,6 +133,13 @@
   onMount(() => {
     restoreWorkflows();
     training.initialize().catch((e: unknown) => (error = String(e)));
+    window.addEventListener("online", refreshAiAvailability);
+    window.addEventListener("offline", markAiUnavailable);
+    document.addEventListener("visibilitychange", checkVisibleAiAvailability);
+    const aiRefreshTimer = window.setInterval(
+      checkVisibleAiAvailability,
+      15_000,
+    );
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { type: "module" })
@@ -144,14 +156,54 @@
     }
     return () => {
       taskVersion++;
+      aiCheckVersion++;
+      window.removeEventListener("online", refreshAiAvailability);
+      window.removeEventListener("offline", markAiUnavailable);
+      document.removeEventListener(
+        "visibilitychange",
+        checkVisibleAiAvailability,
+      );
+      window.clearInterval(aiRefreshTimer);
     };
   });
+  async function refreshAiAvailability() {
+    if (aiCheckPending) return;
+    aiCheckPending = true;
+    const version = ++aiCheckVersion;
+    try {
+      const health = await api("health");
+      if (version === aiCheckVersion) aiAvailable = health.aiAvailable === true;
+    } catch {
+      if (version === aiCheckVersion) aiAvailable = false;
+    } finally {
+      if (version === aiCheckVersion) aiCheckPending = false;
+    }
+  }
+  function markAiUnavailable() {
+    aiCheckVersion++;
+    aiCheckPending = false;
+    aiAvailable = false;
+  }
+  function checkVisibleAiAvailability() {
+    if (
+      document.visibilityState === "visible" &&
+      navigator.onLine &&
+      (view === "/generate" ||
+        view === "/import" ||
+        sheet?.kind === "switcher" ||
+        sheet?.kind === "volume")
+    ) {
+      void refreshAiAvailability();
+    }
+  }
   function notify(s: string) {
     toast = s;
     window.clearTimeout(pendingFocus);
     pendingFocus = window.setTimeout(() => (toast = ""), 4500);
   }
   function open(s: Row) {
+    if (s.kind === "switcher" || s.kind === "volume")
+      void refreshAiAvailability();
     dialogError = "";
     stack = [];
     sheet = s;
@@ -189,7 +241,11 @@
     slot = "",
   ) {
     const u = new URL(path, location.origin);
-    if (meso && (routeUrl.searchParams.has("meso") || (w !== undefined && d !== undefined)))
+    if (
+      meso &&
+      (routeUrl.searchParams.has("meso") ||
+        (w !== undefined && d !== undefined))
+    )
       u.searchParams.set("meso", meso.id);
     if (meso && w !== undefined && d !== undefined) {
       u.searchParams.set("week", String(w));
@@ -327,9 +383,18 @@
   function previousSetIndex(rows: Row[], excludingSession?: string) {
     const result = new Map<string, Row>();
     for (const row of rows) {
-      if (!truth(row.done) || row.set_index !== 0 || row.session_id === excludingSession) continue;
+      if (
+        !truth(row.done) ||
+        row.set_index !== 0 ||
+        row.session_id === excludingSession
+      )
+        continue;
       const previous = result.get(row.exercise_id);
-      if (!previous || dateValue(row.logged_at).getTime() > dateValue(previous.logged_at).getTime()) {
+      if (
+        !previous ||
+        dateValue(row.logged_at).getTime() >
+          dateValue(previous.logged_at).getTime()
+      ) {
         result.set(row.exercise_id, row);
       }
     }
@@ -361,7 +426,7 @@
       });
       activeSet = "";
       goto(routeFor("/log", week, day), { replaceState: true, reset: false });
-    }, "Set saved");
+    });
   }
   function groupNameForPicker(e: Row) {
     return groups.includes(e.group) ? e.group : "other";
@@ -681,6 +746,7 @@
       basisMode,
     }).catch((e) => (error = String(e)));
   async function startJob(kind: string, input: Row) {
+    if (!aiAvailable) return;
     review = null;
     const body = {
       id: crypto.randomUUID(),
@@ -775,8 +841,10 @@
     });
   }
   async function importCsv(event: Event) {
-    const f = (event.target as HTMLInputElement).files?.[0];
-    if (!f) return;
+    const input = event.target as HTMLInputElement;
+    const f = input.files?.[0];
+    input.value = "";
+    if (!f || !aiAvailable) return;
     const bytes = await f.arrayBuffer();
     let csv;
     try {
@@ -785,7 +853,6 @@
       csv = new TextDecoder("windows-1252").decode(bytes);
     }
     await startJob("csv", { csv });
-    (event.target as HTMLInputElement).value = "";
   }
   async function fixPlan(data: Row, advisories: Row[]) {
     await startJob("fix", {
@@ -956,11 +1023,22 @@
   }
 </script>
 
+{#snippet aiLockNotice(id: string)}
+  {#if !aiAvailable}
+    <p {id} class="hint" role="status">
+      {aiAvailable === null
+        ? "Checking AI availability…"
+        : "AI features are locked because server inference is unavailable."}
+    </p>
+  {/if}
+{/snippet}
+
 <svelte:head><title>StrengthGuru</title></svelte:head>
 <input
   class="hidden"
   type="file"
   accept=".csv,text/csv"
+  disabled={!aiAvailable}
   bind:this={importFile}
   on:change={importCsv}
 />
@@ -975,7 +1053,10 @@
   <button
     class="sync-banner"
     on:click={() => open({ kind: "sync", title: "Sync and pending changes" })}
-    ><Icon name={$training.connected ? "cloud_done_outlined" : "cloud_off"} size={16} /><span
+    ><Icon
+      name={$training.connected ? "cloud_done_outlined" : "cloud_off"}
+      size={16}
+    /><span
       >{$training.conflicts.length
         ? `${$training.conflicts.length} changes need review`
         : $training.pending
@@ -996,11 +1077,16 @@
             : "Log"}
         </h1>
         {#if today && (today.week !== week || today.day !== day)}
-          <button class="soft today-shortcut" on:click={resetToday}>Today</button>
+          <button class="soft today-shortcut" on:click={resetToday}
+            >Today</button
+          >
         {/if}
-        <button class="soft rep-calculator" aria-label="Rep Calculator"
+        <button
+          class="soft rep-calculator"
+          aria-label="Rep Calculator"
           on:click={() => open({ kind: "calculator", title: "Rep Calculator" })}
-          ><Icon name="calculate_outlined" size={18} /> Rep calc</button>
+          ><Icon name="calculate_outlined" size={18} /> Rep calc</button
+        >
       </header>
     {/if}
     {#if !$training.ready}
@@ -1015,7 +1101,9 @@
     {:else if view === "/generate"}
       <div class="page narrow">
         <header class="page-heading">
-          <a class="icon" href="/meso" aria-label="Back to mesocycle"><Icon name="arrow_back" size={18} /></a>
+          <a class="icon" href="/meso" aria-label="Back to mesocycle"
+            ><Icon name="arrow_back" size={18} /></a
+          >
           <h1>Generate Program</h1>
         </header>
         <section class="card form">
@@ -1082,9 +1170,10 @@
               bind:value={sport}
               placeholder="climbing, running, BJJ, general fitness…"
             /></label
-          ><button
+          >{@render aiLockNotice("generate-ai-status")}<button
             class="solid accent"
-            disabled={!description.trim() || jobBusy}
+            disabled={!aiAvailable || !description.trim() || jobBusy}
+            aria-describedby={aiAvailable ? undefined : "generate-ai-status"}
             on:click={generate}>Generate Program →</button
           >
         </section>
@@ -1092,11 +1181,17 @@
     {:else if view === "/import"}
       <div class="page">
         <header class="page-heading">
-          <a href="/meso" class="icon" aria-label="Back to mesocycle"><Icon name="arrow_back" size={18} /></a>
+          <a href="/meso" class="icon" aria-label="Back to mesocycle"
+            ><Icon name="arrow_back" size={18} /></a
+          >
           <h1>{review ? "Review training block" : "Import training block"}</h1>
         </header>
         {#if job?.dataset_epoch && job.dataset_epoch !== $training.epoch}
-          <p class="warning" role="status">This result was created before the server dataset was restored. Review its exercises and targets before importing it into the current dataset.</p>
+          <p class="warning" role="status">
+            This result was created before the server dataset was restored.
+            Review its exercises and targets before importing it into the
+            current dataset.
+          </p>
         {/if}
         {#if jobBusy}<section class="empty card">
             <span class="spinner"></span>
@@ -1141,10 +1236,15 @@
                 <h3>Plan review</h3>
                 <button
                   class="soft push"
+                  disabled={!aiAvailable}
+                  aria-describedby={aiAvailable
+                    ? undefined
+                    : "review-ai-status"}
                   on:click={() => fixPlan(review!, review!.advisories)}
                   >Fix with AI</button
                 >
               </div>
+              {@render aiLockNotice("review-ai-status")}
               {#each review.advisories as a, i}<div class="row advisory">
                   <span class:warning={a.severity === "warn"}>{a.message}</span
                   ><button
@@ -1191,7 +1291,11 @@
                       on:click={() => {
                         d.collapsed = !d.collapsed;
                         reviewChanged();
-                      }}><Icon name={d.collapsed ? "expand_more" : "expand_less"} size={18} /></button
+                      }}
+                      ><Icon
+                        name={d.collapsed ? "expand_more" : "expand_less"}
+                        size={18}
+                      /></button
                     ><button
                       class="icon"
                       aria-label={`Delete ${d.label}`}
@@ -1263,12 +1367,23 @@
           >
         {:else}<section class="empty card">
             <h2>Import your next block.</h2>
-            <p class="muted">Choose a CSV or describe a program to generate.</p>
-            <button class="solid" on:click={() => importFile.click()}
-              >Import CSV</button
-            ><a href="/generate" class="soft"><Icon name="auto_awesome_outlined" size={18} /> Generate Program</a><button
-              class="ghost"
-              on:click={showJobs}>AI jobs and saved results</button
+            {#if aiAvailable}<p class="muted">
+                Choose a CSV or describe a program to generate.
+              </p>{/if}
+            {@render aiLockNotice("import-ai-status")}
+            <button
+              class="solid"
+              disabled={!aiAvailable}
+              aria-describedby={aiAvailable ? undefined : "import-ai-status"}
+              on:click={() => importFile.click()}>Import CSV</button
+            >{#if aiAvailable}<a href="/generate" class="soft"
+                ><Icon name="auto_awesome_outlined" size={18} /> Generate Program</a
+              >{:else}<button
+                class="soft"
+                disabled
+                aria-describedby="import-ai-status">Generate Program</button
+              >{/if}<button class="ghost" on:click={showJobs}
+              >AI jobs and saved results</button
             >{#if pendingJob}<button class="soft" on:click={retryJob}
                 >Recover saved job request</button
               >{/if}
@@ -1276,7 +1391,9 @@
       </div>
     {:else if !meso}
       <div class="empty">
-        {#if view === "/log"}<h2>No active mesocycle.</h2>{:else}<h1>No active mesocycle.</h1>{/if}
+        {#if view === "/log"}<h2>No active mesocycle.</h2>{:else}<h1>
+            No active mesocycle.
+          </h1>{/if}
         <p class="muted">Create one in the Meso tab.</p>
         <button
           class="solid accent"
@@ -1295,19 +1412,22 @@
           <button
             class="icon push"
             aria-label="Check program volume"
-            on:click={volume}><Icon name="fact_check_outlined" size={18} /></button
+            on:click={volume}
+            ><Icon name="fact_check_outlined" size={18} /></button
           ><button
             class="icon"
             aria-label="About, backup and restore"
             on:click={() =>
-              open({ kind: "about", title: "About StrengthGuru" })}><Icon name="info_outlined" size={18} /></button
+              open({ kind: "about", title: "About StrengthGuru" })}
+            ><Icon name="info_outlined" size={18} /></button
           >
         </div>
         <button
           class="meso-name full row"
           on:click={() => open({ kind: "switcher", title: "Mesocycles" })}
           ><h1>{meso!.name}</h1>
-          <span class="push muted"><Icon name="expand_more" size={18} /></span></button
+          <span class="push muted"><Icon name="expand_more" size={18} /></span
+          ></button
         >
         <p class="muted">
           {meso!.num_weeks} weeks · started {dateValue(
@@ -1348,7 +1468,10 @@
                     style={groupStyle(g)}
                     aria-label={`Week ${w + 1}, ${days[d]}, ${title(g)}${session(tables, meso!.id, w, d) ? ", session started" : ""}`}
                     on:click={() => chooseDay(w, d)}
-                    >{#if session(tables, meso!.id, w, d)}<Icon name="check" size={16} />{:else if deloads.includes(w) && g !== "rest"}D{/if}</button
+                    >{#if session(tables, meso!.id, w, d)}<Icon
+                        name="check"
+                        size={16}
+                      />{:else if deloads.includes(w) && g !== "rest"}D{/if}</button
                   >{/each}<button
                   class="deload-toggle"
                   class:warning={deloads.includes(w)}
@@ -1374,9 +1497,9 @@
                 >
               </div>{/each}
             <div class="calendar-legend">
-              <span>□ Today</span><span><Icon name="check" size={16} /> Session started</span><span
-                >D Deload</span
-              >
+              <span>□ Today</span><span
+                ><Icon name="check" size={16} /> Session started</span
+              ><span>D Deload</span>
             </div>
           </div>
         {:else}<div class="timeline-scroll">
@@ -1416,7 +1539,8 @@
                     ><button
                       class="icon"
                       aria-label={`Edit ${d} program`}
-                      on:click={() => editProgram(di)}><Icon name="edit" size={18} /></button
+                      on:click={() => editProgram(di)}
+                      ><Icon name="edit" size={18} /></button
                     ><button
                       class="icon"
                       aria-label={`${d} actions`}
@@ -1468,10 +1592,10 @@
             )}>+ Add week</button
         >
         {#if today}<button
-          class="solid full"
-          on:click={() => chooseDay(today!.week, today!.day)}
-          >Today's Session →</button
-        >{/if}
+            class="solid full"
+            on:click={() => chooseDay(today!.week, today!.day)}
+            >Today's Session →</button
+          >{/if}
         <div class="settings-row">
           <button
             on:click={() =>
@@ -1562,7 +1686,8 @@
                     <button
                       class="icon push"
                       aria-label={`Exercise guide for ${e.name}`}
-                      on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
+                      on:click={() => showGuides(e)}
+                      ><Icon name="play_circle_outline" size={18} /></button
                     >{#if es.length >= count}<span class="chip success-text"
                         >DONE</span
                       >{/if}<button
@@ -1605,10 +1730,18 @@
                 </section>{/each}
             </div>{/key}{/if}
         <footer class="session-pager two">
-          <button class="soft" disabled={week === 0 && day === 0}
-            on:click={() => stepDay(-1)}><Icon name="arrow_back" size={18} /> Previous day</button>
-          <button class="soft" disabled={week === meso!.num_weeks - 1 && day === days.length - 1}
-            on:click={() => stepDay(1)}>Next day <Icon name="arrow_forward" size={18} /></button>
+          <button
+            class="soft"
+            disabled={week === 0 && day === 0}
+            on:click={() => stepDay(-1)}
+            ><Icon name="arrow_back" size={18} /> Previous day</button
+          >
+          <button
+            class="soft"
+            disabled={week === meso!.num_weeks - 1 && day === days.length - 1}
+            on:click={() => stepDay(1)}
+            >Next day <Icon name="arrow_forward" size={18} /></button
+          >
         </footer>
       </div>
     {/if}
@@ -1618,12 +1751,16 @@
       href={routeFor("/log")}
       class:selected={view === "/log"}
       aria-current={view === "/log" ? "page" : undefined}
-      ><Icon name={view === "/log" ? "fitness_center" : "fitness_center_outlined"} /><small>LOG</small></a
+      ><Icon
+        name={view === "/log" ? "fitness_center" : "fitness_center_outlined"}
+      /><small>LOG</small></a
     ><a
       href={routeFor("/meso")}
       class:selected={view === "/meso"}
       aria-current={view === "/meso" ? "page" : undefined}
-      ><Icon name={view === "/meso" ? "loop" : "loop_outlined"} /><small>MESO</small></a
+      ><Icon name={view === "/meso" ? "loop" : "loop_outlined"} /><small
+        >MESO</small
+      ></a
     >
   </nav>
 </div>
@@ -1694,11 +1831,20 @@
       </div>
       <button class="solid full" on:click={() => nameDialog("create")}
         >+ New Mesocycle</button
-      ><button class="soft full" on:click={() => importFile.click()}
-        >Import CSV</button
-      ><a class="soft full" href="/generate" on:click={() => (sheet = null)}
-        >Generate Program</a
-      >
+      >{@render aiLockNotice("switcher-ai-status")}<button
+        class="soft full"
+        disabled={!aiAvailable}
+        aria-describedby={aiAvailable ? undefined : "switcher-ai-status"}
+        on:click={() => importFile.click()}>Import CSV</button
+      >{#if aiAvailable}<a
+          class="soft full"
+          href="/generate"
+          on:click={() => (sheet = null)}>Generate Program</a
+        >{:else}<button
+          class="soft full"
+          disabled
+          aria-describedby="switcher-ai-status">Generate Program</button
+        >{/if}
     {:else if sheet.kind === "meso-actions"}<button
         class="soft full"
         on:click={() => nameDialog("rename", sheet!.m)}>Rename</button
@@ -1823,7 +1969,8 @@
               ><button
                 class="icon"
                 aria-label={`Guide for ${e.name}`}
-                on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
+                on:click={() => showGuides(e)}
+                ><Icon name="play_circle_outline" size={18} /></button
               >
             </div>{/each}
           <p class="eyebrow">OTHER GROUPS</p>
@@ -1837,7 +1984,8 @@
               ><button
                 class="icon"
                 aria-label={`Guide for ${e.name}`}
-                on:click={() => showGuides(e)}><Icon name="play_circle_outline" size={18} /></button
+                on:click={() => showGuides(e)}
+                ><Icon name="play_circle_outline" size={18} /></button
               >
             </div>{/each}
         </div>
@@ -1884,13 +2032,15 @@
       >
     {:else if sheet.kind === "exercise-actions"}<button
         class="soft full"
-        on:click={() => showArc(sheet!.e)}><Icon name="trending_up" size={18} /> Set progression arc</button
+        on:click={() => showArc(sheet!.e)}
+        ><Icon name="trending_up" size={18} /> Set progression arc</button
       ><button
         class="soft full"
         on:click={() => {
           const s = sheet!;
           picker(s.e.group, (e) => swapExercise(s.e, s.day, "program", e));
-        }}><Icon name="swap_horiz" size={18} /> Swap exercise across all weeks</button
+        }}
+        ><Icon name="swap_horiz" size={18} /> Swap exercise across all weeks</button
       ><button class="ghost full" on:click={() => showGuides(sheet!.e)}
         ><Icon name="play_circle_outline" size={18} /> Exercise guide</button
       >
@@ -2125,7 +2275,8 @@
           class="soft full text-left"
           href={`/guide/${v.id}`}
           target="_blank"
-          rel="noreferrer"><Icon name="play_circle_outline" size={18} /> {v.title} ↗</a
+          rel="noreferrer"
+          ><Icon name="play_circle_outline" size={18} /> {v.title} ↗</a
         >{/each}<a
         class="ghost full"
         href={`https://www.youtube.com/results?search_query=${encodeURIComponent(sheet.title + " exercise form tutorial")}`}
@@ -2173,18 +2324,26 @@
             {#each sheet.advisories as a}<p
                 class:warning={a.severity === "warn"}
               >
-                <Icon name={a.severity === "warn" ? "warning_amber_rounded" : "info_outlined"} size={16} /> {a.message}
+                <Icon
+                  name={a.severity === "warn"
+                    ? "warning_amber_rounded"
+                    : "info_outlined"}
+                  size={16}
+                />
+                {a.message}
               </p>{/each}
           </div>
           <button
             class="soft full"
+            disabled={!aiAvailable}
+            aria-describedby={aiAvailable ? undefined : "volume-ai-status"}
             on:click={() => {
               experience = sheet!.experience;
               goal = sheet!.goal;
               sport = sheet!.sport;
               fixPlan(exportPlan(tables, meso!), sheet!.advisories);
             }}>Fix with AI</button
-          >{/if}{/if}
+          >{@render aiLockNotice("volume-ai-status")}{/if}{/if}
     {:else if sheet.kind === "about"}<div class="two stats">
         <section class="stat">
           <div>
@@ -2211,11 +2370,13 @@
         rel="noreferrer"><Icon name="code" size={18} /> GitHub Repository</a
       >
       <div class="two">
-        <button class="soft" disabled={busy} on:click={backup}><Icon name="backup_outlined" size={18} /> Backup</button
+        <button class="soft" disabled={busy} on:click={backup}
+          ><Icon name="backup_outlined" size={18} /> Backup</button
         ><button
           class="soft"
           disabled={busy}
-          on:click={() => restoreFile.click()}><Icon name="settings_backup_restore" size={18} /> Restore</button
+          on:click={() => restoreFile.click()}
+          ><Icon name="settings_backup_restore" size={18} /> Restore</button
         >
       </div>
       <p class="hint">Backups include all mesocycles and training logs.</p>
@@ -2226,13 +2387,31 @@
       <table class="restore-preview">
         <caption>Backup contents</caption>
         <tbody>
-          <tr><th scope="row">Programs</th><td>{sheet.preview.counts?.mesocycles ?? 0}</td></tr>
-          <tr><th scope="row">Exercises</th><td>{sheet.preview.counts?.exercises ?? 0}</td></tr>
-          <tr><th scope="row">Sessions</th><td>{sheet.preview.counts?.session_logs ?? 0}</td></tr>
-          <tr><th scope="row">Logged sets</th><td>{sheet.preview.counts?.set_entries ?? 0}</td></tr>
+          <tr
+            ><th scope="row">Programs</th><td
+              >{sheet.preview.counts?.mesocycles ?? 0}</td
+            ></tr
+          >
+          <tr
+            ><th scope="row">Exercises</th><td
+              >{sheet.preview.counts?.exercises ?? 0}</td
+            ></tr
+          >
+          <tr
+            ><th scope="row">Sessions</th><td
+              >{sheet.preview.counts?.session_logs ?? 0}</td
+            ></tr
+          >
+          <tr
+            ><th scope="row">Logged sets</th><td
+              >{sheet.preview.counts?.set_entries ?? 0}</td
+            ></tr
+          >
         </tbody>
       </table>
-      <p class="hint">A recovery snapshot is saved on the server before replacement.</p>
+      <p class="hint">
+        A recovery snapshot is saved on the server before replacement.
+      </p>
       <div class="two">
         <button class="soft" on:click={close}>Cancel</button><button
           class="solid accent"
@@ -2264,7 +2443,9 @@
         class="soft full"
         disabled={$training.pending > 0}
         on:click={applyUpdate}
-        ><Icon name="system_update_alt" size={18} /> Apply app update{updateReady ? " · ready" : ""}</button
+        ><Icon name="system_update_alt" size={18} /> Apply app update{updateReady
+          ? " · ready"
+          : ""}</button
       >{#if $training.pending}<p class="hint">
           Sync or export and resolve pending changes before updating.
         </p>{/if}<button class="ghost full" on:click={showJobs}
@@ -2294,13 +2475,19 @@
                 {#if c.body.type === "deleteSetEntry"}
                   <p>Remove this set</p>
                 {:else}
-                  <p>{c.localValue?.weight ?? "—"} kg · {c.localValue?.reps ?? "—"} reps · RIR {c.localValue?.rir ?? "—"}</p>
+                  <p>
+                    {c.localValue?.weight ?? "—"} kg · {c.localValue?.reps ??
+                      "—"} reps · RIR {c.localValue?.rir ?? "—"}
+                  </p>
                 {/if}
               </section>
               <section>
                 <h3>Server version</h3>
                 {#if c.serverValue}
-                  <p>{c.serverValue.weight ?? "—"} kg · {c.serverValue.reps ?? "—"} reps · RIR {c.serverValue.rir ?? "—"}</p>
+                  <p>
+                    {c.serverValue.weight ?? "—"} kg · {c.serverValue.reps ??
+                      "—"} reps · RIR {c.serverValue.rir ?? "—"}
+                  </p>
                 {:else}
                   <p>This set no longer exists.</p>
                 {/if}
@@ -2308,25 +2495,43 @@
             </div>
           {/if}
           {#if ["program_changed", "dataset_changed", "deleted_reference"].includes(c.code)}
-            <p class="hint">Export this change before discarding it, then review the current program and log it in the intended session.</p>
+            <p class="hint">
+              Export this change before discarding it, then review the current
+              program and log it in the intended session.
+            </p>
           {/if}
           {#if c.code === "result_unconfirmed"}
-            <p>This program change was saved on the server. Retry the original action to recover its result, or acknowledge it here.</p>
+            <p>
+              This program change was saved on the server. Retry the original
+              action to recover its result, or acknowledge it here.
+            </p>
           {/if}
           <div class="two">
             <button
               class="soft"
-              disabled={["program_changed", "dataset_changed", "deleted_reference", "result_unconfirmed"].includes(c.code)}
+              disabled={[
+                "program_changed",
+                "dataset_changed",
+                "deleted_reference",
+                "result_unconfirmed",
+              ].includes(c.code)}
               on:click={() => run(() => training.keepLocal(c.id))}
               >Keep my edit</button
             ><button
               class="ghost warning"
               on:click={() =>
                 confirm(
-                  c.code === "result_unconfirmed" ? "Acknowledge saved result?" : "Discard local change?",
-                  c.code === "result_unconfirmed" ? "This clears the local confirmation record. The saved server change remains." : "The server version will be used. Export pending changes first to retain a copy.",
+                  c.code === "result_unconfirmed"
+                    ? "Acknowledge saved result?"
+                    : "Discard local change?",
+                  c.code === "result_unconfirmed"
+                    ? "This clears the local confirmation record. The saved server change remains."
+                    : "The server version will be used. Export pending changes first to retain a copy.",
                   () => training.discard(c.id),
-                )}>{c.code === "result_unconfirmed" ? "Acknowledge saved result" : "Use server version"}</button
+                )}
+              >{c.code === "result_unconfirmed"
+                ? "Acknowledge saved result"
+                : "Use server version"}</button
             >
           </div>
         </section>{/each}
@@ -2362,7 +2567,8 @@
             ></button
           >{/each}
         <h3>Server jobs</h3>{/if}
-      <button class="soft full" on:click={showJobs}><Icon name="refresh" size={18} /> Refresh</button
+      <button class="soft full" on:click={showJobs}
+        ><Icon name="refresh" size={18} /> Refresh</button
       >{#if sheet.loading}<span class="spinner"
         ></span>{:else if !sheet.jobs.length}<p class="muted">
           Your AI jobs will appear here.
@@ -2371,7 +2577,9 @@
             ><strong>{title(j.kind || "AI job")} · {j.state}</strong><small
               >{j.progress || ""}</small
             ></button
-          >{#if j.dataset_epoch && j.dataset_epoch !== $training.epoch}<small>From an earlier dataset</small>{/if}{#if ["queued", "running"].includes(j.state)}<button
+          >{#if j.dataset_epoch && j.dataset_epoch !== $training.epoch}<small
+              >From an earlier dataset</small
+            >{/if}{#if ["queued", "running"].includes(j.state)}<button
               class="icon warning"
               aria-label="Cancel AI job"
               on:click={() =>
