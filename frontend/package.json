@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "idb": "^8.0.3",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
