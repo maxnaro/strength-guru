@@ -231,6 +231,8 @@ test('desktop Program shows week-only exercises and different set counts', async
   const extraSet = reps.length + 1;
   await command('upsertWeekTarget', {mesoId: meso.id, weekIdx: 1, slotId: mondaySlot, reps: [...reps, 11], rir: [...rir, 3]});
   await command('setDayOverride', {mesoId: meso.id, weekIdx: 1, dayIdx: 0, slotIds: [...mondaySlots, tuesdaySlot]});
+  await command('setMesoNumWeeks', {id: meso.id, numWeeks: 13});
+  await command('setDayOverride', {mesoId: meso.id, weekIdx: 12, dayIdx: 0, slotIds: mondaySlots});
 
   await page.setViewportSize({width: 1280, height: 850});
   await ready(page, '/meso');
@@ -245,6 +247,20 @@ test('desktop Program shows week-only exercises and different set counts', async
   await expect(overrideRow.getByRole('button', {name: `Edit ${exerciseName(tuesdaySlot)} targets for Monday, week 2`, exact: true})).toBeVisible();
   await expect(overrideRow.getByRole('cell', {name: 'Not scheduled', exact: true}).first()).toBeVisible();
   await expect(overrideRow.getByRole('button', {name: `Edit ${exerciseName(tuesdaySlot)} targets for Monday, week 1`, exact: true})).toHaveCount(0);
+
+  await page.getByRole('button', {name: 'Next weeks', exact: true}).click();
+  await expect(sheet.getByRole('button', {name: 'Toggle deload week 13', exact: true})).toBeVisible();
+  const week13 = `Monday, ${exerciseName(mondaySlot)}, set 1, week 13, reps`;
+  await sheet.getByRole('button', {name: `${week13}, 8`, exact: true}).press('Enter');
+  const editor = sheet.getByRole('textbox', {name: week13, exact: true});
+  await editor.fill('12');
+  await editor.press('Enter');
+  await expect(sheet.getByRole('button', {name: `${week13}, 12`, exact: true})).toBeVisible();
+  await expect.poll(async () => (await snapshot(request)).week_targets.find((row: any) =>
+    row.slot_id === mondaySlot && row.week_idx === 12)?.reps).toBe('12,8,8');
+  await page.getByRole('button', {name: 'Previous weeks', exact: true}).click();
+  await expect(addedSetRow).toBeVisible();
+  await command('setMesoNumWeeks', {id: meso.id, numWeeks: meso.num_weeks});
 });
 
 test('download and restore a backup through the browser', async ({page,request}) => {

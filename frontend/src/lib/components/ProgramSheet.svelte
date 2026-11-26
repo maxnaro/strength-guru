@@ -41,6 +41,8 @@
   };
 
   const metrics: Metric[] = ["reps", "rir"];
+  const weeksPerPage = 12;
+  let weekPage = 0;
   let active = "";
   let edit: Edit | null = null;
   let error = "";
@@ -48,7 +50,11 @@
   let editor: HTMLInputElement;
   let grid: HTMLDivElement;
 
-  $: weeks = Array.from({ length: meso.num_weeks }, (_, week) => week);
+  $: pageCount = Math.ceil(meso.num_weeks / weeksPerPage);
+  $: pageIndex = Math.min(weekPage, Math.max(0, pageCount - 1));
+  $: firstWeek = pageIndex * weeksPerPage;
+  $: lastWeek = Math.min(firstWeek + weeksPerPage, meso.num_weeks);
+  $: weeks = Array.from({ length: lastWeek - firstWeek }, (_, index) => firstWeek + index);
   $: schedule = buildSchedule(tables, meso.id, weeks);
   $: cells = schedule.flatMap((day) => day.exercises.flatMap((entry) =>
     entry.sets.flatMap((set) => set.flatMap((week) => week.cells.filter((cell): cell is Cell => cell !== null))),
@@ -57,10 +63,10 @@
   $: missingEditedCell = edit && !cells.some((cell) => cell.id === edit?.cell.id);
 
   function buildSchedule(data: Tables, mesoId: string, weekList: number[]) {
-    const targetsByWeek = weekList.map(() => new Map<string, Values>());
+    const targetsByWeek = new Map(weekList.map((week) => [week, new Map<string, Values>()]));
     for (const target of data.week_targets || []) {
       if (target.mesocycle_id === mesoId) {
-        targetsByWeek[target.week_idx]?.set(target.slot_id, {
+        targetsByWeek.get(target.week_idx)?.set(target.slot_id, {
           reps: list(target.reps),
           rir: list(target.rir),
         });
@@ -82,7 +88,7 @@
         exercises: [...exercises.values()].map((exercise) => {
           const targets = slotsByWeek.map((slots, week) =>
             slots.has(exercise.slotId)
-              ? targetsByWeek[week].get(exercise.slotId) ?? { reps: [8, 8, 8], rir: [2, 2, 2] }
+              ? targetsByWeek.get(weekList[week])?.get(exercise.slotId) ?? { reps: [8, 8, 8], rir: [2, 2, 2] }
               : null,
           );
           const setCount = Math.max(1, ...targets.map((values) => values?.reps.length ?? 0));
@@ -93,11 +99,11 @@
               cells: metrics.map((metric, metricIndex): Cell | null =>
                 values && values[metric][set] !== undefined
                   ? {
-                      id: `${dayIndex}:${exercise.slotId}:${set}:${week}:${metric}`,
+                      id: `${dayIndex}:${exercise.slotId}:${set}:${weekList[week]}:${metric}`,
                       row: rowIndex,
                       col: week * metrics.length + metricIndex,
-                      exercise, week, set, metric, values,
-                      name: `${day}, ${exercise.name}, set ${set + 1}, week ${week + 1}, ${metric === "reps" ? "reps" : "RIR"}`,
+                      exercise, week: weekList[week], set, metric, values,
+                      name: `${day}, ${exercise.name}, set ${set + 1}, week ${weekList[week] + 1}, ${metric === "reps" ? "reps" : "RIR"}`,
                     }
                   : null,
               ),
@@ -218,6 +224,12 @@
       void commit(next, event.key === "Enter");
     }
   }
+  function showWeekPage(index: number) {
+    if (edit || saving) return;
+    weekPage = index;
+    active = "";
+    grid.scrollLeft = 0;
+  }
 </script>
 
 <div class="sheet-status" aria-live="polite">
@@ -231,6 +243,13 @@
   {:else if !connected}Reconnect to edit targets.
   {:else}Use arrow keys to move. Press Enter or double-click to edit.{/if}
 </div>
+{#if pageCount > 1}
+  <div class="week-pages">
+    <button class="soft" disabled={pageIndex === 0 || saving} on:click={() => showWeekPage(pageIndex - 1)}>Previous weeks</button>
+    <span aria-live="polite">Weeks {firstWeek + 1}–{lastWeek} of {meso.num_weeks}</span>
+    <button class="soft" disabled={pageIndex + 1 === pageCount || saving} on:click={() => showWeekPage(pageIndex + 1)}>Next weeks</button>
+  </div>
+{/if}
 <div class="program-sheet" bind:this={grid} style:--week-count={weeks.length}>
   <table aria-label="Mesocycle program">
     <colgroup><col class="exercise-column" /><col class="set-column" /></colgroup>
@@ -281,7 +300,8 @@
                 </th>
               {/if}
               <th class="sticky-set set" scope="row">{setIndex + 1}</th>
-              {#each set as { cells: weekCells, scheduled }, week (week)}
+              {#each set as { cells: weekCells, scheduled }, index (weeks[index])}
+                {@const week = weeks[index]}
                 {#each weekCells as cell, metricIndex (metricIndex)}
                   <td class:week-end={metricIndex === 1} class:current-day={today?.week === week && today?.day === dayIndex}
                     class:unavailable={!cell} class:with-action={setIndex === 0 && metricIndex === 1 && scheduled}>
@@ -317,6 +337,13 @@
 </div>
 
 <style>
+  .week-pages {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+  }
   .sheet-status {
     color: var(--dim);
     font-size: 0.8rem;
