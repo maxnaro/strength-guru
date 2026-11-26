@@ -23,7 +23,7 @@ Pick a session from the calendar, log a set, and see the session marked as start
 With Docker and Compose installed, run this from the repository root to try workout tracking locally.
 
 ```sh
-APP_PORT=8080 APP_ORIGIN=http://localhost:8080 docker compose up --build -d
+APP_PORT=8080 APP_ORIGIN=http://localhost:8080 docker compose up --pull always -d
 ```
 
 Open [Strength Guru on localhost](http://localhost:8080). For private HTTPS access, iPhone Home Screen installation, and NVIDIA inference, see the [self-hosting guide](docs/self-hosting.md).

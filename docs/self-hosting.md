@@ -9,7 +9,7 @@ Requirements: Linux x86-64 and Docker Engine with Compose. The default setup run
 ```sh
 cp .env.example .env
 # Edit APP_ORIGIN to match your private HTTPS URL, without a trailing slash.
-docker compose up --build -d
+docker compose up --pull always -d
 docker compose logs -f app
 ```
 
@@ -34,13 +34,13 @@ Copy recovery snapshots off the server periodically. Stop the app before copying
 To enable AI, install an NVIDIA driver and configure NVIDIA Container Toolkit for Docker. The inference configuration targets an RTX 2070 with 8 GB VRAM.
 
 ```sh
-docker compose -f compose.yaml -f compose.inference.yaml up --build -d
+docker compose -f compose.yaml -f compose.inference.yaml up --pull always -d
 docker compose -f compose.yaml -f compose.inference.yaml logs -f app inference model-download
 ```
 
 The first AI startup downloads the pinned 2.54 GB GGUF model and verifies its SHA-256. Interrupted downloads resume. The app starts while the model loads.
 
-To return to app-only mode, run `docker compose up --build -d --remove-orphans`. This removes the inference and model-download containers and retains the named training and model volumes. Queued AI jobs wait until inference is enabled and ready.
+To return to app-only mode, run `docker compose up --pull always -d --remove-orphans`. This removes the inference and model-download containers and retains the named training and model volumes. Queued AI jobs wait until inference is enabled and ready.
 
 The bundled model is `gemma-4-E2B-it-Q3_K_M.gguf`, an 8,192-token context, one inference slot and GPU layer offload. No model weights or inference tokens are downloaded to the phone. Generation, CSV interpretation and advisory fixes run as persistent jobs. Reopen jobs and completed results through **Sync → AI jobs and saved results** after navigating away or reopening Safari. Cancellation closes the active inference connection. Completed stages are checkpointed so server restart can resume work.
 
@@ -57,14 +57,26 @@ The runtime image/model revisions and checksum are pinned in the Dockerfile, Com
 ## Updates and rollback
 
 ```sh
-docker compose up --build -d
+docker compose up --pull always -d
 ```
 
 For a GPU-enabled deployment, use the two-file startup command above for updates.
 
-Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, run the previous application image with its matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
+Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, set `APP_IMAGE=maxnaro/strength-guru:sha-<full-commit-sha>` in `.env`, rerun the startup command for your setup, and restore the matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
+
+## Publishing to Docker Hub
+
+Create the public `maxnaro/strength-guru` repository on Docker Hub. In GitHub Actions, set the repository variable `DOCKERHUB_USERNAME` and the repository secret `DOCKERHUB_TOKEN` to a Docker Hub access token with push permission. The **Web and API** workflow publishes after both checks pass on `main`. Run it manually on `main` to retry or publish a commit whose push did not trigger Actions.
 
 ## Development and verification
+
+To build and run the app from the checked-out source, use the local image explicitly.
+
+```sh
+docker build -t strength-guru:local .
+APP_IMAGE=strength-guru:local docker compose up --pull never -d
+```
+
 
 The production frontend lives in `frontend/`, using Node 24.22.3, Svelte 5, SvelteKit 3, TypeScript and the static adapter. Its `index.html` fallback is served by the existing Dart API process. No Node process runs in the production container.
 
