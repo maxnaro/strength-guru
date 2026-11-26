@@ -10,7 +10,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/prepare-web.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc --noEmit --project src/service-worker/tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && node ./node_modules/typescript-native/bin/tsc --noEmit --project src/service-worker/tsconfig.json",
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:perf": "node scripts/performance.mjs"
@@ -28,7 +28,8 @@
     "@types/node": "^24.0.0",
     "svelte": "5.57.3",
     "svelte-check": "^4.3.0",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
+    "typescript-native": "npm:typescript@7.0.2",
     "vite": "8.3.8",
     "vitest": "^4.0.0"
   }
