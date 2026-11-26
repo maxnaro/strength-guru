@@ -4,16 +4,14 @@ The SvelteKit static web app and Dart API share one origin. The browser renders 
 
 ## Start
 
-Requirements: Linux x86-64, Docker Engine with Compose, an NVIDIA driver and NVIDIA Container Toolkit configured for Docker. The default inference configuration targets an RTX 2070 with 8 GB VRAM.
+Requirements: Linux x86-64 and Docker Engine with Compose. The default setup runs workout tracking with AI disabled.
 
 ```sh
 cp .env.example .env
 # Edit APP_ORIGIN to match your private HTTPS URL, without a trailing slash.
 docker compose up --build -d
-docker compose logs -f app inference model-download
+docker compose logs -f app
 ```
-
-The first run downloads the pinned 2.54 GB GGUF model and checks its SHA-256. Downloads resume after interruption. The model and training data use separate named volumes. The application starts independently of inference readiness; AI failure does not stop logging.
 
 Forward your private HTTPS origin to `http://127.0.0.1:8080`. Only this loopback port is published; inference has no published port. If your proxy is itself containerized, connect it to the app's Docker network and forward to `app:8080`. Keep that network private. Retain the same hostname: browser data and its offline queue are scoped to the origin.
 
@@ -33,11 +31,22 @@ Copy recovery snapshots off the server periodically. Stop the app before copying
 
 ## AI and GPU checks
 
-The default is `gemma-4-E2B-it-Q3_K_M.gguf`, an 8,192-token context, one inference slot and GPU layer offload. No model weights or inference tokens are downloaded to the phone. Generation, CSV interpretation and advisory fixes run as persistent jobs. Reopen jobs and completed results through **Sync → AI jobs and saved results** after navigating away or reopening Safari. Cancellation closes the active inference connection. Completed stages are checkpointed so server restart can resume work.
+To enable AI, install an NVIDIA driver and configure NVIDIA Container Toolkit for Docker. The inference configuration targets an RTX 2070 with 8 GB VRAM.
+
+```sh
+docker compose -f compose.yaml -f compose.inference.yaml up --build -d
+docker compose -f compose.yaml -f compose.inference.yaml logs -f app inference model-download
+```
+
+The first AI startup downloads the pinned 2.54 GB GGUF model and verifies its SHA-256. Interrupted downloads resume. The app starts while the model loads.
+
+To return to app-only mode, run `docker compose up --build -d --remove-orphans`. This removes the inference and model-download containers and retains the named training and model volumes. Queued AI jobs wait until inference is enabled and ready.
+
+The bundled model is `gemma-4-E2B-it-Q3_K_M.gguf`, an 8,192-token context, one inference slot and GPU layer offload. No model weights or inference tokens are downloaded to the phone. Generation, CSV interpretation and advisory fixes run as persistent jobs. Reopen jobs and completed results through **Sync → AI jobs and saved results** after navigating away or reopening Safari. Cancellation closes the active inference connection. Completed stages are checkpointed so server restart can resume work.
 
 ```sh
 nvidia-smi
-docker compose logs inference
+docker compose -f compose.yaml -f compose.inference.yaml logs inference
 curl -fsS http://127.0.0.1:8080/api/v1/health
 ```
 
@@ -48,9 +57,10 @@ The runtime image/model revisions and checksum are pinned in the Dockerfile, Com
 ## Updates and rollback
 
 ```sh
-docker compose build
-docker compose up -d
+docker compose up --build -d
 ```
+
+For a GPU-enabled deployment, use the two-file startup command above for updates.
 
 Browser updates wait until explicitly applied through the sync panel; finish syncing before reloading. The API uses `/api/v1`. Back up before deploying schema changes. For rollback, run the previous application image with its matching pre-upgrade backup. Keep the original native backup until you have verified the imported records.
 
