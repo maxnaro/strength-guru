@@ -1,0 +1,83 @@
+name: Keep Dependabot PRs up to date
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: dependabot-rebase
+  cancel-in-progress: false
+
+jobs:
+  rebase:
+    if: github.repository == 'maxnaro/strength-guru' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request rebases for stale, untouched Dependabot PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Fine-grained token from a user with repository write access.
+          DEPENDABOT_REBASE_TOKEN: ${{ secrets.DEPENDABOT_REBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DEPENDABOT_REBASE_TOKEN" ]]; then
+            echo "::error::Set the DEPENDABOT_REBASE_TOKEN Actions secret with Pull requests read and write access."
+            exit 1
+          fi
+
+          repo="repos/$GITHUB_REPOSITORY"
+          commenter=$(GH_TOKEN="$DEPENDABOT_REBASE_TOKEN" gh api user --jq .login)
+          cutoff=$(date -u -d '6 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+          eligible='
+            .state == "open" and (.draft | not) and .base.ref == "main" and
+            .user.login == "dependabot[bot]" and .head.repo.full_name == $repo and
+            (.head.ref | test("^dependabot/(github_actions|npm_and_yarn|pub)/"))
+          '
+          pulls=$(gh api --paginate --slurp --method GET "$repo/pulls" \
+            -f state=open -f base=main -F per_page=100)
+          candidates=$(jq -c --arg repo "$GITHUB_REPOSITORY" \
+            ".[][] | select($eligible)" <<< "$pulls")
+
+          while IFS= read -r pr; do
+            [[ -n "$pr" ]] || continue
+            number=$(jq -r '.number' <<< "$pr")
+            head=$(jq -r '.head.sha' <<< "$pr")
+            commits=$(gh api "$repo/pulls/$number/commits?per_page=2")
+            if ! jq -e --arg head "$head" '
+              length == 1 and .[0].sha == $head and
+              .[0].author.login == "dependabot[bot]" and .[0].commit.verification.verified
+            ' <<< "$commits" > /dev/null; then
+              echo "Skipping #$number because its head is not a single verified Dependabot commit."
+              continue
+            fi
+
+            behind=$(gh api "$repo/compare/main...$head?per_page=1" --jq .behind_by)
+            [[ "$behind" -gt 0 ]] || continue
+            head_date=$(jq -r '.[0].commit.committer.date' <<< "$commits")
+            comments=$(gh api --paginate --slurp "$repo/issues/$number/comments?per_page=100")
+            if jq -e --arg cutoff "$cutoff" --arg head_date "$head_date" --arg commenter "$commenter" '
+              any(.[][]; .body == "@dependabot rebase" and .user.login == $commenter and
+                .created_at >= $cutoff and .created_at >= $head_date)
+            ' <<< "$comments" > /dev/null; then
+              echo "Skipping #$number because a rebase was recently requested."
+              continue
+            fi
+
+            current=$(gh api "$repo/pulls/$number")
+            if ! jq -e --arg repo "$GITHUB_REPOSITORY" --arg head "$head" \
+              "($eligible) and .head.sha == \$head" <<< "$current" > /dev/null; then
+              echo "Skipping #$number because the pull request changed."
+              continue
+            fi
+
+            GH_TOKEN="$DEPENDABOT_REBASE_TOKEN" gh api --method POST \
+              "$repo/issues/$number/comments" -f body='@dependabot rebase' --silent
+            echo "Requested a Dependabot rebase for #$number."
+          done <<< "$candidates"
