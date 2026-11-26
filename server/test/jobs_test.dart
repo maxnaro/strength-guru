@@ -15,11 +15,13 @@ void main() {
   late HttpServer inference;
   late Jobs jobs;
   var requests = 0;
+  var ready = true;
   const content =
       '{"label":"Push","exercises":[{"name":"Bench Press","group":"chest","sets":"3","reps":"8","rpe":"8"}]}';
   setUp(() async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     requests = 0;
+    ready = true;
     db = AppDatabase(NativeDatabase.memory());
     await Store(db).initialize();
     inference = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -27,6 +29,7 @@ void main() {
       await request.drain<void>();
       request.response.headers.contentType = ContentType.json;
       if (request.uri.path == '/health') {
+        request.response.statusCode = ready ? 200 : 503;
         request.response.write('{}');
       } else {
         requests++;
@@ -103,6 +106,55 @@ void main() {
     await jobs.start();
     expect((await jobs.get('cancel'))['state'], 'cancelled');
     expect(requests, 0);
+  });
+
+  test('disabled inference rejects new jobs and keeps saved jobs', () async {
+    const body = {
+      'id': 'disabled',
+      'kind': 'csv',
+      'input': {'csv': 'Bench Press,3,8,8'},
+    };
+    await db.customStatement(
+      'INSERT INTO sg_jobs (id, kind, request, state, created_at) VALUES (?, ?, ?, ?, ?)',
+      ['disabled', 'csv', jsonEncode(body['input']), 'running', 'now'],
+    );
+    jobs = Jobs(db, null, 'test');
+    await jobs.start();
+    expect(await jobs.available(), isFalse);
+    expect((await jobs.create(body))['state'], 'queued');
+    await expectLater(
+      jobs.create({...body, 'id': 'new'}),
+      throwsA(
+        isA<ProtocolException>().having(
+          (e) => e.code,
+          'code',
+          'ai_unavailable',
+        ),
+      ),
+    );
+    await jobs.cancel('disabled');
+    expect((await jobs.get('disabled'))['state'], 'cancelled');
+    expect(requests, 0);
+  });
+
+  test('persisted jobs wait for inference to become ready', () async {
+    ready = false;
+    await db.customStatement(
+      'INSERT INTO sg_jobs (id, kind, request, state, created_at) VALUES (?, ?, ?, ?, ?)',
+      [
+        'warmup',
+        'csv',
+        jsonEncode({'csv': 'Bench Press,3,8,8'}),
+        'queued',
+        'now',
+      ],
+    );
+    await jobs.start();
+    expect(await jobs.available(), isFalse);
+    expect((await jobs.get('warmup'))['state'], 'queued');
+    ready = true;
+    expect((await finish('warmup'))['state'], 'complete');
+    expect(requests, 1);
   });
 
   test('graceful shutdown leaves active work resumable', () async {

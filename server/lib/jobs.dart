@@ -12,19 +12,21 @@ import 'package:uuid/uuid.dart';
 
 class Jobs {
   final AppDatabase db;
-  final String baseUrl;
+  final String? baseUrl;
   final String model;
   bool _running = false;
   bool _closed = false;
   Timer? _timer;
   String? _activeId;
   http.Client? _activeClient;
-  Jobs(this.db, this.baseUrl, this.model);
+  Jobs(this.db, String? baseUrl, this.model)
+    : baseUrl = baseUrl == null || baseUrl.isEmpty ? null : baseUrl;
 
   Future<void> start() async {
     await db.customStatement(
       "UPDATE sg_jobs SET state = 'queued' WHERE state = 'running'",
     );
+    if (baseUrl == null) return;
     _timer = Timer.periodic(
       const Duration(seconds: 2),
       (_) => unawaited(_drain()),
@@ -33,6 +35,7 @@ class Jobs {
   }
 
   Future<bool> available() async {
+    if (baseUrl == null) return false;
     try {
       return (await http
                   .get(Uri.parse('$baseUrl/health'))
@@ -207,7 +210,7 @@ class Jobs {
   }
 
   Future<void> _drain() async {
-    if (_running || _closed) return;
+    if (_running || _closed || baseUrl == null) return;
     _running = true;
     try {
       final row = await db
@@ -215,7 +218,7 @@ class Jobs {
             "SELECT * FROM sg_jobs WHERE state = 'queued' ORDER BY created_at LIMIT 1",
           )
           .getSingleOrNull();
-      if (row == null) return;
+      if (row == null || !await available() || _closed) return;
       final id = row.read<String>('id');
       _activeId = id;
       _activeClient = http.Client();
@@ -226,10 +229,11 @@ class Jobs {
         final checkpoints = Map<String, dynamic>.from(
           jsonDecode(row.read<String>('checkpoints')) as Map,
         );
-        await db.customStatement(
+        final claimed = await db.customUpdate(
           "UPDATE sg_jobs SET state = 'running', progress = 'Working' WHERE id = ? AND state = 'queued'",
-          [id],
+          variables: [Variable(id)],
         );
+        if (claimed == 0 || _closed) return;
         final llm = LlmService(
           model: model,
           client: _activeClient,
