@@ -1344,3 +1344,93 @@ dialog::backdrop {
     --tint: var(--tint-dark);
   }
 }
+
+/* Let planning use the desktop workspace while the workout stays easy to scan. */
+@media (min-width: 1024px) {
+  .app-shell {
+    max-width: none;
+    border: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+  }
+  .app-shell > main {
+    grid-row: 3;
+    min-width: 0;
+    padding-bottom: 32px;
+  }
+  .app-shell:not(.meso-shell) > main {
+    width: min(100%, 820px);
+    justify-self: center;
+  }
+  .bottom-tabs {
+    grid-row: 1;
+    position: static;
+    transform: none;
+    height: auto;
+    width: 100%;
+    justify-content: flex-start;
+    padding: 8px 24px;
+    gap: 8px;
+    border-top: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .bottom-tabs a {
+    flex: 0 0 auto;
+    flex-direction: row;
+    padding: 8px 16px;
+  }
+  .meso-page .viz {
+    width: min(100%, 280px);
+  }
+  .meso-page .calendar {
+    max-width: 780px;
+  }
+}
+
+.meso-name:focus-visible {
+  border-radius: 8px;
+}
+.viz button {
+  transition: background 120ms ease, color 120ms ease;
+}
+.log-page .exercise-card > header h2 {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .viz button {
+    transition: none;
+  }
+}
+
+.bottom-tabs a {
+  border-radius: 12px;
+}
+.bottom-tabs a.selected {
+  background: var(--chip);
+}
+.meso-page .calendar-legend {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+@media (min-width: 1024px) {
+  .meso-toolbar,
+  .meso-toolbar .meso-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .meso-toolbar {
+    justify-content: space-between;
+    margin: 12px 0;
+  }
+  .meso-toolbar .viz {
+    margin: 0;
+  }
+  .meso-toolbar .meso-actions > button {
+    width: auto;
+    margin: 0;
+  }
+}
