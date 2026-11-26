@@ -4,8 +4,10 @@ test.use({ serviceWorkers: 'block' });
 
 test('retrying an import after losing its acknowledgement does not duplicate the block',async({page,context,request})=>{
   const name=`Acknowledgement retry ${Date.now()}`;
-  const plan={name,numWeeks:2,days:[{dayIdx:0,label:'Upper',exercises:[{name:'Retry Bench Press',muscleGroup:'chest',weekTargets:[{weekIdx:0,reps:[8,8],rir:[2,2]},{weekIdx:1,reps:[9,9],rir:[1,1]}]}]}],advisories:[]};
+  const plan={name,numWeeks:2,days:[{dayIdx:0,label:'Upper',exercises:[{name:'Retry Bench Press',muscleGroup:'chest',weekTargets:[{weekIdx:0,reps:[8,8],rir:[2,2]},{weekIdx:1,reps:[9,9],rir:[1,1]}]}]}],advisories:[{severity:'warn',scope:'back',message:'Add back work.'}]};
   const jobId=crypto.randomUUID();
+  let aiAvailable = true;
+  await context.route('**/api/v1/health', route => route.fulfill({json:{ok:true,aiAvailable}}));
   await context.route('**/api/v1/jobs',route=>route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({id:jobId,state:'queued'})}));
   await context.route(`**/api/v1/jobs/${jobId}`,route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:jobId,state:'complete',result:plan})}));
   // AI output is a fixed fixture; the import command and persistence use the real Dart API.
@@ -13,6 +15,12 @@ test('retrying an import after losing its acknowledgement does not duplicate the
   await page.getByRole('textbox',{name:'Program description'}).fill('A two-week upper block.');
   await page.getByRole('button',{name:'Generate Program →',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Review training block'})).toBeVisible();
+  const fix = page.getByRole('button', { name: 'Fix with AI' });
+  await expect(fix).toBeEnabled();
+  aiAvailable = false;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(fix).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Import Block', exact: true })).toBeEnabled();
   let intercepted = false;
   let lost = false;
   await context.route('**/api/v1/commands', async route => {
@@ -34,6 +42,7 @@ test('retrying an import after losing its acknowledgement does not duplicate the
   await expect(page.locator('.sync-banner')).toContainText('need review');
   await expect.poll(async()=>(await replica(page)).outbox.length).toBe(0);
   await page.getByRole('button',{name:'Close dialog'}).click();
+  await page.getByRole('button',{name:'Dismiss error'}).click();
   await page.getByRole('button',{name:'Import Block',exact:true}).click();
   await expect(page).toHaveURL(/\/meso/);
   await expect(page.locator('.sync-banner')).toContainText('Synced');

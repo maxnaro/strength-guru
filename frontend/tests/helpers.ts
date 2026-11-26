@@ -5,10 +5,9 @@ export async function ready(page: Page, path = '/') {
   await expect(page.locator('main h1').first()).toBeVisible();
 }
 export async function offlineReady(page: Page) {
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-    while (!navigator.serviceWorker.controller) await new Promise(r => setTimeout(r, 50));
-  });
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)), {
+    message: 'Wait for the service worker to control the page',
+  }).toBe(true);
 }
 export async function monday(page: Page) {
   await page.goto('/log');
