@@ -1,0 +1,85 @@
+name: Dependabot auto-merge
+
+on:
+  workflow_run:
+    workflows: [Web and API]
+    types: [completed]
+    branches: ['dependabot/**']
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Dependabot pull request number
+        required: true
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.repository == 'maxnaro/strength-guru' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the update and request squash auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr }}
+          CI_HEAD: ${{ github.event.workflow_run.head_sha }}
+          CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 1
+          else
+            PR_NUMBER=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+              -f state=open -f base=main -f head="$GITHUB_REPOSITORY_OWNER:$CI_BRANCH" \
+              --jq 'if length == 1 then .[0].number else empty end')
+            [[ -n "$PR_NUMBER" ]] || exit 0
+          fi
+
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")
+          if ! jq -e --arg repo "$GITHUB_REPOSITORY" '
+            .state == "open" and (.draft | not) and .base.ref == "main" and
+            .user.login == "dependabot[bot]" and .head.repo.full_name == $repo and
+            (.head.ref | test("^dependabot/(github_actions|npm_and_yarn|pub)/"))
+          ' <<< "$pr" > /dev/null; then
+            exit 0
+          fi
+          head=$(jq -r '.head.sha' <<< "$pr")
+          [[ -z "$CI_HEAD" || "$CI_HEAD" == "$head" ]] || exit 0
+
+          commits=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits?per_page=2")
+          if ! jq -e --arg head "$head" '
+            length == 1 and .[0].sha == $head and
+            .[0].author.login == "dependabot[bot]" and .[0].commit.verification.verified
+          ' <<< "$commits" > /dev/null; then
+            exit 0
+          fi
+
+          if ! jq -r '.[0].commit.message' <<< "$commits" | ruby -ryaml -e '
+            footer = STDIN.read[/^---\n(.*?)^\.\.\.$/m, 1]
+            exit 1 unless footer
+            metadata = YAML.safe_load(footer)
+            updates = metadata["updated-dependencies"] if metadata.is_a?(Hash)
+            allowed = %w[version-update:semver-minor version-update:semver-patch]
+            exit(updates.is_a?(Array) && !updates.empty? && updates.all? do |update|
+              update.is_a?(Hash) && allowed.include?(update["update-type"])
+            end)
+          '; then
+            exit 0
+          fi
+
+          # A workflow-file merge needs the exact file contents already on the PR branch.
+          if [[ $(jq -r '.head.ref' <<< "$pr") == dependabot/github_actions/* ]]; then
+            comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$head" --jq .status)
+            [[ "$comparison" == ahead ]] || exit 0
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --auto --squash --match-head-commit "$head"
