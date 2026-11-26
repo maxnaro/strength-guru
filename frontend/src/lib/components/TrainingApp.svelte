@@ -43,6 +43,8 @@
   afterNavigate(({ to }) => {
     routeUrl = to?.url || new URL(location.href);
     parseRoute();
+    if (["/generate", "/import"].includes(routeUrl.pathname))
+      void refreshAiAvailability();
   });
   let selected: { week: number; day: number } | null = null;
   let viz = "calendar";
@@ -68,6 +70,9 @@
   let jobBusy = false;
   let jobError = "";
   let jobStatus = "";
+  let aiAvailable: boolean | null = null;
+  let aiCheckPending = false;
+  let aiCheckVersion = 0;
   let lastJob: { kind: string; input: Row } | null = null;
   let taskVersion = 0;
   let description = "";
@@ -128,6 +133,10 @@
   onMount(() => {
     restoreWorkflows();
     training.initialize().catch((e: unknown) => (error = String(e)));
+    window.addEventListener("online", refreshAiAvailability);
+    window.addEventListener("offline", markAiUnavailable);
+    document.addEventListener("visibilitychange", checkVisibleAiAvailability);
+    const aiRefreshTimer = window.setInterval(checkVisibleAiAvailability, 15_000);
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { type: "module" })
@@ -144,14 +153,51 @@
     }
     return () => {
       taskVersion++;
+      aiCheckVersion++;
+      window.removeEventListener("online", refreshAiAvailability);
+      window.removeEventListener("offline", markAiUnavailable);
+      document.removeEventListener("visibilitychange", checkVisibleAiAvailability);
+      window.clearInterval(aiRefreshTimer);
     };
   });
+  async function refreshAiAvailability() {
+    if (aiCheckPending) return;
+    aiCheckPending = true;
+    const version = ++aiCheckVersion;
+    try {
+      const health = await api("health");
+      if (version === aiCheckVersion) aiAvailable = health.aiAvailable === true;
+    } catch {
+      if (version === aiCheckVersion) aiAvailable = false;
+    } finally {
+      if (version === aiCheckVersion) aiCheckPending = false;
+    }
+  }
+  function markAiUnavailable() {
+    aiCheckVersion++;
+    aiCheckPending = false;
+    aiAvailable = false;
+  }
+  function checkVisibleAiAvailability() {
+    if (
+      document.visibilityState === "visible" &&
+      navigator.onLine &&
+      (view === "/generate" ||
+        view === "/import" ||
+        sheet?.kind === "switcher" ||
+        sheet?.kind === "volume")
+    ) {
+      void refreshAiAvailability();
+    }
+  }
   function notify(s: string) {
     toast = s;
     window.clearTimeout(pendingFocus);
     pendingFocus = window.setTimeout(() => (toast = ""), 4500);
   }
   function open(s: Row) {
+    if (s.kind === "switcher" || s.kind === "volume")
+      void refreshAiAvailability();
     dialogError = "";
     stack = [];
     sheet = s;
@@ -681,6 +727,7 @@
       basisMode,
     }).catch((e) => (error = String(e)));
   async function startJob(kind: string, input: Row) {
+    if (!aiAvailable) return;
     review = null;
     const body = {
       id: crypto.randomUUID(),
@@ -775,8 +822,10 @@
     });
   }
   async function importCsv(event: Event) {
-    const f = (event.target as HTMLInputElement).files?.[0];
-    if (!f) return;
+    const input = event.target as HTMLInputElement;
+    const f = input.files?.[0];
+    input.value = "";
+    if (!f || !aiAvailable) return;
     const bytes = await f.arrayBuffer();
     let csv;
     try {
@@ -785,7 +834,6 @@
       csv = new TextDecoder("windows-1252").decode(bytes);
     }
     await startJob("csv", { csv });
-    (event.target as HTMLInputElement).value = "";
   }
   async function fixPlan(data: Row, advisories: Row[]) {
     await startJob("fix", {
@@ -956,11 +1004,22 @@
   }
 </script>
 
+{#snippet aiLockNotice(id: string)}
+  {#if !aiAvailable}
+    <p {id} class="hint" role="status">
+      {aiAvailable === null
+        ? "Checking AI availability…"
+        : "AI features are locked because server inference is unavailable."}
+    </p>
+  {/if}
+{/snippet}
+
 <svelte:head><title>StrengthGuru</title></svelte:head>
 <input
   class="hidden"
   type="file"
   accept=".csv,text/csv"
+  disabled={!aiAvailable}
   bind:this={importFile}
   on:change={importCsv}
 />
@@ -1082,9 +1141,10 @@
               bind:value={sport}
               placeholder="climbing, running, BJJ, general fitness…"
             /></label
-          ><button
+          >{@render aiLockNotice("generate-ai-status")}<button
             class="solid accent"
-            disabled={!description.trim() || jobBusy}
+            disabled={!aiAvailable || !description.trim() || jobBusy}
+            aria-describedby={aiAvailable ? undefined : "generate-ai-status"}
             on:click={generate}>Generate Program →</button
           >
         </section>
@@ -1141,10 +1201,13 @@
                 <h3>Plan review</h3>
                 <button
                   class="soft push"
+                  disabled={!aiAvailable}
+                  aria-describedby={aiAvailable ? undefined : "review-ai-status"}
                   on:click={() => fixPlan(review!, review!.advisories)}
                   >Fix with AI</button
                 >
               </div>
+              {@render aiLockNotice("review-ai-status")}
               {#each review.advisories as a, i}<div class="row advisory">
                   <span class:warning={a.severity === "warn"}>{a.message}</span
                   ><button
@@ -1263,10 +1326,20 @@
           >
         {:else}<section class="empty card">
             <h2>Import your next block.</h2>
-            <p class="muted">Choose a CSV or describe a program to generate.</p>
-            <button class="solid" on:click={() => importFile.click()}
+            {#if aiAvailable}<p class="muted">Choose a CSV or describe a program to generate.</p>{/if}
+            {@render aiLockNotice("import-ai-status")}
+            <button
+              class="solid"
+              disabled={!aiAvailable}
+              aria-describedby={aiAvailable ? undefined : "import-ai-status"}
+              on:click={() => importFile.click()}
               >Import CSV</button
-            ><a href="/generate" class="soft"><Icon name="auto_awesome_outlined" size={18} /> Generate Program</a><button
+            >{#if aiAvailable}<a href="/generate" class="soft"><Icon name="auto_awesome_outlined" size={18} /> Generate Program</a>{:else}<button
+                class="soft"
+                disabled
+                aria-describedby="import-ai-status"
+                >Generate Program</button
+              >{/if}<button
               class="ghost"
               on:click={showJobs}>AI jobs and saved results</button
             >{#if pendingJob}<button class="soft" on:click={retryJob}
@@ -1694,11 +1767,17 @@
       </div>
       <button class="solid full" on:click={() => nameDialog("create")}
         >+ New Mesocycle</button
-      ><button class="soft full" on:click={() => importFile.click()}
+      >{@render aiLockNotice("switcher-ai-status")}<button
+        class="soft full"
+        disabled={!aiAvailable}
+        aria-describedby={aiAvailable ? undefined : "switcher-ai-status"}
+        on:click={() => importFile.click()}
         >Import CSV</button
-      ><a class="soft full" href="/generate" on:click={() => (sheet = null)}
+      >{#if aiAvailable}<a class="soft full" href="/generate" on:click={() => (sheet = null)}
         >Generate Program</a
-      >
+      >{:else}<button class="soft full" disabled aria-describedby="switcher-ai-status"
+          >Generate Program</button
+        >{/if}
     {:else if sheet.kind === "meso-actions"}<button
         class="soft full"
         on:click={() => nameDialog("rename", sheet!.m)}>Rename</button
@@ -2178,13 +2257,15 @@
           </div>
           <button
             class="soft full"
+            disabled={!aiAvailable}
+            aria-describedby={aiAvailable ? undefined : "volume-ai-status"}
             on:click={() => {
               experience = sheet!.experience;
               goal = sheet!.goal;
               sport = sheet!.sport;
               fixPlan(exportPlan(tables, meso!), sheet!.advisories);
             }}>Fix with AI</button
-          >{/if}{/if}
+          >{@render aiLockNotice("volume-ai-status")}{/if}{/if}
     {:else if sheet.kind === "about"}<div class="two stats">
         <section class="stat">
           <div>

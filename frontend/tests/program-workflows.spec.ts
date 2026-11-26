@@ -23,6 +23,40 @@ async function switcher(page: Page) {
   await expect(page.getByRole('dialog', { name: 'Mesocycles' })).toBeVisible();
 }
 
+test('unavailable inference locks new AI work and leaves training controls usable', async ({ page, request }) => {
+  const health = await request.get('/api/v1/health');
+  expect(health.ok()).toBeTruthy();
+  expect(await health.json()).toMatchObject({ ok: true, aiAvailable: false });
+  const locked = 'AI features are locked because server inference is unavailable.';
+
+  await ready(page, '/meso');
+  await switcher(page);
+  const mesos = page.getByRole('dialog', { name: 'Mesocycles' });
+  await expect(mesos.getByText(locked)).toBeVisible();
+  await expect(mesos.getByRole('button', { name: 'Import CSV' })).toBeDisabled();
+  await expect(mesos.getByRole('button', { name: 'Generate Program' })).toBeDisabled();
+  await expect(mesos.getByRole('button', { name: /New Mesocycle/ })).toBeEnabled();
+  await mesos.getByRole('button', { name: 'Close dialog' }).click();
+
+  await page.getByRole('button', { name: 'Check program volume' }).click();
+  const volume = page.getByRole('dialog', { name: 'Volume Check' });
+  await volume.getByRole('button', { name: 'Run Validation' }).click();
+  await expect(volume.getByText(locked)).toBeVisible();
+  await expect(volume.getByRole('button', { name: 'Fix with AI' })).toBeDisabled();
+
+  await ready(page, '/generate');
+  await expect(page.getByText(locked)).toBeVisible();
+  await page.getByRole('textbox', { name: 'Program description' }).fill('A two-week upper block.');
+  await expect(page.getByRole('button', { name: 'Generate Program →' })).toBeDisabled();
+
+  await ready(page, '/import');
+  await expect(page.getByText(locked)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import CSV' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Generate Program' })).toBeDisabled();
+  await page.getByRole('button', { name: 'AI jobs and saved results' }).click();
+  await expect(page.getByRole('dialog', { name: 'AI jobs' })).toBeVisible();
+});
+
 test('create, rename, duplicate, activate and delete mesocycles', async ({page, request}) => {
   await ready(page, '/meso');
   const initial = await snapshot(request);
