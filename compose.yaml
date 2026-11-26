@@ -1,8 +1,7 @@
 name: strength-guru
 services:
   app:
-    build: .
-    image: strength-guru:local
+    image: ${APP_IMAGE:-macksmacks/strength-guru:latest}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"

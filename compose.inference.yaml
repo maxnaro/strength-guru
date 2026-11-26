@@ -4,8 +4,7 @@ services:
       LLM_BASE_URL: http://inference:8080
       LLM_MODEL: strength-guru
   model-download:
-    image: strength-guru:local
-    build: .
+    image: ${APP_IMAGE:-macksmacks/strength-guru:latest}
     user: "0:0"
     entrypoint: ["/bin/sh", "/download-model.sh"]
     volumes:

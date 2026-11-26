@@ -67,3 +67,46 @@ jobs:
         working-directory: server
       - run: dart run tool/browser_fixtures.dart --check && dart analyze && dart test && dart build cli --target=bin/server.dart --output=build
         working-directory: server
+  publish:
+    name: Publish to Docker Hub
+    needs: [frontend, api]
+    if: >-
+      github.repository == 'maxnaro/strength-guru' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_REPOSITORY: macksmacks/strength-guru
+      APP_IMAGE: macksmacks/strength-guru:sha-${{ github.sha }}
+      APP_ORIGIN: http://localhost:8080
+      COMPOSE_PROJECT_NAME: strength-guru-image-ci
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build application image
+        run: docker build --platform linux/amd64 --build-arg "GIT_SHA=$GITHUB_SHA" --tag "$APP_IMAGE" .
+      - name: Check the application image
+        run: |
+          docker compose up --pull never --wait --wait-timeout 90
+          curl -fsS http://localhost:8080/today > /dev/null
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs app
+      - name: Clean up the smoke test
+        if: always()
+        run: docker compose down --volumes
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push commit tag and promote latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          docker push "$APP_IMAGE"
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$main_sha" == "$GITHUB_SHA" ]]; then
+            docker tag "$APP_IMAGE" "$IMAGE_REPOSITORY:latest"
+            docker push "$IMAGE_REPOSITORY:latest"
+          fi
