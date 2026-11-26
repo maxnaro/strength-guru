@@ -14,7 +14,7 @@ if(process.env.TEST_HISTORY === '1') {
 }
 const child = spawn(process.env.DART_BIN || 'dart', ['run', 'bin/server.dart'], {
   cwd: resolve('../server'), stdio: 'inherit',
-  env: { ...process.env, DATA_DIR: data, WEB_ROOT: resolve('build'), PORT: port, APP_ORIGIN: `http://127.0.0.1:${port}`, LLM_BASE_URL: 'http://127.0.0.1:1', LLM_MODEL: 'test' }
+  env: { ...process.env, DATA_DIR: data, WEB_ROOT: resolve('build'), PORT: port, APP_ORIGIN: `http://127.0.0.1:${port}`, LLM_BASE_URL: '' }
 });
 let stopping = false;
 async function stop(signal = 'SIGTERM') {
