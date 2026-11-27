@@ -265,17 +265,19 @@ test('Log keeps the selected week in view and offers Today in the header', async
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
 
-test('main screens meet automated WCAG checks in light and dark themes',async({page})=>{
-  test.setTimeout(60_000);
-  const violations:any[]=[];
-  for(const colorScheme of ['light','dark'] as const){
-    await page.emulateMedia({colorScheme});
-    for(const path of ['/','/log','/meso','/generate','/import']){
-      await ready(page,path);
-      if(path==='/log')await page.getByRole('button', {name:'Monday',exact:true}).click();
-      const results=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
-      violations.push(...results.violations.map(v=>({path,colorScheme,id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})));
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`main screens meet automated WCAG checks in ${colorScheme} mode`, async ({ page }) => {
+    test.setTimeout(60_000);
+    const violations: any[] = [];
+    await page.emulateMedia({ colorScheme });
+    for (const path of ['/', '/log', '/meso', '/generate', '/import']) {
+      await ready(page, path);
+      if (path === '/log') await page.getByRole('button', { name: 'Monday', exact: true }).click();
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      violations.push(...results.violations.map(v => ({
+        path, id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })),
+      })));
     }
-  }
-  expect(violations).toEqual([]);
-});
+    expect(violations).toEqual([]);
+  });
+}
