@@ -24,7 +24,17 @@ test('sign-in gates new accounts and isolates training and backups', async ({ br
     const link = new URL((await created.json()).url);
     expect(link.pathname).toBe('/invite');
 
-    const guestSession = await signIn(guest.request, origin, 'invited-guest', link.hash.slice(1));
+    await guest.route('**/authorize?*', route => {
+      const destination = new URL(route.request().url());
+      destination.searchParams.set('test_subject', 'invited-guest');
+      return route.continue({ url: destination.toString() });
+    });
+    const page = await guest.newPage();
+    await page.goto(link.toString());
+    await expect(page.getByText('Sign in to accept your invitation.')).toBeVisible();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByText('No active mesocycle.')).toBeVisible();
+    const guestSession = await guest.request.get('/api/v1/auth/session');
     expect(guestSession.ok()).toBeTruthy();
     const b = await guestSession.json();
     expect(b).toMatchObject({ owner: false, legacyOwner: false });
@@ -36,14 +46,23 @@ test('sign-in gates new accounts and isolates training and backups', async ({ br
     const ownerSync = await owner.request.get('/api/v1/sync', { headers: ownerHeaders });
     expect((await ownerSync.json()).snapshot.mesocycles.length).toBeGreaterThan(0);
     expect((await guest.request.get('/api/v1/backups', { headers: ownerHeaders })).status()).toBe(409);
+    const backup = await owner.request.get('/api/v1/backups', { headers: ownerHeaders });
+    expect(backup.ok()).toBeTruthy();
+    const staged = await owner.request.post('/api/v1/backups/inspect', {
+      headers: { ...ownerHeaders, 'content-type': 'application/vnd.sqlite3' },
+      data: await backup.body(),
+    });
+    expect(staged.ok()).toBeTruthy();
+    const foreignRestore = await guest.request.post('/api/v1/backups/restore', {
+      headers: guestHeaders,
+      data: { token: (await staged.json()).token, confirmed: true },
+    });
+    expect(await foreignRestore.json()).toMatchObject({ code: 'expired_import' });
     expect((await guest.request.get('/api/v1/auth/invites', { headers: guestHeaders })).status()).toBe(403);
 
     const used = await owner.request.get('/api/v1/auth/invites', { headers: ownerHeaders });
     expect((await used.json()).invites).toEqual(expect.arrayContaining([expect.objectContaining({ status: 'used' })]));
 
-    const page = await guest.newPage();
-    await page.goto('/meso');
-    await expect(page.getByText('No active mesocycle.')).toBeVisible();
     expect((await guest.request.post('/api/v1/auth/logout', { headers: guestHeaders, data: {} })).ok()).toBeTruthy();
     expect((await signIn(guest.request, origin, 'invited-guest')).ok()).toBeTruthy();
   } finally {

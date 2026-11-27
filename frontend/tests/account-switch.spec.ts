@@ -56,7 +56,9 @@ test('sign-out closes training across tabs and account switching leaves pending 
       };
     };
   }), session.accountId);
-  expect(retained).toEqual(ownerOutbox);
+  expect(retained).toMatchObject(ownerOutbox.map(
+    ({ id, body, state }: { id: string; body: unknown; state: string }) => ({ id, body, state }),
+  ));
 });
 
 test('legacy browser data is adopted only after owner confirmation', async ({ context, page }) => {

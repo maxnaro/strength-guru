@@ -19,7 +19,7 @@ Register a confidential web client at your OIDC provider. Enable authorization c
 - Set `OIDC_ISSUER` to the provider's discovery issuer and set `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` from the client registration. Keep the secret out of version control.
 - Set `OIDC_OWNER_SUBJECT` to your account's immutable `sub` claim for this client. Obtain it from your provider's administration tools. Email addresses and usernames are separate claims.
 
-The owner signs in and manages links from the account menu. Each link expires after seven days and the first eligible recipient who redeems it gets a private account. Revoke an unused link from the same screen. Users return through the regular sign-in button. Strength Guru sign-out ends its app session. Use your provider's account chooser or sign out there to select another identity.
+The owner signs in, opens the sync status strip, then selects **Account** to manage links. Each link expires after seven days and the first eligible recipient who redeems it gets a private account. Revoke an unused link from the same screen. Users return through the regular sign-in button. Strength Guru sign-out ends its app session. Use your provider's account chooser or sign out there to select another identity.
 
 Forward your private HTTPS origin to `http://127.0.0.1:8080`. Only this loopback port is published; inference has no published port. If your proxy is itself containerized, connect it to the app's Docker network and forward to `app:8080`. Keep that network private. Retain the same hostname: browser data and its offline queue are scoped to the origin.
 
@@ -125,7 +125,7 @@ TEST_BROWSER=firefox npm run test:browser
 TEST_BROWSER=webkit npm run test:browser
 ```
 
-The Playwright runner starts the real Dart server on loopback port 18765 with a new temporary training directory and disabled inference. It refuses to reuse an existing server and deletes its temporary data on exit. It never connects to the deployed training profile. Set `DART_BIN` if Dart is outside `PATH`, `PLAYWRIGHT_BROWSERS_PATH` for an isolated browser cache, or `TEST_PORT` to use a different free port.
+The Playwright runner starts the real Dart server on loopback port 18765 with a temporary training directory and disabled inference. Its disposable OIDC provider uses the next port, 18766 by default. It refuses to reuse an existing server and deletes its temporary data on exit. It never connects to the deployed training profile. Set `DART_BIN` if Dart is outside `PATH`, `PLAYWRIGHT_BROWSERS_PATH` for an isolated browser cache, or `TEST_PORT` to use a different free port.
 
 The suite covers direct route loads, semantic controls and accessibility, offline cache startup, queued logging across page closure/reload, reconnect deduplication, concurrent tabs, lost acknowledgements, origin rejection, missing-asset 404s and dialogs. Browser traces/screenshots are retained on failure. `npm run test:perf` seeds 103 weeks of history in a disposable dataset (4,635 sets), then repeats the performance scenario five times and writes a median/p95 summary under `test-results/performance/`. Performance checks emulate a mobile viewport at 10 Mbps and 50 ms latency, recording cold/cached readiness, actual DOM feedback time for 20 local saves, and raw/gzip/Brotli artifact sizes. Results are written to Playwright's test output with an offline screenshot. `frontend/build/build-metrics.json` also records build artifact sizes; compressed sizes are estimates, not a promise of the proxy's transfer encoding.
 
