@@ -1,9 +1,10 @@
 <script lang="ts">
   import metadata from "../../../package.json";
   import { onMount, tick } from "svelte";
-  import { goto, afterNavigate } from "$app/navigation";
-  import { training } from "$lib/data";
-  import { readDraft, writeDraft, listDrafts } from "$lib/domain/drafts";
+  import { goto as navigate, afterNavigate } from "$app/navigation";
+  import type { Training } from "$lib/data";
+  import { accountApi, type AccountConnection } from "$lib/data/account";
+  import { accountDrafts } from "$lib/domain/drafts";
   import Sheet from "./Sheet.svelte";
   import Stepper from "./Stepper.svelte";
   import Icon from "./Icon.svelte";
@@ -34,11 +35,22 @@
     normalizePlan,
     importTarget,
     validateVolume,
-    api,
     download,
     clamp,
     type Row,
   } from "$lib/domain/training";
+  export let training: Training;
+  export let account: AccountConnection;
+  export let openAccount: () => void;
+  const { readDraft, writeDraft, listDrafts } = accountDrafts(account.id);
+  const api = (path: string, method?: string, body?: Row) =>
+    accountApi(account, path, method, body);
+  function goto(...args: Parameters<typeof navigate>) {
+    account.assertActive();
+    return navigate(...args);
+  }
+  const tabKey = `sg-tab:${account.id}`;
+  const workflowKey = `sg-workflow:${account.id}`;
   let routeUrl = new URL("http://localhost/");
   afterNavigate(({ to }) => {
     routeUrl = to?.url || new URL(location.href);
@@ -137,6 +149,7 @@
         ? `${(Math.round(weightForReps(calcOne, calcReps, calcRir, formula) / 2.5) * 2.5).toFixed(1)} kg`
         : `${repsForWeight(calcOne, calcLift, formula)} reps`;
   onMount(() => {
+    routeUrl = new URL(location.href);
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
     const updateDesktop = () => (desktop = desktopQuery.matches);
     updateDesktop();
@@ -166,6 +179,7 @@
     }
     return () => {
       desktopQuery.removeEventListener("change", updateDesktop);
+      window.clearTimeout(pendingFocus);
       taskVersion++;
       aiCheckVersion++;
       window.removeEventListener("online", refreshAiAvailability);
@@ -182,7 +196,7 @@
     aiCheckPending = true;
     const version = ++aiCheckVersion;
     try {
-      const health = await api("health");
+      const health = await api("ai/status");
       if (version === aiCheckVersion) aiAvailable = health.aiAvailable === true;
     } catch {
       if (version === aiCheckVersion) aiAvailable = false;
@@ -233,7 +247,9 @@
     busy = true;
     dialogError = "";
     try {
+      account.assertActive();
       await fn();
+      account.assertActive();
       if (message) notify(message);
     } catch (e) {
       dialogError = String(e instanceof Error ? e.message : e);
@@ -705,9 +721,9 @@
   }
   async function restoreWorkflows() {
     try {
-      tabId = sessionStorage.getItem("sg-tab") || crypto.randomUUID();
-      sessionStorage.setItem("sg-tab", tabId);
-      workflowId = sessionStorage.getItem("sg-workflow") || "";
+      tabId = sessionStorage.getItem(tabKey) || crypto.randomUUID();
+      sessionStorage.setItem(tabKey, tabId);
+      workflowId = sessionStorage.getItem(workflowKey) || "";
       const [draft, request, generation, active] = await Promise.all([
         readDraft<Row>(`review:${workflowId}`),
         readDraft<Row>(`request:${workflowId}`),
@@ -715,6 +731,7 @@
         readDraft<string>(`active:${workflowId}`),
       ]);
       await loadSavedWorkflows();
+      account.assertActive();
       if (active && !draft) {
         job = { id: active };
         jobError = "A saved AI job is ready to resume.";
@@ -757,7 +774,7 @@
       basisMode,
     }).catch((e) => (error = String(e)));
   async function startJob(kind: string, input: Row) {
-    if (!aiAvailable) return;
+    if (!aiAvailable || account.signal.aborted) return;
     review = null;
     const body = {
       id: crypto.randomUUID(),
@@ -767,15 +784,16 @@
     };
     pendingJob = body;
     workflowId = body.id;
-    sessionStorage.setItem("sg-workflow", workflowId);
+    sessionStorage.setItem(workflowKey, workflowId);
     await writeDraft(`request:${body.id}`, body);
     lastJob = { kind, input };
     await submitJob(body);
   }
   async function submitJob(body: Row) {
+    if (account.signal.aborted) return;
     const version = ++taskVersion;
     workflowId = body.id;
-    sessionStorage.setItem("sg-workflow", workflowId);
+    sessionStorage.setItem(workflowKey, workflowId);
     jobBusy = true;
     jobError = "";
     jobStatus = "Starting…";
@@ -785,6 +803,7 @@
     await goto("/import");
     try {
       const j = await api("jobs", "POST", body);
+      if (version !== taskVersion) return;
       await writeDraft(`active:${body.id}`, j.id);
       await writeDraft(`request:${body.id}`, undefined);
       pendingJob = null;
@@ -808,13 +827,16 @@
     }
   }
   async function pollJob(id: string, version = ++taskVersion) {
+    if (version !== taskVersion || account.signal.aborted) return;
     workflowId = id;
-    sessionStorage.setItem("sg-workflow", id);
+    sessionStorage.setItem(workflowKey, id);
     jobBusy = true;
     jobError = "";
     while (version === taskVersion) {
       try {
-        job = await api(`jobs/${id}`);
+        const current = await api(`jobs/${id}`);
+        if (version !== taskVersion) return;
+        job = current;
         jobStatus = job!.progress || "Working…";
         if (job!.state === "complete") {
           review = normalizePlan(job!.result);
@@ -904,7 +926,7 @@
   async function recoverWorkflow(d: Row) {
     review = null;
     workflowId = d.key.slice(d.key.indexOf(":") + 1);
-    sessionStorage.setItem("sg-workflow", workflowId);
+    sessionStorage.setItem(workflowKey, workflowId);
     sheet = null;
     jobError = "";
     await goto("/import");
@@ -967,10 +989,12 @@
       await training.sync();
       if ($training.pending)
         throw Error("Sync or resolve pending changes before backing up.");
-      const r = await fetch("/api/v1/backups");
+      const r = await account.fetch("/api/v1/backups");
       if (!r.ok) throw Error("Backup failed");
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(await r.blob());
+      const blob = await r.blob();
+      account.assertActive();
+      a.href = URL.createObjectURL(blob);
       a.download = "strength-guru.sqlite";
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -980,7 +1004,7 @@
     const f = (event.target as HTMLInputElement).files?.[0];
     if (!f) return;
     await run(async () => {
-      const r = await fetch("/api/v1/backups/inspect", {
+      const r = await account.fetch("/api/v1/backups/inspect", {
         method: "POST",
         headers: { "content-type": "application/vnd.sqlite3" },
         body: f,
@@ -1008,6 +1032,7 @@
       "Your synced changes are safe. This reloads the app.",
       async () => {
         worker = await navigator.serviceWorker.getRegistration();
+        account.assertActive();
         if (worker?.waiting) {
           navigator.serviceWorker.addEventListener(
             "controllerchange",
@@ -1065,7 +1090,6 @@
   {/if}
 {/snippet}
 
-<svelte:head><title>StrengthGuru</title></svelte:head>
 <input
   class="hidden"
   type="file"
@@ -2479,7 +2503,15 @@
           on:click={restore}>Restore this backup</button
         >
       </div>
-    {:else if sheet.kind === "sync"}<p class="muted">
+    {:else if sheet.kind === "sync"}
+      <button
+        class="full"
+        on:click={() => {
+          close();
+          openAccount();
+        }}>Account</button
+      >
+      <p class="muted">
         {$training.error ||
           ($training.connected
             ? "Your changes are saved and synchronized."

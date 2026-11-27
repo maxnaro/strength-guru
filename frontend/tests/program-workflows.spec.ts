@@ -1,4 +1,5 @@
-import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import { test } from './fixtures';
+import { expect, type Page, type APIRequestContext } from '@playwright/test';
 import { ready } from './helpers';
 
 test.beforeEach(async ({ request, baseURL }) => {
@@ -24,9 +25,9 @@ async function switcher(page: Page) {
 }
 
 test('unavailable inference locks new AI work and leaves training controls usable', async ({ page, request }) => {
-  const health = await request.get('/api/v1/health');
+  const health = await request.get('/api/v1/ai/status');
   expect(health.ok()).toBeTruthy();
-  expect(await health.json()).toMatchObject({ ok: true, aiAvailable: false });
+  expect(await health.json()).toMatchObject({ aiAvailable: false });
   const locked = 'AI features are locked because server inference is unavailable.';
 
   await ready(page, '/meso');

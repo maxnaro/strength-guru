@@ -18,6 +18,7 @@ Future<void> main() async {
   );
   try {
     await Seeder.seedIfEmpty(db);
+    if (Platform.environment['TEST_HISTORY'] != '1') return;
     final meso = (await db.getActiveMesocycle())!;
     final now = DateTime.now();
     final monday = DateTime(now.year, now.month, now.day - now.weekday + 1);

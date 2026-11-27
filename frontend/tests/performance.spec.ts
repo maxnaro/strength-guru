@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test } from './fixtures';
+import { expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { ready, monday, offlineReady, replica } from './helpers';
 

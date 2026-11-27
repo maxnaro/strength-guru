@@ -18,13 +18,15 @@ export async function monday(page: Page) {
 export async function replica(page: Page): Promise<any> {
   return page.evaluate(() => new Promise((resolve, reject) => {
     // Opening the existing version avoids changing storage while observing it.
+    const session = JSON.parse(localStorage.getItem('strength-guru-account-session')!);
+    const key = `account:${session.session.accountId}`;
     const request = indexedDB.open('strength-guru-replica');
     request.onsuccess = () => {
       const db = request.result;
       const split = db.objectStoreNames.contains('canonical');
       const tx = db.transaction(split ? ['replica', 'canonical'] : ['replica'], 'readonly');
-      const meta = tx.objectStore('replica').get('current');
-      const tables = split ? tx.objectStore('canonical').get('current') : undefined;
+      const meta = tx.objectStore('replica').get(key);
+      const tables = split ? tx.objectStore('canonical').get(key) : undefined;
       tx.oncomplete = () => { resolve(split ? { ...meta.result, tables: tables!.result } : meta.result); db.close(); };
       tx.onabort = tx.onerror = () => { reject(tx.error); db.close(); };
     };

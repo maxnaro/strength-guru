@@ -1,4 +1,5 @@
 import { v5 as uuidv5 } from "uuid";
+import type { AccountConnection } from "./account";
 
 type Row = Record<string, any>;
 type Tables = Record<string, Row[]>;
@@ -33,6 +34,7 @@ type Replica = {
   resultEpochs?: Record<string, string>;
   resultBodies?: Record<string, CommandBody>;
   tableGeneration?: number;
+  legacyAdopted?: boolean;
 };
 export type Conflict = Queued & {
   localValue: Row | null;
@@ -281,8 +283,9 @@ class ApiError extends Error {
 }
 const changedProgramMessage =
   "The program changed. Close and reopen the editor to review the latest values.";
-async function request(path: string, method = "GET", body?: any): Promise<any> {
-  const response = await fetch(`/api/v1/${path}`, {
+async function request(path: string, method = "GET", body?: any, account?: AccountConnection): Promise<any> {
+  const send = account?.fetch ?? fetch;
+  const response = await send(`/api/v1/${path}`, {
     method,
     headers:
       body === undefined ? undefined : { "content-type": "application/json" },
@@ -299,7 +302,7 @@ async function request(path: string, method = "GET", body?: any): Promise<any> {
   return json;
 }
 let dbPromise: Promise<IDBDatabase> | undefined;
-let tableCache: { generation: number; tables: Tables } | undefined;
+const tableCaches = new Map<string, { generation: number; tables: Tables }>();
 function database(): Promise<IDBDatabase> {
   return (dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open("strength-guru-replica", 2);
@@ -321,7 +324,7 @@ function database(): Promise<IDBDatabase> {
       req.result.onversionchange = () => {
         req.result.close();
         dbPromise = undefined;
-        tableCache = undefined;
+        tableCaches.clear();
       };
       resolve(req.result);
     };
@@ -333,11 +336,12 @@ function database(): Promise<IDBDatabase> {
     throw e;
   }));
 }
-async function read(): Promise<Replica> {
+async function read(key = "current"): Promise<Replica> {
+  const tableCache = tableCaches.get(key);
   const db = await database();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(["replica", "canonical"], "readonly");
-    const req = tx.objectStore("replica").get("current");
+    const req = tx.objectStore("replica").get(key);
     req.onsuccess = () => {
       if (!req.result) {
         resolve(emptyReplica());
@@ -348,16 +352,16 @@ async function read(): Promise<Replica> {
         resolve({ ...meta, tables: tableCache.tables });
         return;
       }
-      const canonical = tx.objectStore("canonical").get("current");
+      const canonical = tx.objectStore("canonical").get(key);
       canonical.onsuccess = () => {
         if (!canonical.result) {
           reject(new Error("The local training snapshot is missing."));
           return;
         }
-        tableCache = {
+        tableCaches.set(key, {
           generation: meta.tableGeneration,
           tables: canonical.result,
-        };
+        });
         resolve({ ...meta, tables: canonical.result });
       };
       canonical.onerror = () => reject(canonical.error);
@@ -367,7 +371,8 @@ async function read(): Promise<Replica> {
       reject(tx.error || new Error("Unable to read workout data"));
   });
 }
-async function save(r: Replica): Promise<void> {
+async function save(r: Replica, key: string): Promise<void> {
+  const tableCache = tableCaches.get(key);
   const db = await database();
   return new Promise((resolve, reject) => {
     const canonicalChanged =
@@ -379,21 +384,21 @@ async function save(r: Replica): Promise<void> {
       : r.tableGeneration!;
     const { tables, ...meta } = r;
     const tx = db.transaction(["replica", "canonical"], "readwrite");
-    if (canonicalChanged) tx.objectStore("canonical").put(tables, "current");
+    if (canonicalChanged) tx.objectStore("canonical").put(tables, key);
     tx.objectStore("replica").put(
       { ...meta, tableGeneration: generation },
-      "current",
+      key,
     );
     tx.oncomplete = () => {
       r.tableGeneration = generation;
-      tableCache = { generation, tables };
+      tableCaches.set(key, { generation, tables });
       resolve();
     };
     tx.onabort = tx.onerror = () =>
       reject(tx.error || new Error("Unable to save workout data"));
   });
 }
-class Training {
+export class Training {
   private state: TrainingState = {
     tables: emptyTables(),
     ready: false,
@@ -403,20 +408,52 @@ class Training {
     programRevision: 0,
   };
   private listeners = new Set<(s: TrainingState) => void>();
-  private channel =
-    typeof BroadcastChannel === "undefined"
-      ? undefined
-      : new BroadcastChannel("strength-guru-replica");
+  private channel?: BroadcastChannel;
   private init?: Promise<void>;
   private flight?: Promise<void>;
   private again = false;
   private actions = new Map<string, Promise<any>>();
   private timer?: ReturnType<typeof setInterval>;
-  constructor() {
-    if (this.channel)
-      this.channel.onmessage = () => {
-        void this.publish();
-      };
+  private closed = false;
+  private readonly key: string;
+  private readonly dataLock: string;
+  private readonly syncLock: string;
+  private readonly onOnline = () => { void this.sync().catch(() => {}); };
+  private readonly onVisible = () => {
+    if (document.visibilityState === "visible") this.onOnline();
+  };
+  constructor(private account?: AccountConnection) {
+    this.key = account ? `account:${account.id}` : "current";
+    this.dataLock = `strength-guru-replica-data:${this.key}`;
+    this.syncLock = `strength-guru-replica-sync:${this.key}`;
+    if (account && typeof BroadcastChannel !== "undefined") {
+      this.channel = new BroadcastChannel(`strength-guru-replica:${this.key}`);
+      this.channel.onmessage = () => { void this.publish().catch(() => {}); };
+    }
+  }
+  close() {
+    this.closed = true;
+    clearInterval(this.timer);
+    window.removeEventListener("online", this.onOnline);
+    document.removeEventListener("visibilitychange", this.onVisible);
+    this.channel?.close();
+    this.channel = undefined;
+    this.listeners.clear();
+    tableCaches.delete(this.key);
+  }
+  private assertActive() {
+    if (this.closed) throw new Error("The training account changed.");
+    this.account?.assertActive();
+  }
+  private async read() {
+    this.assertActive();
+    const replica = await read(this.key);
+    this.assertActive();
+    return replica;
+  }
+  private request(path: string, method?: string, body?: any) {
+    this.assertActive();
+    return request(path, method, body, this.account);
   }
   subscribe(run: (s: TrainingState) => void): () => void {
     this.listeners.add(run);
@@ -424,6 +461,7 @@ class Training {
     return () => this.listeners.delete(run);
   }
   private fail(error: unknown) {
+    if (this.closed) return;
     this.state = {
       ...this.state,
       connected: false,
@@ -432,7 +470,7 @@ class Training {
     for (const f of this.listeners) f(this.state);
   }
   private async publish(error?: string, connected = this.state.connected) {
-    const r = await read();
+    const r = await this.read();
     this.publishReplica(r, error, connected);
   }
   private publishReplica(
@@ -451,6 +489,7 @@ class Training {
         localValue: clone(q.body.payload),
         serverValue: clone(serverValue(r, q)),
       }));
+    if (this.closed) return;
     this.state = {
       tables: view(r),
       ready: !!r.epoch,
@@ -464,30 +503,28 @@ class Training {
     for (const f of this.listeners) f(this.state);
   }
   private async changed(r: Replica) {
-    await save(r);
+    this.assertActive();
+    await save(r, this.key);
     this.publishReplica(r);
     this.channel?.postMessage("changed");
   }
   private async lock<T>(fn: () => Promise<T>): Promise<T> {
     if (!navigator.locks)
       throw new Error("This browser does not support safe multi-tab storage.");
-    return navigator.locks.request("strength-guru-replica-data", fn);
+    return navigator.locks.request(this.dataLock, () => {
+      this.assertActive();
+      return fn();
+    });
   }
   initialize(): Promise<void> {
     return (this.init ??= (async () => {
       await this.publish();
+      this.assertActive();
       void navigator.storage?.persist?.().catch(() => false);
-      void this.sync().catch(() => {});
-      this.timer = setInterval(() => {
-        void this.sync().catch(() => {});
-      }, 15000);
-      window.addEventListener("online", () => {
-        void this.sync().catch(() => {});
-      });
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible")
-          void this.sync().catch(() => {});
-      });
+      this.onOnline();
+      this.timer = setInterval(this.onOnline, 15000);
+      window.addEventListener("online", this.onOnline);
+      document.addEventListener("visibilitychange", this.onVisible);
     })().catch((e) => {
       this.init = undefined;
       this.fail(e);
@@ -502,7 +539,7 @@ class Training {
       const params = new URLSearchParams();
       if (r.epoch) params.set("epoch", r.epoch);
       if (r.cursor !== undefined) params.set("cursor", String(r.cursor));
-      page = await request(`sync?${params}`);
+      page = await this.request(`sync?${params}`);
       if (r.epoch && r.epoch !== page.epoch && r.outbox.length)
         throw new ApiError(
           "dataset_changed",
@@ -531,12 +568,12 @@ class Training {
     } while (page.hasMore);
   }
   private async pullAndCommit(): Promise<void> {
-    const staged = await read();
+    const staged = await this.read();
     const originalEpoch = staged.epoch;
     // Fetch every page into a private view, then publish it in one commit.
     await this.pull(staged);
     await this.lock(async () => {
-      const latest = await read();
+      const latest = await this.read();
       if (
         originalEpoch &&
         staged.epoch !== originalEpoch &&
@@ -559,7 +596,7 @@ class Training {
   }
   private async finalizeAccepted(): Promise<void> {
     await this.lock(async () => {
-      const r = await read();
+      const r = await this.read();
       for (const q of r.outbox.filter((x) => x.state === "accepted")) {
         const response = q.response;
         if (!response)
@@ -613,7 +650,7 @@ class Training {
       await this.finalizeAccepted();
       while (true) {
         const q = await this.lock(async () => {
-          const r = await read();
+          const r = await this.read();
           const blocked = new Set<string>();
           let selected: Queued | undefined;
           for (const item of r.outbox) {
@@ -643,9 +680,9 @@ class Training {
         });
         if (!q) break;
         try {
-          const response = await request("commands", "POST", q.body);
+          const response = await this.request("commands", "POST", q.body);
           await this.lock(async () => {
-            const r = await read();
+            const r = await this.read();
             const current = r.outbox.find((x) => x.id === q.id);
             if (current) {
               current.state = "accepted";
@@ -656,10 +693,10 @@ class Training {
           await this.pullAndCommit();
           await this.finalizeAccepted();
         } catch (e) {
-          if (!(e instanceof ApiError) || ![400, 409].includes(e.status))
+          if (!(e instanceof ApiError) || ![400, 409].includes(e.status) || e.code === "account_changed")
             throw e;
           await this.lock(async () => {
-            const r = await read();
+            const r = await this.read();
             const current = r.outbox.find((x) => x.id === q.id);
             if (current && current.state !== "accepted") {
               current.state = "conflict";
@@ -677,7 +714,8 @@ class Training {
       await this.pullAndCommit();
       await this.publish(undefined, true);
     } catch (e) {
-      await this.publish(e instanceof Error ? e.message : String(e), false);
+      if (!this.closed && !this.account?.signal.aborted)
+        await this.publish(e instanceof Error ? e.message : String(e), false);
       throw e;
     }
   }
@@ -694,7 +732,7 @@ class Training {
       return this.flight;
     }
     return (this.flight = navigator.locks
-      .request("strength-guru-replica-sync", async () => {
+      .request(this.syncLock, async () => {
         do {
           this.again = false;
           await this.synchronize();
@@ -726,7 +764,7 @@ class Training {
       }
     }
     const queued = await this.lock(async () => {
-      const r = await read();
+      const r = await this.read();
       if (r.restorePending)
         throw new Error(
           "A restore is awaiting confirmation. Reconnect before making changes.",
@@ -797,11 +835,11 @@ class Training {
       )?.id;
     // Find outstanding work before syncing: background sync may have already
     // accepted it, but its result still belongs to this original action.
-    let id = await this.lock(async () => find(await read()));
+    let id = await this.lock(async () => find(await this.read()));
     if (!id) {
       await this.sync();
       id = await this.lock(async () => {
-        const r = await read();
+        const r = await this.read();
         const existing = find(r);
         if (existing) return existing;
         if (r.restorePending)
@@ -845,7 +883,7 @@ class Training {
     // Check the current dataset before treating a saved result as success.
     await this.sync();
     const hasResult = await this.lock(async () => {
-      const r = await read();
+      const r = await this.read();
       const conflict = r.outbox.find(
         (q) => q.id === id && q.state === "conflict",
       );
@@ -858,7 +896,7 @@ class Training {
         "The change is pending. Reconnect to confirm its result.",
       );
     return this.lock(async () => {
-      const r = (await read()) as Replica & {
+      const r = (await this.read()) as Replica & {
         results?: Row;
         resultSignatures?: Record<string, string>;
       };
@@ -877,17 +915,42 @@ class Training {
       return value;
     });
   }
+  async legacyStatus(): Promise<"none" | "adoptable" | "export"> {
+    const current = await this.read();
+    if (current.legacyAdopted) return "none";
+    const legacy = await read();
+    if (!legacy.epoch) return "none";
+    if (current.epoch) return "export";
+    const page = await this.request("sync");
+    return page.epoch === legacy.epoch ? "adoptable" : "export";
+  }
+  async migrateLegacy(adoptDrafts: () => Promise<void>): Promise<boolean> {
+    const legacy = await read();
+    return this.lock(async () => {
+      const current = await this.read();
+      if (current.legacyAdopted) return true;
+      if (!legacy.epoch || current.epoch) return false;
+      const page = await this.request("sync");
+      if (legacy.epoch !== page.epoch) return false;
+      this.assertActive();
+      await adoptDrafts();
+      this.assertActive();
+      await this.changed({ ...legacy, legacyAdopted: true });
+      return true;
+    });
+  }
   async exportPending(): Promise<string> {
-    const r = await read();
+    const r = await this.read();
+    this.assertActive();
     return JSON.stringify([...r.outbox, ...receipts(r)], null, 2);
   }
   async restore(token: string): Promise<void> {
     if (!navigator.locks)
       throw new Error("This browser does not support safe multi-tab storage.");
-    await navigator.locks.request("strength-guru-replica-sync", async () => {
+    await navigator.locks.request(this.syncLock, async () => {
       await this.synchronize();
       await this.lock(async () => {
-        const r = await read();
+        const r = await this.read();
         if (r.outbox.length)
           throw new Error(
             "Resolve or export pending changes before restoring.",
@@ -903,7 +966,7 @@ class Training {
         r.restorePending = epoch;
         await this.changed(r);
         try {
-          await request("backups/restore", "POST", {
+          await this.request("backups/restore", "POST", {
             token,
             confirmed: true,
             expectedEpoch: epoch,
@@ -915,7 +978,7 @@ class Training {
             e.status >= 400 &&
             e.status < 500 &&
             e.status !== 408 &&
-            e.code !== "dataset_changed"
+            e.code !== "dataset_changed" && e.code !== "account_changed"
           ) {
             delete r.restorePending;
             await this.changed(r);
@@ -936,11 +999,11 @@ class Training {
   async discard(id: string): Promise<void> {
     if (!navigator.locks)
       throw new Error("This browser does not support safe multi-tab storage.");
-    await navigator.locks.request("strength-guru-replica-sync", async () => {
-      const q = (await read()).outbox.find((x) => x.id === id);
+    await navigator.locks.request(this.syncLock, async () => {
+      const q = (await this.read()).outbox.find((x) => x.id === id);
       if (!q) {
         await this.lock(async () => {
-          const r = await read();
+          const r = await this.read();
           delete r.results?.[id];
           delete r.resultSignatures?.[id];
           delete r.resultEpochs?.[id];
@@ -958,11 +1021,11 @@ class Training {
               "Reconnect to confirm whether this change was saved before discarding it.",
             );
         }
-        if (!(await read()).outbox.some((x) => x.id === id))
+        if (!(await this.read()).outbox.some((x) => x.id === id))
           throw new Error("This change was already saved on the server.");
       }
       await this.lock(async () => {
-        const r = await read();
+        const r = await this.read();
         r.outbox = r.outbox.filter((x) => x.id !== id);
         await this.changed(r);
       });
@@ -972,7 +1035,7 @@ class Training {
   async keepLocal(id: string): Promise<void> {
     await this.sync();
     await this.lock(async () => {
-      const r = await read();
+      const r = await this.read();
       const q = r.outbox.find((x) => x.id === id);
       if (!q) throw new Error("Pending change not found.");
       if (
@@ -1005,4 +1068,9 @@ class Training {
     await this.sync();
   }
 }
+export async function exportLegacyReplica() {
+  return read();
+}
+
+// Unscoped instance for the legacy replica tests.
 export const training = new Training();

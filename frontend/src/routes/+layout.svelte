@@ -1,8 +1,8 @@
 <script lang="ts">
   import "../app.css";
-  import TrainingApp from "$lib/components/TrainingApp.svelte";
+  import AccountShell from "$lib/components/AccountShell.svelte";
 </script>
 
-<TrainingApp />
+<AccountShell />
 
 <slot />

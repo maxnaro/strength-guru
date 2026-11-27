@@ -466,23 +466,6 @@ export function validateVolume(
   }
   return result;
 }
-export async function api(path: string, method = "GET", body?: any) {
-  const r = await fetch(`/api/v1/${path}`, {
-    method,
-    signal: AbortSignal.timeout(20000),
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await r.json();
-  if (!r.ok)
-    throw Error(
-      data.message ||
-        data.error?.message ||
-        data.error ||
-        `Request failed (${r.status})`,
-    );
-  return data;
-}
 export function download(
   value: string,
   name: string,

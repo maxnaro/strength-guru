@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, signIn } from './fixtures';
+import { expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { ready, monday, offlineReady, replica } from './helpers';
 
@@ -112,6 +113,7 @@ test('conflicting edits retain local data until explicitly discarded', async ({p
     await expect(page.locator('.sync-banner')).toContainText('Synced');
   }
   const remote=await browser.newContext({baseURL});
+  expect((await signIn(remote.request, baseURL!)).ok()).toBeTruthy();
   try {
     const other=await remote.newPage(); await ready(other); await monday(other);
     await context.setOffline(true);

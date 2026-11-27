@@ -1,4 +1,5 @@
-import {test,expect,chromium} from '@playwright/test';
+import { test, signIn } from './fixtures';
+import { expect,chromium} from '@playwright/test';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -8,6 +9,7 @@ test('offline queue and cached shell survive closing the entire browser process'
   const profile=await mkdtemp(join(tmpdir(),'sg-browser-restart-'));
   let browser=await chromium.launchPersistentContext(profile,{baseURL,viewport:{width:390,height:844},headless:true});
   try{
+    expect((await signIn(browser.request, baseURL!)).ok()).toBeTruthy();
     let page=await browser.newPage();await monday(page);await offlineReady(page);
     const count=(await (await request.get('/api/v1/sync')).json()).snapshot.set_entries.length;
     await browser.setOffline(true);

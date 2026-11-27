@@ -1,6 +1,6 @@
 # Self-hosting Strength Guru
 
-The SvelteKit static web app and Dart API share one origin. The browser renders semantic HTML. Training data lives in SQLite on the server; the browser keeps an IndexedDB replica and a durable queue for offline set logging. Program editing and AI require connectivity. There is one private training profile and no application login: restrict access with your existing VPN/proxy.
+The SvelteKit static web app and Dart API share one origin. The browser renders semantic HTML. Training data lives in SQLite on the server; the browser keeps an IndexedDB replica and a durable queue for offline set logging. Program editing and AI require connectivity. Each account has its own training database and browser replica. Sign-in uses OpenID Connect (OIDC), with single-use invitations for new accounts.
 
 ## Start
 
@@ -8,16 +8,24 @@ Requirements: Linux x86-64 and Docker Engine with Compose. The default setup run
 
 ```sh
 cp .env.example .env
-# Edit APP_ORIGIN to match your private HTTPS URL, without a trailing slash.
+# Set APP_ORIGIN and the OIDC settings described below.
 docker compose up --pull always -d
 docker compose logs -f app
 ```
+
+Register a confidential web client at your OIDC provider. Enable authorization code flow with S256 PKCE and RS256-signed ID tokens. Set the exact callback URI to `<APP_ORIGIN>/api/v1/auth/callback` and assign eligible users to the client in your provider.
+
+- Set `APP_ORIGIN` to the browser-facing HTTPS origin with no trailing slash.
+- Set `OIDC_ISSUER` to the provider's discovery issuer and set `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` from the client registration. Keep the secret out of version control.
+- Set `OIDC_OWNER_SUBJECT` to your account's immutable `sub` claim for this client. Obtain it from your provider's administration tools. Email addresses and usernames are separate claims.
+
+The owner signs in and manages links from the account menu. Each link expires after seven days and the first eligible recipient who redeems it gets a private account. Revoke an unused link from the same screen. Users return through the regular sign-in button. Strength Guru sign-out ends its app session. Use your provider's account chooser or sign out there to select another identity.
 
 Forward your private HTTPS origin to `http://127.0.0.1:8080`. Only this loopback port is published; inference has no published port. If your proxy is itself containerized, connect it to the app's Docker network and forward to `app:8080`. Keep that network private. Retain the same hostname: browser data and its offline queue are scoped to the origin.
 
 The proxy must preserve the app's security and cache headers. Keep `/api/v1` and the web frontend on the same origin. The Dart static handler serves `index.html` for extensionless app routes, while missing compiled assets and unknown `/api/` URLs remain 404. Disable buffering/compression for `/api/v1/jobs/*/events`; allow at least a 10-minute stream timeout. Allow backup uploads up to 64 MiB. Terminate trusted HTTPS even on the VPN: service workers and persistent browser features require a secure origin.
 
-On iPhone, open the private HTTPS URL in Safari and use **Share → Add to Home Screen**. Open it online once and allow the application cache to finish installing before relying on offline startup. The first visit requires the server. Later launches render cached data immediately and synchronize in the background. iOS may remove website data; the server remains the durable copy of synchronized records.
+On iPhone, open the private HTTPS URL in Safari and use **Share → Add to Home Screen**. Open it online once and allow the application cache to finish installing before relying on offline startup. The first visit requires the server. Later launches can open the last verified account offline until its seven-day session expires. Reconnect to sign in or switch accounts. Signing out closes workouts across browser tabs. Pending edits stay on the device for the same account to sync after signing in again. Use separate browser profiles if other users can directly access your browser storage. iOS may remove website data; the server remains the durable copy of synchronized records.
 
 ## Import and backup
 
@@ -55,6 +63,13 @@ Check the inference logs for CUDA device selection and GPU layer allocation, and
 The runtime image/model revisions and checksum are pinned in the Dockerfile, Compose file and downloader. Update them together only after rerunning import/generation and memory checks. The API's inference URL/model are deployment configuration, not browser settings.
 
 ## Updates and rollback
+
+Before upgrading from a single-profile release, sync each device when possible and export any pending edits as a fallback. Back up the whole stopped training volume. Configure the existing profile's owner as `OIDC_OWNER_SUBJECT` and keep the same app origin. The server adopts the original database and backup directory for that account. Other users start with their own exercise catalog and empty history.
+
+Apply the browser update and close any remaining tabs or installed app windows running the old version. Relaunch online and sign in as the owner. When offered, import the old browser queue and drafts after confirming the data belongs to you. If the datasets differ, export the retained work for recovery. Keep the original browser site data through this step.
+
+The volume now also holds the identity registry and the other accounts' databases. Save the entire stopped volume for disaster recovery. An in-app backup captures the signed-in account's training database. Before reverting to a single-profile release, save the upgraded volume separately and restore the original pre-upgrade volume.
+
 
 ```sh
 docker compose up --pull always -d

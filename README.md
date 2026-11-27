@@ -20,10 +20,6 @@ Pick a session from the calendar, log a set, and see the session marked as start
 
 ## Quick start
 
-With Docker and Compose installed, run this from the repository root to try workout tracking locally.
+Set up an OpenID Connect client and configure Docker Compose using the self-hosting guide. The deployment owner signs in first and sends single-use invitations to the people who need an account.
 
-```sh
-APP_PORT=8080 APP_ORIGIN=http://localhost:8080 docker compose up --pull always -d
-```
-
-Open [Strength Guru on localhost](http://localhost:8080). For private HTTPS access, iPhone Home Screen installation, and NVIDIA inference, see the [self-hosting guide](docs/self-hosting.md).
+The guide also covers private HTTPS access, iPhone Home Screen installation, and NVIDIA inference. [Self-hosting guide](docs/self-hosting.md)
