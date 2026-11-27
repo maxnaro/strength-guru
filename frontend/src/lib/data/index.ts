@@ -16,6 +16,7 @@ type Queued = {
   body: CommandBody;
   state: "pending" | "conflict" | "accepted";
   sent: boolean;
+  guardedProgramEdit?: boolean;
   error?: string;
   code?: string;
   response?: { result: any; resource: string; revision: number };
@@ -46,7 +47,9 @@ export type TrainingState = {
   conflicts: Conflict[];
   error?: string;
   epoch?: string;
+  programRevision: number;
 };
+type ProgramVersion = { epoch: string; programRevision: number };
 
 const keys: Record<string, string[]> = {
   mesocycles: ["id"],
@@ -276,6 +279,8 @@ class ApiError extends Error {
     super(message);
   }
 }
+const changedProgramMessage =
+  "The program changed. Close and reopen the editor to review the latest values.";
 async function request(path: string, method = "GET", body?: any): Promise<any> {
   const response = await fetch(`/api/v1/${path}`, {
     method,
@@ -395,6 +400,7 @@ class Training {
     connected: false,
     pending: 0,
     conflicts: [],
+    programRevision: 0,
   };
   private listeners = new Set<(s: TrainingState) => void>();
   private channel =
@@ -452,6 +458,7 @@ class Training {
       pending: r.outbox.length + savedReceipts.length,
       conflicts: [...conflicts, ...savedReceipts],
       epoch: r.epoch,
+      programRevision: r.revisions.program || 0,
       ...(error ? { error } : {}),
     };
     for (const f of this.listeners) f(this.state);
@@ -581,6 +588,7 @@ class Training {
           if (
             next.state === "pending" &&
             !next.sent &&
+            !next.guardedProgramEdit &&
             next.resource === q.resource &&
             next.body.expectedRevision === q.body.expectedRevision
           )
@@ -655,8 +663,10 @@ class Training {
             const current = r.outbox.find((x) => x.id === q.id);
             if (current && current.state !== "accepted") {
               current.state = "conflict";
-              current.error = e.message;
-              current.code = e.code;
+              const staleProgram =
+                current.guardedProgramEdit && e.code === "conflict";
+              current.error = staleProgram ? changedProgramMessage : e.message;
+              current.code = staleProgram ? "program_changed" : e.code;
               await this.changed(r);
             }
           });
@@ -694,19 +704,25 @@ class Training {
         this.flight = undefined;
       }));
   }
-  async command(type: string, payload: Row): Promise<any> {
+  async command(
+    type: string,
+    payload: Row,
+    expected?: ProgramVersion,
+  ): Promise<any> {
     if (!logging.has(type)) {
       const p = clone(payload),
         signature = actionSignature(type, p);
-      const running = this.actions.get(signature);
+      const key = expected
+        ? JSON.stringify([signature, expected.epoch, expected.programRevision])
+        : signature;
+      const running = this.actions.get(key);
       if (running) return running;
-      const action = this.programCommand(type, p, signature);
-      this.actions.set(signature, action);
+      const action = this.programCommand(type, p, signature, expected);
+      this.actions.set(key, action);
       try {
         return await action;
       } finally {
-        if (this.actions.get(signature) === action)
-          this.actions.delete(signature);
+        if (this.actions.get(key) === action) this.actions.delete(key);
       }
     }
     const queued = await this.lock(async () => {
@@ -762,22 +778,23 @@ class Training {
     type: string,
     payload: Row,
     signature: string,
+    expected?: ProgramVersion,
   ): Promise<any> {
-    const find = (r: Replica): string | undefined => {
-      const receipt = r as Replica & {
-        resultSignatures?: Record<string, string>;
-      };
-      return (
-        Object.keys(receipt.resultSignatures || {}).find(
-          (id) => receipt.resultSignatures![id] === signature,
-        ) ||
-        r.outbox.find(
-          (q) =>
-            q.resource === "program" &&
-            actionSignature(q.body.type, q.body.payload) === signature,
-        )?.id
-      );
-    };
+    const matchesVersion = (body?: CommandBody) =>
+      !expected ||
+      (body?.epoch === expected.epoch &&
+        body.expectedRevision === expected.programRevision);
+    const find = (r: Replica): string | undefined =>
+      Object.entries(r.resultSignatures || {}).find(
+        ([id, saved]) =>
+          saved === signature && matchesVersion(r.resultBodies?.[id]),
+      )?.[0] ||
+      r.outbox.find(
+        (q) =>
+          q.resource === "program" &&
+          matchesVersion(q.body) &&
+          actionSignature(q.body.type, q.body.payload) === signature,
+      )?.id;
     // Find outstanding work before syncing: background sync may have already
     // accepted it, but its result still belongs to this original action.
     let id = await this.lock(async () => find(await read()));
@@ -801,12 +818,17 @@ class Training {
           );
         if (!r.epoch)
           throw new Error("Connect once to download your training data.");
+        const revision = r.revisions.program || 0;
+        if (expected && expected.epoch !== r.epoch)
+          throw new ApiError("dataset_changed", changedProgramMessage, 409);
+        if (expected && expected.programRevision !== revision)
+          throw new ApiError("program_changed", changedProgramMessage, 409);
         const body: CommandBody = {
           operationId: crypto.randomUUID(),
           epoch: r.epoch,
           type,
           payload,
-          expectedRevision: r.revisions.program || 0,
+          expectedRevision: revision,
         };
         r.outbox.push({
           id: body.operationId,
@@ -814,6 +836,7 @@ class Training {
           body,
           state: "pending",
           sent: false,
+          ...(expected ? { guardedProgramEdit: true } : {}),
         });
         await this.changed(r);
         return body.operationId;
@@ -823,6 +846,11 @@ class Training {
     await this.sync();
     const hasResult = await this.lock(async () => {
       const r = await read();
+      const conflict = r.outbox.find(
+        (q) => q.id === id && q.state === "conflict",
+      );
+      if (conflict?.guardedProgramEdit && conflict.code === "program_changed")
+        throw new ApiError("program_changed", changedProgramMessage, 409);
       return Object.prototype.hasOwnProperty.call(r.results || {}, id!);
     });
     if (!hasResult)
@@ -957,8 +985,10 @@ class Training {
           "The program changed. Export or discard this edit and review the workout.",
         );
       if (
-        logging.has(q.body.type) &&
-        q.body.expectedProgramRevision !== (r.revisions.program || 0)
+        (logging.has(q.body.type) &&
+          q.body.expectedProgramRevision !== (r.revisions.program || 0)) ||
+        (q.guardedProgramEdit &&
+          q.body.expectedRevision !== (r.revisions.program || 0))
       )
         throw new Error(
           "The program changed. Export or discard this edit and review the workout.",

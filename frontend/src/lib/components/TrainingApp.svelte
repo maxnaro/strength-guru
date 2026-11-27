@@ -47,7 +47,13 @@
       void refreshAiAvailability();
   });
   let selected: { week: number; day: number } | null = null;
-  let viz = "calendar";
+  let desktop = false;
+  let viz: "calendar" | "editor" | null = null;
+  $: mesoView = viz === "calendar"
+    ? "calendar"
+    : desktop
+      ? "program"
+      : viz === "editor" ? "timeline" : "calendar";
   let activeSet = "";
   let parsedDay = "";
   let touchStart: { x: number; y: number } | null = null;
@@ -131,6 +137,10 @@
         ? `${(Math.round(weightForReps(calcOne, calcReps, calcRir, formula) / 2.5) * 2.5).toFixed(1)} kg`
         : `${repsForWeight(calcOne, calcLift, formula)} reps`;
   onMount(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const updateDesktop = () => (desktop = desktopQuery.matches);
+    updateDesktop();
+    desktopQuery.addEventListener("change", updateDesktop);
     restoreWorkflows();
     training.initialize().catch((e: unknown) => (error = String(e)));
     window.addEventListener("online", refreshAiAvailability);
@@ -155,6 +165,7 @@
         .catch(() => {});
     }
     return () => {
+      desktopQuery.removeEventListener("change", updateDesktop);
       taskVersion++;
       aiCheckVersion++;
       window.removeEventListener("online", refreshAiAvailability);
@@ -1023,6 +1034,27 @@
   }
 </script>
 
+{#snippet mesoActions()}
+  <div class="meso-actions">
+    <button
+      class="ghost full"
+      disabled={busy}
+      on:click={() =>
+        run(() =>
+          command("setMesoNumWeeks", {
+            id: meso!.id,
+            numWeeks: meso!.num_weeks + 1,
+          }),
+        )}>+ Add week</button
+    >
+    {#if today}<button
+        class="solid full"
+        on:click={() => chooseDay(today!.week, today!.day)}
+        >Today's Session →</button
+      >{/if}
+  </div>
+{/snippet}
+
 {#snippet aiLockNotice(id: string)}
   {#if !aiAvailable}
     <p {id} class="hint" role="status">
@@ -1049,7 +1081,7 @@
   bind:this={restoreFile}
   on:change={inspectRestore}
 />
-<div class="app-shell">
+<div class="app-shell" class:meso-shell={view === "/meso"}>
   <button
     class="sync-banner"
     on:click={() => open({ kind: "sync", title: "Sync and pending changes" })}
@@ -1406,7 +1438,7 @@
         >
       </div>
     {:else if view === "/meso"}
-      <div class="page">
+      <div class="page meso-page">
         <div class="row">
           <p class="eyebrow">CURRENT MESOCYCLE</p>
           <button
@@ -1434,16 +1466,56 @@
             meso!.start_date,
           ).toLocaleDateString("en-CA")}
         </p>
-        <div class="segmented viz">
-          <button
-            class:selected={viz === "calendar"}
-            on:click={() => (viz = "calendar")}>Calendar</button
-          ><button
-            class:selected={viz === "timeline"}
-            on:click={() => (viz = "timeline")}>Timeline</button
-          >
+        <div class="meso-toolbar">
+          <div class="segmented viz">
+            <button
+              class:selected={mesoView === "calendar"}
+              aria-pressed={mesoView === "calendar"}
+              on:click={() => (viz = "calendar")}>Calendar</button
+            ><button
+              class:selected={mesoView !== "calendar"}
+              aria-pressed={mesoView !== "calendar"}
+              on:click={() => (viz = "editor")}>{desktop ? "Program" : "Timeline"}</button
+            >
+          </div>
+          {#if desktop}
+            {@render mesoActions()}
+          {/if}
         </div>
-        {#if viz === "calendar"}<div class="calendar">
+        {#if mesoView === "program"}
+          {#await import("./ProgramSheet.svelte")}
+            <p role="status">Opening program…</p>
+          {:then { default: ProgramSheet }}
+            {#key meso.id}
+              <ProgramSheet
+                {tables}
+                {meso}
+                {today}
+                {deloads}
+                {busy}
+                connected={$training.connected}
+                programRevision={$training.programRevision}
+                epoch={$training.epoch}
+                saveCell={(payload, programRevision, epoch) =>
+                  training.command("upsertWeekTarget", payload, { programRevision, epoch })}
+                onDayEdit={editProgram}
+                onDayActions={(day) => open({ kind: "day-actions", title: days[day], day })}
+                onDaySwap={(day) => open({ kind: "day-picker", title: `Swap ${days[day]} with…`, day, action: "swap" })}
+                onExerciseActions={(e, day) => open({
+                  kind: "exercise-actions",
+                  title: e.name,
+                  e,
+                  day,
+                  overrideOnly: !program(tables, meso.id, day).some((slot) => slot.slotId === e.slotId),
+                })}
+                onTarget={targetEditor}
+                onDeload={(weekIdx) => run(() => command("toggleDeloadWeek", { mesoId: meso.id, weekIdx }))}
+              />
+            {/key}
+          {:catch}
+            <p role="alert">The program editor could not load. Reload to try again.</p>
+          {/await}
+        {:else if mesoView === "calendar"}<div class="calendar">
             <div class="calendar-labels">
               {#each days as d}<span>{d.slice(0, 3).toUpperCase()}</span
                 >{/each}<span></span>
@@ -1580,22 +1652,9 @@
                 </section>{/each}
             </div>
           </div>{/if}
-        <button
-          class="ghost full"
-          disabled={busy}
-          on:click={() =>
-            run(() =>
-              command("setMesoNumWeeks", {
-                id: meso!.id,
-                numWeeks: meso!.num_weeks + 1,
-              }),
-            )}>+ Add week</button
-        >
-        {#if today}<button
-            class="solid full"
-            on:click={() => chooseDay(today!.week, today!.day)}
-            >Today's Session →</button
-          >{/if}
+        {#if !desktop}
+          {@render mesoActions()}
+        {/if}
         <div class="settings-row">
           <button
             on:click={() =>
@@ -2034,14 +2093,15 @@
         class="soft full"
         on:click={() => showArc(sheet!.e)}
         ><Icon name="trending_up" size={18} /> Set progression arc</button
-      ><button
+      >
+      {#if !sheet.overrideOnly}<button
         class="soft full"
         on:click={() => {
           const s = sheet!;
           picker(s.e.group, (e) => swapExercise(s.e, s.day, "program", e));
         }}
         ><Icon name="swap_horiz" size={18} /> Swap exercise across all weeks</button
-      ><button class="ghost full" on:click={() => showGuides(sheet!.e)}
+      >{/if}<button class="ghost full" on:click={() => showGuides(sheet!.e)}
         ><Icon name="play_circle_outline" size={18} /> Exercise guide</button
       >
     {:else if sheet.kind === "target"}<h3>{sheet.e.name}</h3>

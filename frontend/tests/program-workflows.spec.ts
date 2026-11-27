@@ -102,6 +102,7 @@ test('create, rename, duplicate, activate and delete mesocycles', async ({page, 
 });
 
 test('program label, forward targets and progression persist in SQLite', async ({page,request}) => {
+  await page.setViewportSize({width: 393, height: 852});
   await ready(page,'/meso');
   await page.getByRole('button',{name:/Timeline/}).click();
   await page.getByRole('button',{name:'Edit Monday program'}).click();
@@ -134,6 +135,132 @@ test('program label, forward targets and progression persist in SQLite', async (
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const progressed = (await snapshot(request)).week_targets.filter((t:any) => t.mesocycle_id === meso.id && t.slot_id === slot && t.week_idx >= 0 && t.week_idx < meso.num_weeks);
   expect(progressed.length).toBe(meso.num_weeks);
+});
+
+test('desktop Program edits an individual set target and keeps Calendar available', async ({page, request}) => {
+  await page.setViewportSize({width: 1100, height: 850});
+  await ready(page, '/meso');
+  const sheet = page.getByRole('table', {name: 'Mesocycle program'});
+  await expect(sheet).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Program', exact: true})).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1100);
+  const scrollArea = page.locator('.program-sheet');
+  const exerciseHeading = sheet.getByRole('columnheader', {name: 'Exercise', exact: true});
+  const firstWeekHeading = sheet.getByRole('button', {name: 'Toggle deload week 1', exact: true});
+  const leftBefore = (await exerciseHeading.boundingBox())!.x;
+  const topBefore = (await firstWeekHeading.boundingBox())!.y;
+  await scrollArea.evaluate(element => element.scrollTo(80, 180));
+  await expect.poll(() => scrollArea.evaluate(element => [element.scrollLeft > 0, element.scrollTop > 0])).toEqual([true, true]);
+  expect((await exerciseHeading.boundingBox())!.x).toBeCloseTo(leftBefore, 0);
+  expect((await firstWeekHeading.boundingBox())!.y).toBeCloseTo(topBefore, 0);
+  await scrollArea.evaluate(element => element.scrollTo(0, 0));
+
+  const before = await snapshot(request);
+  const meso = before.mesocycles.find((row: any) => row.is_active);
+  const monday = before.day_overrides.find((row: any) =>
+    row.mesocycle_id === meso.id && row.week_idx === 0 && row.day_idx === 0);
+  const slotId = monday.exercise_ids_csv.split(',')[0];
+  const slot = before.exercise_slots.find((row: any) => row.id === slotId);
+  const exercise = before.exercises.find((row: any) => row.id === slot.exercise_id);
+  const targetsForSlot = (state: any) => state.week_targets.filter((row: any) => row.slot_id === slotId);
+  const originalTargets = targetsForSlot(before);
+  const firstWeek = originalTargets.find((row: any) => row.week_idx === 0);
+  const [firstRep, ...remainingReps] = String(firstWeek.reps).split(',');
+  const edited = `Monday, ${exercise.name}, set 1, week 1, reps`;
+  const original = sheet.getByRole('button', {name: `${edited}, ${firstRep}`, exact: true});
+  const editor = sheet.getByRole('textbox', {name: edited, exact: true});
+
+  await original.press('Enter');
+  await expect(editor).toBeFocused();
+  await editor.fill('0');
+  await editor.press('Enter');
+  await expect(editor).toHaveAttribute('aria-invalid', 'true');
+  await editor.press('Escape');
+  await expect(original).toBeFocused();
+  await original.press('ArrowRight');
+  await expect(sheet.getByRole('button', {name: `Monday, ${exercise.name}, set 1, week 1, RIR, ${String(firstWeek.rir).split(',')[0]}`, exact: true})).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(original).toBeFocused();
+
+  const nextRep = firstRep === '13' ? '14' : '13';
+  const saved = sheet.getByRole('button', {name: `${edited}, ${nextRep}`, exact: true});
+  await original.press('F2');
+  await editor.fill(nextRep);
+  await editor.press('Enter');
+  await expect(saved).toBeVisible();
+  await expect.poll(async () => targetsForSlot(await snapshot(request))).toEqual(
+    originalTargets.map((row: any) => row.week_idx === 0
+      ? {...row, reps: [nextRep, ...remainingReps].join(',')}
+      : row),
+  );
+
+  await page.reload();
+  await expect(saved).toBeVisible();
+  await page.getByRole('button', {name: 'Calendar', exact: true}).click();
+  await expect(sheet).toBeHidden();
+  await page.getByRole('button', {name: /^Week 1, Monday,/}).click();
+  await expect(page).toHaveURL(url => url.pathname === '/log' && url.searchParams.get('week') === '0' && url.searchParams.get('day') === '0');
+  await expect(page.getByRole('button', {name: /^Log set/}).first()).toBeVisible();
+});
+
+test('desktop Program shows week-only exercises and different set counts', async ({page, request, baseURL}) => {
+  async function command(type: string, payload: object) {
+    const state = await (await request.get('/api/v1/sync')).json();
+    const revision = state.revisions.find((row: any) => row.resource === 'program')?.revision ?? 0;
+    const response = await request.post('/api/v1/commands', {
+      headers: {origin: new URL(baseURL!).origin},
+      data: {operationId: crypto.randomUUID(), epoch: state.epoch, type, payload, expectedRevision: revision},
+    });
+    expect(response.ok(), await response.text()).toBeTruthy();
+  }
+
+  const state = await snapshot(request);
+  const meso = state.mesocycles.find((row: any) => row.is_active);
+  const dayPlan = (day: number) => state.day_overrides.find((row: any) =>
+    row.mesocycle_id === meso.id && row.week_idx === 1 && row.day_idx === day).exercise_ids_csv.split(',');
+  const mondaySlots = dayPlan(0);
+  const mondaySlot = mondaySlots[0];
+  const tuesdaySlot = dayPlan(1)[0];
+  const exerciseName = (slotId: string) => {
+    const slot = state.exercise_slots.find((row: any) => row.id === slotId);
+    return state.exercises.find((row: any) => row.id === slot.exercise_id).name;
+  };
+  const existing = state.week_targets.find((row: any) => row.slot_id === mondaySlot && row.week_idx === 1);
+  const reps = String(existing.reps).split(',').map(Number);
+  const rir = String(existing.rir).split(',').map(Number);
+  const extraSet = reps.length + 1;
+  await command('upsertWeekTarget', {mesoId: meso.id, weekIdx: 1, slotId: mondaySlot, reps: [...reps, 11], rir: [...rir, 3]});
+  await command('setDayOverride', {mesoId: meso.id, weekIdx: 1, dayIdx: 0, slotIds: [...mondaySlots, tuesdaySlot]});
+  await command('setMesoNumWeeks', {id: meso.id, numWeeks: 13});
+  await command('setDayOverride', {mesoId: meso.id, weekIdx: 12, dayIdx: 0, slotIds: mondaySlots});
+
+  await page.setViewportSize({width: 1280, height: 850});
+  await ready(page, '/meso');
+  const sheet = page.getByRole('table', {name: 'Mesocycle program'});
+  const addedSet = page.getByRole('button', {name: `Monday, ${exerciseName(mondaySlot)}, set ${extraSet}, week 2, reps, 11`, exact: true});
+  const addedSetRow = sheet.getByRole('row').filter({has: addedSet});
+  await expect(addedSetRow).toBeVisible();
+  await expect(addedSetRow.getByRole('cell', {name: 'No set', exact: true}).first()).toBeVisible();
+
+  const overrideExercise = page.getByRole('button', {name: `${exerciseName(tuesdaySlot)} actions on Monday`, exact: true});
+  const overrideRow = sheet.getByRole('row').filter({has: overrideExercise});
+  await expect(overrideRow.getByRole('button', {name: `Edit ${exerciseName(tuesdaySlot)} targets for Monday, week 2`, exact: true})).toBeVisible();
+  await expect(overrideRow.getByRole('cell', {name: 'Not scheduled', exact: true}).first()).toBeVisible();
+  await expect(overrideRow.getByRole('button', {name: `Edit ${exerciseName(tuesdaySlot)} targets for Monday, week 1`, exact: true})).toHaveCount(0);
+
+  await page.getByRole('button', {name: 'Next weeks', exact: true}).click();
+  await expect(sheet.getByRole('button', {name: 'Toggle deload week 13', exact: true})).toBeVisible();
+  const week13 = `Monday, ${exerciseName(mondaySlot)}, set 1, week 13, reps`;
+  await sheet.getByRole('button', {name: `${week13}, 8`, exact: true}).press('Enter');
+  const editor = sheet.getByRole('textbox', {name: week13, exact: true});
+  await editor.fill('12');
+  await editor.press('Enter');
+  await expect(sheet.getByRole('button', {name: `${week13}, 12`, exact: true})).toBeVisible();
+  await expect.poll(async () => (await snapshot(request)).week_targets.find((row: any) =>
+    row.slot_id === mondaySlot && row.week_idx === 12)?.reps).toBe('12,8,8');
+  await page.getByRole('button', {name: 'Previous weeks', exact: true}).click();
+  await expect(addedSetRow).toBeVisible();
+  await command('setMesoNumWeeks', {id: meso.id, numWeeks: meso.num_weeks});
 });
 
 test('download and restore a backup through the browser', async ({page,request}) => {

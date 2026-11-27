@@ -363,13 +363,14 @@ describe("durable online commands", () => {
     let count = 0,
       lose = true;
     const results = new Map<string, unknown>();
+    const originalVersion = { epoch: "dataset", programRevision: 0 };
     vi.stubGlobal("fetch", async (path: string, options?: RequestInit) => {
       if (String(path).startsWith("/api/v1/sync"))
         return Response.json({
           epoch: "dataset",
           cursor: 0,
           snapshot: tables,
-          revisions: [],
+          revisions: [{ resource: "program", revision: count }],
         });
       const body = JSON.parse(String(options?.body));
       if (!results.has(body.operationId)) {
@@ -390,21 +391,33 @@ describe("durable online commands", () => {
     await training.initialize();
     await training.sync();
     await expect(
-      training.command("createMeso", {
-        name: "Block",
-        settings: { b: 2, a: 1 },
-      }),
+      training.command(
+        "createMeso",
+        { name: "Block", settings: { b: 2, a: 1 } },
+        originalVersion,
+      ),
     ).rejects.toThrow("acknowledgement lost");
     vi.resetModules();
     const { training: reopened } = await import("./index");
     await reopened.initialize();
     await reopened.sync();
     expect(
-      await reopened.command("createMeso", {
-        settings: { a: 1, b: 2 },
-        name: "Block",
-      }),
+      await reopened.command(
+        "createMeso",
+        { settings: { a: 1, b: 2 }, name: "Block" },
+        originalVersion,
+      ),
     ).toEqual({ id: "created-1" });
+    expect(count).toBe(1);
+    await expect(
+      reopened.command("createMeso", { name: "Stale draft" }, originalVersion),
+    ).rejects.toMatchObject({ code: "program_changed" });
+    await expect(
+      reopened.command("createMeso", { name: "Restored draft" }, {
+        epoch: "previous-dataset",
+        programRevision: 1,
+      }),
+    ).rejects.toMatchObject({ code: "dataset_changed" });
     expect(count).toBe(1);
     expect(
       await reopened.command("createMeso", {
