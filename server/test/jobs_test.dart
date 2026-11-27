@@ -52,9 +52,9 @@ void main() {
     await inference.close(force: true);
     await db.close();
   });
-  Future<Map<String, dynamic>> finish(String id) async {
+  Future<Map<String, dynamic>> finish(String id, {Jobs? queue}) async {
     for (var i = 0; i < 100; i++) {
-      final row = await jobs.get(id);
+      final row = await (queue ?? jobs).get(id);
       if (['complete', 'failed', 'cancelled'].contains(row['state']))
         return row;
       await Future<void>.delayed(const Duration(milliseconds: 25));
@@ -180,6 +180,66 @@ void main() {
     jobs.close();
     await Future<void>.delayed(const Duration(milliseconds: 100));
     expect((await jobs.get(job['id'] as String))['state'], 'running');
+  });
+
+  test('a shared worker serializes jobs across account databases', () async {
+    await inference.close(force: true);
+    inference = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final firstRequest = Completer<void>();
+    final releaseFirst = Completer<void>();
+    inference.listen((request) async {
+      await request.drain<void>();
+      if (request.uri.path == '/health') {
+        request.response.write('{}');
+      } else {
+        requests++;
+        if (requests == 1) {
+          firstRequest.complete();
+          await releaseFirst.future;
+        }
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': content},
+              },
+            ],
+          }),
+        );
+      }
+      await request.response.close();
+    });
+
+    final worker = JobWorker();
+    final secondDb = AppDatabase(NativeDatabase.memory());
+    await Store(secondDb).initialize();
+    final baseUrl = 'http://127.0.0.1:${inference.port}';
+    jobs = Jobs(db, baseUrl, 'test', worker: worker);
+    final other = Jobs(secondDb, baseUrl, 'test', worker: worker);
+    addTearDown(() async {
+      if (!releaseFirst.isCompleted) releaseFirst.complete();
+      await worker.close();
+      await secondDb.close();
+    });
+    const body = {
+      'id': 'same-id',
+      'kind': 'csv',
+      'input': {'csv': 'Bench Press,3,8,8'},
+    };
+    await jobs.create(body);
+    await firstRequest.future.timeout(const Duration(seconds: 2));
+    await other.create(body);
+    expect((await other.get('same-id'))['state'], 'queued');
+    expect(requests, 1);
+    await other.cancel('same-id');
+    expect((await jobs.get('same-id'))['state'], 'running');
+    await other.create({...body, 'id': 'next'});
+    releaseFirst.complete();
+    expect((await finish('same-id'))['state'], 'complete');
+    expect((await finish('next', queue: other))['state'], 'complete');
+    expect((await other.get('same-id'))['state'], 'cancelled');
+    expect(requests, 2);
   });
 
   test('malformed persisted job fails rather than starving the queue', () async {

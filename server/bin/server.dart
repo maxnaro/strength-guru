@@ -1,41 +1,43 @@
 import 'dart:io';
-import 'package:drift/native.dart';
+
 import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:strength_guru_core/db/database.dart';
-import 'package:strength_guru_core/seed/seeder.dart';
-import 'package:strength_guru_server/store.dart';
-import 'package:strength_guru_server/jobs.dart';
-import 'package:strength_guru_server/backups.dart';
+import 'package:strength_guru_server/accounts.dart';
 import 'package:strength_guru_server/application.dart';
+import 'package:strength_guru_server/auth.dart';
 
 Future<void> main() async {
   final env = Platform.environment;
-  final origin = env['APP_ORIGIN'];
-  if (origin == null || !Uri.parse(origin).hasAuthority)
-    throw ArgumentError(
-      'Set APP_ORIGIN to the public HTTPS origin of your private proxy.',
-    );
+  final appUri = Uri.tryParse(env['APP_ORIGIN'] ?? '');
+  if (appUri == null ||
+      !{'https', 'http'}.contains(appUri.scheme) ||
+      appUri.host.isEmpty ||
+      appUri.userInfo.isNotEmpty ||
+      appUri.hasQuery ||
+      appUri.hasFragment ||
+      (appUri.path.isNotEmpty && appUri.path != '/')) {
+    throw ArgumentError('Set APP_ORIGIN to the public application origin.');
+  }
+  final origin = appUri.origin;
+  final config = AuthConfig.fromEnvironment(env, origin);
   final data = Directory(env['DATA_DIR'] ?? '/data');
   await data.create(recursive: true);
-  final db = AppDatabase(
-    NativeDatabase.createInBackground(
-      File('${data.path}/strength_guru.sqlite'),
-    ),
+
+  final auth = AuthRegistry(
+    '${data.path}/auth.sqlite',
+    config,
+    legacyDataset: File('${data.path}/strength_guru.sqlite').existsSync(),
   );
-  final store = Store(db);
-  await store.initialize();
-  await Seeder.seedIfEmpty(db);
-  final jobs = Jobs(
-    db,
+  final accounts = Accounts(
+    data,
+    auth,
     env['LLM_BASE_URL']?.trim(),
     env['LLM_MODEL'] ?? 'strength-guru',
   );
-  await jobs.start();
+  await accounts.start();
   final server = await shelf_io.serve(
     application(
-      store: store,
-      jobs: jobs,
-      backups: Backups(store, Directory('${data.path}/backups')),
+      accounts: accounts,
+      auth: auth,
       origin: origin,
       webRoot: env['WEB_ROOT'] ?? '/app/web',
     ),
@@ -45,9 +47,9 @@ Future<void> main() async {
   server.autoCompress = true;
   stdout.writeln('Strength Guru listening on ${server.port}');
   ProcessSignal.sigterm.watch().listen((_) async {
-    jobs.close();
-    await server.close();
-    await db.close();
+    await server.close(force: true);
+    await accounts.close();
+    auth.close();
     exit(0);
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 import 'package:strength_guru_core/db/database.dart';
@@ -10,28 +11,78 @@ import 'package:strength_guru_core/sync/protocol.dart';
 import 'package:strength_guru_core/sync/storage.dart';
 import 'package:uuid/uuid.dart';
 
+class JobWorker {
+  final Set<Jobs> _queues = {};
+  Future<void>? _active;
+  Timer? _timer;
+  bool _closed = false;
+
+  void register(Jobs jobs) {
+    if (jobs.baseUrl == null || _closed) return;
+    _queues.add(jobs);
+    _timer ??= Timer.periodic(const Duration(seconds: 2), (_) => wake());
+    wake();
+  }
+
+  void unregister(Jobs jobs) {
+    _queues.remove(jobs);
+    if (_queues.isEmpty) {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
+  void wake() {
+    if (_active != null || _closed || _queues.isEmpty) return;
+    _active = _drain().whenComplete(() => _active = null);
+  }
+
+  Future<void> _drain() async {
+    var processed = true;
+    while (processed && !_closed) {
+      processed = false;
+      // Give each account one turn before picking up more of its jobs.
+      for (final queue in _queues.toList()) {
+        if (_closed) return;
+        try {
+          if (await queue._runNext()) processed = true;
+        } catch (error) {
+          stderr.writeln(
+            'AI job queue could not be processed: ${error.runtimeType}',
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> close() async {
+    _closed = true;
+    _timer?.cancel();
+    for (final queue in _queues.toList()) {
+      queue.close();
+    }
+    await _active;
+  }
+}
+
 class Jobs {
   final AppDatabase db;
   final String? baseUrl;
   final String model;
-  bool _running = false;
+  final JobWorker _worker;
   bool _closed = false;
-  Timer? _timer;
   String? _activeId;
   http.Client? _activeClient;
-  Jobs(this.db, String? baseUrl, this.model)
-    : baseUrl = baseUrl == null || baseUrl.isEmpty ? null : baseUrl;
+
+  Jobs(this.db, String? baseUrl, this.model, {JobWorker? worker})
+    : baseUrl = baseUrl == null || baseUrl.isEmpty ? null : baseUrl,
+      _worker = worker ?? JobWorker();
 
   Future<void> start() async {
     await db.customStatement(
       "UPDATE sg_jobs SET state = 'queued' WHERE state = 'running'",
     );
-    if (baseUrl == null) return;
-    _timer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => unawaited(_drain()),
-    );
-    unawaited(_drain());
+    _worker.register(this);
   }
 
   Future<bool> available() async {
@@ -147,7 +198,7 @@ class Jobs {
       );
       return true;
     });
-    if (created) unawaited(_drain());
+    if (created) _worker.register(this);
     return get(id);
   }
 
@@ -209,16 +260,15 @@ class Jobs {
     if (_activeId == id) _activeClient?.close();
   }
 
-  Future<void> _drain() async {
-    if (_running || _closed || baseUrl == null) return;
-    _running = true;
+  Future<bool> _runNext() async {
+    if (_closed || baseUrl == null) return false;
     try {
       final row = await db
           .customSelect(
             "SELECT * FROM sg_jobs WHERE state = 'queued' ORDER BY created_at LIMIT 1",
           )
           .getSingleOrNull();
-      if (row == null || !await available() || _closed) return;
+      if (row == null || !await available() || _closed) return false;
       final id = row.read<String>('id');
       _activeId = id;
       _activeClient = http.Client();
@@ -233,7 +283,7 @@ class Jobs {
           "UPDATE sg_jobs SET state = 'running', progress = 'Working' WHERE id = ? AND state = 'queued'",
           variables: [Variable(id)],
         );
-        if (claimed == 0 || _closed) return;
+        if (claimed == 0 || _closed) return false;
         final llm = LlmService(
           model: model,
           client: _activeClient,
@@ -336,23 +386,23 @@ class Jobs {
         );
       } catch (e) {
         if (_closed)
-          return; // Leave running work resumable after graceful shutdown.
+          return false; // Leave running work resumable after graceful shutdown.
         await db.customStatement(
           "UPDATE sg_jobs SET state = 'failed', error = ? WHERE id = ? AND state IN ('running', 'queued')",
           ['$e', id],
         );
       }
+      return true;
     } finally {
       _activeClient?.close();
       _activeClient = null;
       _activeId = null;
-      _running = false;
     }
   }
 
   void close() {
     _closed = true;
     _activeClient?.close();
-    _timer?.cancel();
+    _worker.unregister(this);
   }
 }

@@ -33,7 +33,7 @@ void main() {
     store = Store(server);
     await store.initialize();
     await Seeder.seedIfEmpty(server);
-    handler = application(
+    handler = accountApplication(
       store: store,
       jobs: Jobs(server, 'http://127.0.0.1:1', 'test'),
       backups: Backups(store, temporary),

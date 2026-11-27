@@ -9,7 +9,7 @@ import '../util/ids.dart';
 class Seeder {
   static Future<void> seedIfEmpty(AppDatabase db) async {
     // 1. Always ensure global exercises are present in the DB.
-    await _syncGlobalExercises(db);
+    await seedExerciseLibrary(db);
 
     // 2. Only seed the default mesocycle if no mesocycles exist.
     final existing = await db.select(db.mesocycles).get();
@@ -19,11 +19,11 @@ class Seeder {
 
   static Future<void> forceReseed(AppDatabase db) async {
     await db.wipeAllData();
-    await _syncGlobalExercises(db);
+    await seedExerciseLibrary(db);
     await _seed(db);
   }
 
-  static Future<void> _syncGlobalExercises(AppDatabase db) async {
+  static Future<void> seedExerciseLibrary(AppDatabase db) async {
     await db.transaction(() async {
       final existingExercises = await db.select(db.exercises).get();
       final existingNames = existingExercises.map((e) => e.name).toSet();
