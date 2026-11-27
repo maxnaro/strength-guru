@@ -52,12 +52,13 @@
   const tabKey = `sg-tab:${account.id}`;
   const workflowKey = `sg-workflow:${account.id}`;
   let routeUrl = new URL("http://localhost/");
-  afterNavigate(({ to }) => {
-    routeUrl = to?.url || new URL(location.href);
+  function updateRoute(url: URL) {
+    routeUrl = url;
     parseRoute();
     if (["/generate", "/import"].includes(routeUrl.pathname))
       void refreshAiAvailability();
-  });
+  }
+  afterNavigate(({ to }) => updateRoute(to?.url ?? new URL(location.href)));
   let selected: { week: number; day: number } | null = null;
   let desktop = false;
   let viz: "calendar" | "editor" | null = null;
@@ -149,7 +150,7 @@
         ? `${(Math.round(weightForReps(calcOne, calcReps, calcRir, formula) / 2.5) * 2.5).toFixed(1)} kg`
         : `${repsForWeight(calcOne, calcLift, formula)} reps`;
   onMount(() => {
-    routeUrl = new URL(location.href);
+    updateRoute(new URL(location.href));
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
     const updateDesktop = () => (desktop = desktopQuery.matches);
     updateDesktop();
